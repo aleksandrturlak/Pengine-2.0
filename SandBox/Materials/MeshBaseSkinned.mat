@@ -7,10 +7,9 @@ Mat:
         - Transparent
       Inactive:
         - GBuffer
-  Pipelines:
-    - RenderPass: GBuffer
-      Uniforms:
-        - Name: GBufferMaterial
+  Bindless:
+    - Uniforms:
+        - Name: Material
           Values:
             - Name: material.albedoColor
               Value: [0.337254912, 0.337254912, 0.337254912, 1]

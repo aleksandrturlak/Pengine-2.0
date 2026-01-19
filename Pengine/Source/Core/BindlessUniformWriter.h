@@ -2,14 +2,19 @@
 
 #include "Core.h"
 
+#include "../Graphics/BaseMaterial.h"
+
 #include <stack>
 #include <vector>
 
 namespace Pengine
 {
 
+	class Buffer;
 	class Texture;
 	class UniformWriter;
+	class Material;
+	class BaseMaterial;
 
 	class PENGINE_API BindlessUniformWriter
 	{
@@ -34,7 +39,38 @@ namespace Pengine
 
 		std::shared_ptr<Texture> GetBindlessTexture(const int index);
 
+		int BindMaterial(const std::shared_ptr<Material>& material);
+
+		void UnBindMaterial(const std::shared_ptr<Material>& material);
+
+		std::shared_ptr<Material> GetBindlessMaterial(const int index);
+
+		std::shared_ptr<BaseMaterial> GetBaseMaterial() const { return m_BaseMaterial; }
+
+		std::shared_ptr<Buffer> GetBindlessMaterialBuffer() const { return m_BindlessMaterialBuffer; }
+
+		void* GetBindlessMaterialBufferData(const int index) const { return (void*)((uint8_t*)m_BindlessMaterialBuffer->GetData() + m_BaseMaterialSize * index); }
+
 		void Flush();
+
+		template<typename T>
+		inline void WriteToBuffer(
+			const int index,
+			const std::string& valueName,
+			T& value)
+		{
+			assert(m_BindlessMaterialBuffer);
+
+			uint32_t size, offset;
+			if (m_BaseMaterial->GetUniformDetails("Material", valueName, size, offset))
+			{
+				m_BindlessMaterialBuffer->WriteToBuffer((void*)&value, size, index * m_BaseMaterialSize + offset);
+			}
+			else
+			{
+				Logger::Warning("Failed to write to bindless buffer: " + valueName + "!");
+			}
+		}
 
 	private:
 		class SlotManager
@@ -44,8 +80,9 @@ namespace Pengine
 			std::vector<bool> m_InUse;
 			
 		public:
-			SlotManager(int slotCount) : m_InUse(slotCount, false)
+			void Initialize(int slotCount)
 			{
+				m_InUse.resize(slotCount, false);
 				for (int i = slotCount - 1; i >= 0; i--)
 				{
 					m_FreeSlots.push(i);
@@ -82,11 +119,17 @@ namespace Pengine
 			}
 		};
 
-		SlotManager m_SlotManager = SlotManager(10000);
+		SlotManager m_TextureSlotManager;
+		SlotManager m_MaterialSlotManager;
 
 		std::unordered_map<int, std::weak_ptr<Texture>> m_TexturesByIndex;
+		std::unordered_map<int, std::weak_ptr<Material>> m_MaterialsByIndex;
 
 		std::shared_ptr<UniformWriter> m_BindlessUniformWriter;
+		std::shared_ptr<BaseMaterial> m_BaseMaterial;
+		std::shared_ptr<Buffer> m_BindlessMaterialBuffer;
+
+		size_t m_BaseMaterialSize = 0;
 	};
 
 }

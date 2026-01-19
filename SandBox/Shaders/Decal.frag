@@ -1,6 +1,7 @@
 #version 450
 
-layout(location = 0) flat in mat4 inverseTransform;
+layout(location = 0) flat in int materialIndex;
+layout(location = 1) flat in mat4 inverseTransform;
 
 layout(location = 0) out vec4 outAlbedo;
 layout(location = 1) out vec4 outShading;
@@ -12,16 +13,16 @@ layout(set = 0, binding = 0) uniform GlobalBuffer
 	Camera camera;
 };
 
+layout(set = 1, binding = 0) uniform sampler2D bindlessTextures[10000];
+
 #include "Shaders/Includes/DefaultMaterial.h"
-layout(set = 1, binding = 0) uniform GBufferMaterial
+layout(set = 1, binding = 1) buffer readonly BindlessMaterials
 {
-	DefaultMaterial material;
+	DefaultMaterial materials[1000];
 };
 
-layout(set = 2, binding = 0) uniform sampler2D bindlessTextures[10000];
-
-layout(set = 3, binding = 0) uniform sampler2D depthGBufferTexture;
-layout(set = 3, binding = 1, rg16f) uniform image2D normalGBufferTexture;
+layout(set = 2, binding = 0) uniform sampler2D depthGBufferTexture;
+layout(set = 2, binding = 1, rg16f) uniform image2D normalGBufferTexture;
 
 #include "Shaders/Includes/ParallaxOcclusionMapping.h"
 
@@ -41,6 +42,8 @@ mat3 ConstructTBN( vec3 N, vec3 p, vec2 uv )
 
 void main()
 {
+	DefaultMaterial material = materials[materialIndex];
+
     ivec2 pixelCoord = ivec2(gl_FragCoord.xy);
     vec2 screenUV = (vec2(pixelCoord) + vec2(0.5f)) / camera.viewportSize;
 	vec2 screenPosition = screenUV * 2.0f - 1.0f;

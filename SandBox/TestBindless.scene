@@ -1,0 +1,68 @@
+Settings:
+  DrawBoundingBoxes: false
+  DrawPhysicsShapes: false
+  Wind:
+    Direction: [-1, 0, 0]
+    Frequency: 1
+    Strength: 1
+GraphicsSettings: 0xa8bcf158e0bd7c2d324c14c4575b1957
+Scene:
+  - UUID: 0xc12d3bcc6981515ea023e27bbe9da15c
+    Name: Camera
+    IsEnabled: true
+    Transform:
+      Position: [-0.944711268, 2.45707512, -0.843515277]
+      Rotation: [-0.676235914, -2.48532391, 0]
+      Scale: [1, 1, 1]
+      FollowOwner: true
+    Camera:
+      Fov: 1.57079637
+      Type: 1
+      ZNear: 0.100000001
+      ZFar: 1000
+      PassName: AntiAliasingAndCompose
+      RenderTargetIndex: 0
+      ObjectVisibilityMask: 255
+      ShadowVisibilityMask: 255
+      Viewport: Main
+    Childs:
+      []
+  - UUID: 0x1e2eac84b03180f3df9e7aa0c9b82207
+    Name: DirectionalLight
+    IsEnabled: true
+    Transform:
+      Position: [0, 0, 0]
+      Rotation: [1.13446403, 0, 0]
+      Scale: [1, 1, 1]
+      FollowOwner: true
+    DirectionalLight:
+      Color: [1, 1, 1]
+      Intensity: 5
+      Ambient: 0.100000001
+    Childs:
+      []
+  - UUID: 0xc12e5c7fe76cf10fdeabc27b534f3cdf
+    Name: Cube
+    IsEnabled: true
+    Transform:
+      Position: [0, 0, 0]
+      Rotation: [0, 0, 0]
+      Scale: [1, 1, 1]
+      FollowOwner: true
+    Renderer3D:
+      Mesh: 0x397e453582968927b0368b21ffa62a67
+      Material: 0x891230fc1d097ce7ccd10cbf7fb1ea10
+      RenderingOrder: 5
+      IsEnabled: true
+      CastShadows: true
+      ObjectVisibilityMask: 255
+      ShadowVisibilityMask: 255
+    Childs:
+      []
+  - PrefabFilepath: 0xc2aec3b413daf9cc06b47fd3da37a90a
+    UUID: 0xdb7214d599ec591442a8bcd7f7592d48
+    Transform:
+      Position: [0, 1.44043362, 8.58565343e-08]
+      Rotation: [-1.57079625, -0, 0]
+      Scale: [0.00999999978, 0.00999999885, 0.00999999885]
+      FollowOwner: true

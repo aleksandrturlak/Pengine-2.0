@@ -7,8 +7,9 @@ layout(location = 3) in vec4 tangentA;
 layout(location = 4) in uint colorA;
 layout(location = 5) in vec4 weightsA;
 layout(location = 6) in ivec4 boneIdsA;
-layout(location = 7) in mat4 transformA;
-layout(location = 11) in mat3 inverseTransformA;
+layout(location = 7) in int materialIndexA;
+layout(location = 8) in mat4 transformA;
+layout(location = 12) in mat3 inverseTransformA;
 
 layout(location = 0) out vec3 normalViewSpace;
 layout(location = 1) out vec3 tangentViewSpace;
@@ -17,6 +18,7 @@ layout(location = 3) out vec2 uv;
 layout(location = 4) out vec4 color;
 layout(location = 5) out vec3 positionTangentSpace;
 layout(location = 6) out vec3 cameraPositionTangentSpace;
+layout(location = 7) flat out int materialIndex;
 
 #include "Shaders/Includes/Camera.h"
 layout(set = 0, binding = 0) uniform GlobalBuffer
@@ -24,20 +26,24 @@ layout(set = 0, binding = 0) uniform GlobalBuffer
 	Camera camera;
 };
 
+layout(set = 1, binding = 0) uniform sampler2D bindlessTextures[10000];
+
 #include "Shaders/Includes/DefaultMaterial.h"
-layout(set = 1, binding = 0) uniform GBufferMaterial
+layout(set = 1, binding = 1) buffer readonly BindlessMaterials
 {
-	DefaultMaterial material;
+	DefaultMaterial materials[1000];
 };
 
 #include "Shaders/Includes/Bones.h"
-layout(set = 3, binding = 0) uniform BoneMatrices
+layout(set = 2, binding = 0) uniform BoneMatrices
 {
 	mat4 boneMatrices[MAX_BONES];
 };
 
 void main()
 {
+	DefaultMaterial material = materials[materialIndexA];
+
 	vec3 normalWorldSpace = normalize(normalA);
 	vec3 tangentWorldSpace = normalize(tangentA.xyz);
 	vec3 bitangentWorldSpace = normalize(cross(normalWorldSpace, tangentWorldSpace) * tangentA.w);
@@ -98,4 +104,6 @@ void main()
 	uv = uvA * material.uvTransform.xy + material.uvTransform.zw;
 
 	color = unpackUnorm4x8(colorA);
+
+	materialIndex = materialIndexA;
 }

@@ -12,6 +12,9 @@ Basemat:
         - Type: Renderer
           RenderPass: DefaultReflection
           Set: 0
+        - Type: Bindless
+          RenderPass: DefaultReflection
+          Set: 1
       VertexInputBindingDescriptions:
         - Binding: 0
           InputRate: Vertex

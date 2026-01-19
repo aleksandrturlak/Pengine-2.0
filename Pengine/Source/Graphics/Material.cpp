@@ -16,7 +16,14 @@ std::shared_ptr<Material> Material::Create(const std::string& name, const std::f
 {
 	PROFILER_SCOPE(__FUNCTION__);
 
-	return std::make_shared<Material>(name, filepath, createInfo);
+	const std::shared_ptr<Material> material = std::make_shared<Material>(name, filepath, createInfo);
+
+	if (createInfo.bindlessMaterial)
+	{
+		CreateBindlessResources(createInfo, material);
+	}
+
+	return material;
 }
 
 std::shared_ptr<Material> Material::Load(const std::filesystem::path& filepath)
@@ -65,7 +72,13 @@ void Material::Reload(const std::shared_ptr<Material>& material, bool reloadBase
 
 		try
 		{
-			material->CreateResources(Serializer::LoadMaterial(material->GetFilepath()));
+			const CreateInfo createInfo = Serializer::LoadMaterial(material->GetFilepath());
+			material->CreateResources(createInfo);
+
+			if (createInfo.bindlessMaterial)
+			{
+				CreateBindlessResources(createInfo, material);
+			}
 		}
 		catch (const std::exception&)
 		{
@@ -91,22 +104,84 @@ std::shared_ptr<Material> Material::Clone(
 	for (const auto& [passName, pipeline] : material->GetBaseMaterial()->GetPipelinesByPass())
 	{
 		std::optional<uint32_t> descriptorSetIndex = pipeline->GetDescriptorSetIndexByType(Pipeline::DescriptorSetIndexType::MATERIAL, passName);
-		if (!descriptorSetIndex)
+		if (descriptorSetIndex)
 		{
-			continue;
-		}
-		for (const auto& binding : pipeline->GetUniformLayout(*descriptorSetIndex)->GetBindings())
-		{
-			if (binding.type == ShaderReflection::Type::COMBINED_IMAGE_SAMPLER)
+			for (const auto& binding : pipeline->GetUniformLayout(*descriptorSetIndex)->GetBindings())
 			{
-				createInfo.uniformInfos[passName].texturesByName[binding.name] = material->GetUniformWriter(passName)->GetTexture(binding.name).back()->GetFilepath().string();
-			}
-			else if (binding.type == ShaderReflection::Type::UNIFORM_BUFFER)
-			{
-				const std::shared_ptr<Buffer> buffer = material->GetBuffer(binding.name);
-				void* data = buffer->GetData();
+				if (binding.type == ShaderReflection::Type::COMBINED_IMAGE_SAMPLER)
+				{
+					createInfo.uniformInfos[passName].texturesByName[binding.name] = material->GetUniformWriter(passName)->GetTexture(binding.name).back()->GetFilepath().string();
+				}
+				else if (binding.type == ShaderReflection::Type::UNIFORM_BUFFER || binding.type == ShaderReflection::Type::STORAGE_BUFFER)
+				{
+					const std::shared_ptr<Buffer> buffer = material->GetBuffer(binding.name);
+					void* data = buffer->GetData();
 
-				auto& uniformBufferInfo = createInfo.uniformInfos[passName].uniformBuffersByName[binding.name];
+					auto& uniformBufferInfo = createInfo.uniformInfos[passName].uniformBuffersByName[binding.name];
+
+					std::function<void(const ShaderReflection::ReflectVariable&, std::string)> copyValue = [
+						data,
+						&material,
+						&copyValue,
+						&uniformBufferInfo]
+					(const ShaderReflection::ReflectVariable& value, std::string parentName)
+					{
+						parentName += value.name;
+
+						if (value.type == ShaderReflection::ReflectVariable::Type::VEC2)
+						{
+							uniformBufferInfo.vec2ValuesByName.emplace(parentName, Utils::GetValue<glm::vec2>(data, value.offset));
+						}
+						else if (value.type == ShaderReflection::ReflectVariable::Type::VEC3)
+						{
+							uniformBufferInfo.vec3ValuesByName.emplace(parentName, Utils::GetValue<glm::vec3>(data, value.offset));
+						}
+						else if (value.type == ShaderReflection::ReflectVariable::Type::VEC4)
+						{
+							uniformBufferInfo.vec4ValuesByName.emplace(parentName, Utils::GetValue<glm::vec4>(data, value.offset));
+						}
+						else if (value.type == ShaderReflection::ReflectVariable::Type::FLOAT)
+						{
+							uniformBufferInfo.floatValuesByName.emplace(parentName, Utils::GetValue<float>(data, value.offset));
+						}
+						else if (value.type == ShaderReflection::ReflectVariable::Type::INT)
+						{
+							uniformBufferInfo.intValuesByName.emplace(parentName, Utils::GetValue<int>(data, value.offset));
+						}
+						else if (value.type == ShaderReflection::ReflectVariable::Type::STRUCT)
+						{
+							for (const auto& memberValue : value.variables)
+							{
+								copyValue(memberValue, parentName + ".");
+							}
+						}
+						else if (value.type == ShaderReflection::ReflectVariable::Type::TEXTURE)
+						{
+							const int index = Utils::GetValue<int>(data, value.offset);
+							uniformBufferInfo.texturesByName.emplace(parentName, material->GetBindlessTexture(index)->GetFilepath());
+						}
+					};
+
+					for (const auto& value : binding.buffer->variables)
+					{
+						copyValue(value, "");
+					}
+				}
+			}
+		}
+	}
+
+	if (material->IsBindless())
+	{
+		BindlessUniformWriter& bindlessUniformWriter = BindlessUniformWriter::GetInstance();
+		const auto bindings = bindlessUniformWriter.GetBaseMaterial()->GetPipeline(DefaultReflection)->GetUniformLayout(2)->GetBindings();
+		for (const auto& binding : bindings)
+		{
+			if (binding.type == ShaderReflection::Type::UNIFORM_BUFFER || binding.type == ShaderReflection::Type::STORAGE_BUFFER)
+			{
+				void* data = bindlessUniformWriter.GetBindlessMaterialBufferData(material->GetBindlessIndex());
+
+				auto& uniformBufferInfo = createInfo.bindlessMaterial.emplace();
 
 				std::function<void(const ShaderReflection::ReflectVariable&, std::string)> copyValue = [
 					data,
@@ -144,11 +219,6 @@ std::shared_ptr<Material> Material::Clone(
 							copyValue(memberValue, parentName + ".");
 						}
 					}
-					else if (value.type == ShaderReflection::ReflectVariable::Type::TEXTURE)
-					{
-						const int index = Utils::GetValue<int>(data, value.offset);
-						uniformBufferInfo.texturesByName.emplace(parentName, material->GetBindlessTexture(index)->GetFilepath());
-					}
 				};
 
 				for (const auto& value : binding.buffer->variables)
@@ -158,6 +228,8 @@ std::shared_ptr<Material> Material::Clone(
 			}
 		}
 	}
+
+	// TODO: Add cloning bindless as well!
 
 	return Create(name, filepath, createInfo);
 }
@@ -278,10 +350,20 @@ void Material::CreateResources(const CreateInfo &createInfo)
 			{
 				if (binding.buffer)
 				{
+					Buffer::Usage usage{};
+					if (binding.type == ShaderReflection::Type::UNIFORM_BUFFER)
+					{
+						usage = Buffer::Usage::UNIFORM_BUFFER;
+					}
+					else if (binding.type == ShaderReflection::Type::STORAGE_BUFFER)
+					{
+						usage = Buffer::Usage::STORAGE_BUFFER;
+					}
+					
 					const std::shared_ptr<Buffer> buffer = Buffer::Create(
 						binding.buffer->size,
 						1,
-						Buffer::Usage::UNIFORM_BUFFER,
+						usage,
 						MemoryType::CPU);
 					m_BuffersByName[binding.buffer->name] = buffer;
 					uniformWriter->WriteBuffer(binding.buffer->name, buffer);
@@ -346,4 +428,51 @@ void Material::CreateResources(const CreateInfo &createInfo)
 			}
 		}
 	}
+}
+
+void Material::CreateBindlessResources(
+	const CreateInfo& createInfo,
+	const std::shared_ptr<Material>& material)
+{
+	BindlessUniformWriter& bindlessUniformWriter = BindlessUniformWriter::GetInstance();
+	const int index = bindlessUniformWriter.BindMaterial(material);
+
+	for (auto const& [loadedValueName, loadedValue] : createInfo.bindlessMaterial->floatValuesByName)
+	{
+		bindlessUniformWriter.WriteToBuffer(index, loadedValueName, loadedValue);
+	}
+
+	for (auto const& [loadedValueName, loadedValue] : createInfo.bindlessMaterial->intValuesByName)
+	{
+		bindlessUniformWriter.WriteToBuffer(index, loadedValueName, loadedValue);
+	}
+
+	for (auto const& [loadedValueName, loadedValue] : createInfo.bindlessMaterial->vec4ValuesByName)
+	{
+		bindlessUniformWriter.WriteToBuffer(index, loadedValueName, loadedValue);
+	}
+
+	for (auto const& [loadedValueName, loadedValue] : createInfo.bindlessMaterial->vec3ValuesByName)
+	{
+		bindlessUniformWriter.WriteToBuffer(index, loadedValueName, loadedValue);
+	}
+
+	for (auto const& [loadedValueName, loadedValue] : createInfo.bindlessMaterial->vec2ValuesByName)
+	{
+		bindlessUniformWriter.WriteToBuffer(index, loadedValueName, loadedValue);
+	}
+
+	for (const auto& [name, filepath] : createInfo.bindlessMaterial->texturesByName)
+	{
+		std::shared_ptr<Texture> texture = TextureManager::GetInstance().Load(filepath);
+		const int textureIndex = material->BindBindlessTexture(texture);
+		bindlessUniformWriter.WriteToBuffer(index, name, textureIndex);
+	}
+}
+
+void Material::WriteToBindlessBuffer(const std::string& valueName, void* value)
+{
+	uint8_t& refValue = *(uint8_t*)value;
+	BindlessUniformWriter& bindlessUniformWriter = BindlessUniformWriter::GetInstance();
+	bindlessUniformWriter.WriteToBuffer(GetBindlessIndex(), valueName, refValue);
 }

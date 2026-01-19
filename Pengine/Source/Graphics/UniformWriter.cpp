@@ -63,9 +63,6 @@ void UniformWriter::WriteBuffer(uint32_t location, const std::shared_ptr<Buffer>
 	}
 }
 
-#include <format>
-#include <thread>
-
 void UniformWriter::WriteTexture(uint32_t location, const std::shared_ptr<Texture>& texture, uint32_t dstArrayElement)
 {
 	assert(texture);

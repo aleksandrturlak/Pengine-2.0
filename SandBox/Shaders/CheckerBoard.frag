@@ -28,6 +28,11 @@ layout(set = 0, binding = 0) uniform GlobalBuffer
 
 layout(set = 2, binding = 0) uniform sampler2D bindlessTextures[10000];
 
+layout(set = 2, binding = 1) buffer readonly BindlessMaterials
+{
+	DefaultMaterial materials[1000];
+};
+
 void main()
 {
 	ivec2 coords = ivec2(size * uv) % 2;
@@ -38,34 +43,34 @@ void main()
 		checkerBoardColor = firstColor;
 	}
 
-	vec4 albedoColor = checkerBoardColor * texture(bindlessTextures[material.albedoTexture], uv) * material.albedoColor * color;
-	if (material.useAlphaCutoff > 0)
+	vec4 albedoColor = checkerBoardColor * texture(bindlessTextures[materials[0].albedoTexture], uv) * materials[0].albedoColor * color;
+	if (materials[0].useAlphaCutoff > 0)
 	{
-		if (albedoColor.a < material.alphaCutoff)
+		if (albedoColor.a < materials[0].alphaCutoff)
 		{
 			discard;
 		}
 	}
 
-	vec3 metallicRoughness = texture(bindlessTextures[material.metallicRoughnessTexture], uv).xyz;
+	vec3 metallicRoughness = texture(bindlessTextures[materials[0].metallicRoughnessTexture], uv).xyz;
 	float metallic = metallicRoughness.b;
 	float roughness = metallicRoughness.g;
-	float ao = texture(bindlessTextures[material.aoTexture], uv).r;
+	float ao = texture(bindlessTextures[materials[0].aoTexture], uv).r;
 
 	outAlbedo = albedoColor;
 	outShading = vec4(
-		metallic * material.metallicFactor,
-		roughness * material.roughnessFactor,
-		ao * material.aoFactor,
+		metallic * materials[0].metallicFactor,
+		roughness * materials[0].roughnessFactor,
+		ao * materials[0].aoFactor,
 		1.0f);
-	outEmissive = texture(bindlessTextures[material.emissiveTexture], uv) * material.emissiveColor * material.emissiveFactor;
+	outEmissive = texture(bindlessTextures[materials[0].emissiveTexture], uv) * materials[0].emissiveColor * materials[0].emissiveFactor;
 
 	vec3 normalViewSpaceFinal = gl_FrontFacing ? normalViewSpace : -normalViewSpace;
 	normalViewSpaceFinal = normalize(normalViewSpaceFinal);
-	if (material.useNormalMap > 0)
+	if (materials[0].useNormalMap > 0)
 	{
 		mat3 TBN = mat3(normalize(tangentViewSpace), normalize(bitangentViewSpace), normalViewSpaceFinal);
-		normalViewSpaceFinal = texture(bindlessTextures[material.normalTexture], uv).xyz;
+		normalViewSpaceFinal = texture(bindlessTextures[materials[0].normalTexture], uv).xyz;
 		normalViewSpaceFinal = normalViewSpaceFinal * 2.0f - 1.0f;
 		outNormal = OctEncode(normalize(TBN * normalViewSpaceFinal));
 	}

@@ -1,6 +1,7 @@
 #include "Serializer.h"
 
 #include "AsyncAssetLoader.h"
+#include "BindlessUniformWriter.h"
 #include "FileFormatNames.h"
 #include "Logger.h"
 #include "MaterialManager.h"
@@ -1235,6 +1236,20 @@ Material::CreateInfo Serializer::LoadMaterial(const std::filesystem::path& filep
 		createInfo.uniformInfos.emplace(renderPass, uniformInfo);
 	}
 
+	for (const auto& bindlessData : materialData["Bindless"])
+	{
+		Pipeline::UniformInfo uniformInfo{};
+		ParseUniformValues(bindlessData, uniformInfo);
+		if (uniformInfo.uniformBuffersByName.empty())
+		{
+			Logger::Error(std::format("{}: Material is bindless, but no bindless uniforms were found!", filepath.string()));
+		}
+		else
+		{
+			createInfo.bindlessMaterial = uniformInfo.uniformBuffersByName.begin()->second;
+		}
+	}
+
 	Logger::Log("Material:" + filepath.string() + " has been loaded!", BOLDGREEN);
 
 	return createInfo;
@@ -1335,7 +1350,7 @@ void Serializer::SerializeMaterial(const std::shared_ptr<Material>& material, bo
 					}
 				}
 			}
-			else if (binding.type == ShaderReflection::Type::UNIFORM_BUFFER)
+			else if (binding.type == ShaderReflection::Type::UNIFORM_BUFFER || binding.type == ShaderReflection::Type::STORAGE_BUFFER)
 			{
 				std::shared_ptr<Buffer> buffer = material->GetBuffer(binding.name);
 				void* data = buffer->GetData();
@@ -1421,6 +1436,112 @@ void Serializer::SerializeMaterial(const std::shared_ptr<Material>& material, bo
 	}
 
 	out << YAML::EndSeq;
+
+	if (material->IsBindless())
+	{
+		out << YAML::Key << "Bindless";
+
+		out << YAML::BeginSeq;
+
+		out << YAML::BeginMap;
+
+		out << YAML::Key << "Uniforms";
+
+		out << YAML::BeginSeq;
+
+		BindlessUniformWriter& bindlessUniformWriter = BindlessUniformWriter::GetInstance();
+		const auto bindings = bindlessUniformWriter.GetBaseMaterial()->GetPipeline(DefaultReflection)->GetUniformLayout(2)->GetBindings();
+		for (const auto& binding : bindings)
+		{
+			out << YAML::BeginMap;
+
+			out << YAML::Key << "Name" << YAML::Value << binding.name;
+
+			if (binding.type == ShaderReflection::Type::UNIFORM_BUFFER || binding.type == ShaderReflection::Type::STORAGE_BUFFER)
+			{
+				void* data = bindlessUniformWriter.GetBindlessMaterialBufferData(material->GetBindlessIndex());
+
+				out << YAML::Key << "Values";
+
+				out << YAML::BeginSeq;
+
+				std::function<void(const ShaderReflection::ReflectVariable&, std::string)> saveValue = [&saveValue, &out, &data, &material]
+				(const ShaderReflection::ReflectVariable& value, std::string parentName)
+				{
+					parentName += value.name;
+
+					if (value.type == ShaderReflection::ReflectVariable::Type::STRUCT)
+					{
+						for (const auto& memberValue : value.variables)
+						{
+							saveValue(memberValue, parentName + ".");
+						}
+						return;
+					}
+
+					out << YAML::BeginMap;
+
+					out << YAML::Key << "Name" << YAML::Value << parentName;
+
+					if (value.type == ShaderReflection::ReflectVariable::Type::VEC2)
+					{
+						out << YAML::Key << "Value" << YAML::Value << Utils::GetValue<glm::vec2>(data, value.offset);
+					}
+					else if (value.type == ShaderReflection::ReflectVariable::Type::VEC3)
+					{
+						out << YAML::Key << "Value" << YAML::Value << Utils::GetValue<glm::vec3>(data, value.offset);
+					}
+					else if (value.type == ShaderReflection::ReflectVariable::Type::VEC4)
+					{
+						out << YAML::Key << "Value" << YAML::Value << Utils::GetValue<glm::vec4>(data, value.offset);
+					}
+					else if (value.type == ShaderReflection::ReflectVariable::Type::FLOAT)
+					{
+						out << YAML::Key << "Value" << YAML::Value << Utils::GetValue<float>(data, value.offset);
+					}
+					else if (value.type == ShaderReflection::ReflectVariable::Type::INT)
+					{
+						out << YAML::Key << "Value" << YAML::Value << Utils::GetValue<int>(data, value.offset);
+					}
+					else if (value.type == ShaderReflection::ReflectVariable::Type::TEXTURE)
+					{
+						const int bindlessTextureIndex = Utils::GetValue<int>(data, value.offset);
+						const std::shared_ptr<Texture> texture = material->GetBindlessTexture(bindlessTextureIndex);
+						if (texture)
+						{
+							const auto uuid = Utils::FindUuid(texture->GetFilepath());
+							if (uuid.IsValid())
+							{
+								out << YAML::Key << "Value" << YAML::Value << uuid;
+							}
+							else
+							{
+								out << YAML::Key << "Value" << YAML::Value << texture->GetFilepath();
+							}
+						}
+					}
+
+					out << YAML::Key << "Type" << ShaderReflection::ConvertTypeToString(value.type);
+
+					out << YAML::EndMap;
+				};
+				for (const auto& value : binding.buffer->variables)
+				{
+					saveValue(value, "");
+				}
+
+				out << YAML::EndSeq;
+			}
+
+			out << YAML::EndMap;
+		}
+
+		out << YAML::EndSeq;
+
+		out << YAML::EndMap;
+
+		out << YAML::EndSeq;
+	}
 
 	out << YAML::EndMap;
 
@@ -3731,20 +3852,22 @@ std::shared_ptr<Material> Serializer::GenerateMaterial(
 		materialFilepath,
 		doubleSided ? meshBaseDoubleSidedMaterial : meshBaseMaterial);
 
-	material->WriteToBuffer("GBufferMaterial", "material.alphaCutoff", gltfMaterial.alphaCutoff);
+	BindlessUniformWriter::GetInstance().BindMaterial(material);
+
+	material->WriteToBuffer("Bindless", "material.alphaCutoff", gltfMaterial.alphaCutoff);
 
 	switch (gltfMaterial.alphaMode)
 	{
 	case fastgltf::AlphaMode::Opaque:
 	{
 		constexpr int useAlphaCutoff = false;
-		material->WriteToBuffer("GBufferMaterial", "material.useAlphaCutoff", useAlphaCutoff);
+		material->WriteToBuffer("Bindless", "material.useAlphaCutoff", useAlphaCutoff);
 		break;
 	}
 	case fastgltf::AlphaMode::Mask:
 	{
 		constexpr int useAlphaCutoff = true;
-		material->WriteToBuffer("GBufferMaterial", "material.useAlphaCutoff", useAlphaCutoff);
+		material->WriteToBuffer("Bindless", "material.useAlphaCutoff", useAlphaCutoff);
 		break;
 	}
 	case fastgltf::AlphaMode::Blend:
@@ -3754,8 +3877,6 @@ std::shared_ptr<Material> Serializer::GenerateMaterial(
 	}
 	}
 
-	const std::shared_ptr<UniformWriter> uniformWriter = material->GetUniformWriter(GBuffer);
-
 	const glm::vec4 baseColor =
 	{
 		gltfMaterial.pbrData.baseColorFactor.x(),
@@ -3763,7 +3884,7 @@ std::shared_ptr<Material> Serializer::GenerateMaterial(
 		gltfMaterial.pbrData.baseColorFactor.z(),
 		gltfMaterial.pbrData.baseColorFactor.w(),
 	};
-	material->WriteToBuffer("GBufferMaterial", "material.albedoColor", baseColor);
+	material->WriteToBuffer("Bindless", "material.albedoColor", baseColor);
 	
 	const glm::vec4 emissiveColor =
 	{
@@ -3772,28 +3893,28 @@ std::shared_ptr<Material> Serializer::GenerateMaterial(
 		gltfMaterial.emissiveFactor.z(),
 		1.0f,
 	};
-	material->WriteToBuffer("GBufferMaterial", "material.emissiveColor", emissiveColor);
+	material->WriteToBuffer("Bindless", "material.emissiveColor", emissiveColor);
 
-	material->WriteToBuffer("GBufferMaterial", "material.metallicFactor", gltfMaterial.pbrData.metallicFactor);
-	material->WriteToBuffer("GBufferMaterial", "material.roughnessFactor", gltfMaterial.pbrData.roughnessFactor);
-	material->WriteToBuffer("GBufferMaterial", "material.emissiveFactor", gltfMaterial.emissiveStrength);
+	material->WriteToBuffer("Bindless", "material.metallicFactor", gltfMaterial.pbrData.metallicFactor);
+	material->WriteToBuffer("Bindless", "material.roughnessFactor", gltfMaterial.pbrData.roughnessFactor);
+	material->WriteToBuffer("Bindless", "material.emissiveFactor", gltfMaterial.emissiveStrength);
 
 	{
 		const int useParallaxOcclusion = 0;
 		const int minParallaxLayers = 0;
 		const int maxParallaxLayers = 0;
 		const float parallaxHeightScale = 0.0f;
-		material->WriteToBuffer("GBufferMaterial", "material.useParallaxOcclusion", useParallaxOcclusion);
-		material->WriteToBuffer("GBufferMaterial", "material.minParallaxLayers", minParallaxLayers);
-		material->WriteToBuffer("GBufferMaterial", "material.maxParallaxLayers", maxParallaxLayers);
-		material->WriteToBuffer("GBufferMaterial", "material.parallaxHeightScale", parallaxHeightScale);
+		material->WriteToBuffer("Bindless", "material.useParallaxOcclusion", useParallaxOcclusion);
+		material->WriteToBuffer("Bindless", "material.minParallaxLayers", minParallaxLayers);
+		material->WriteToBuffer("Bindless", "material.maxParallaxLayers", maxParallaxLayers);
+		material->WriteToBuffer("Bindless", "material.parallaxHeightScale", parallaxHeightScale);
 
-		const int heightTextureIndex = TextureManager::GetInstance().GetWhite()->GetBindlessIndex();
-		material->WriteToBuffer("GBufferMaterial", "material.heightTexture", heightTextureIndex);
+		const int heightTextureIndex = material->BindBindlessTexture(TextureManager::GetInstance().GetWhite());
+		material->WriteToBuffer("Bindless", "material.heightTexture", heightTextureIndex);
 	}
 
 	float ao = 1.0f;
-	material->WriteToBuffer("GBufferMaterial", "material.aoFactor", ao);
+	material->WriteToBuffer("Bindless", "material.aoFactor", ao);
 
 	if (gltfMaterial.pbrData.baseColorTexture.has_value())
 	{
@@ -3808,14 +3929,14 @@ std::shared_ptr<Material> Serializer::GenerateMaterial(
 			materialName + "_BaseColor" + FileFormats::Png(),
 			meta))
 		{
-			const int albedoTextureIndex = albedoTexture->GetBindlessIndex();
-			material->WriteToBuffer("GBufferMaterial", "material.albedoTexture", albedoTextureIndex);
+			const int albedoTextureIndex = material->BindBindlessTexture(albedoTexture);
+			material->WriteToBuffer("Bindless", "material.albedoTexture", albedoTextureIndex);
 		}
 	}
 	else
 	{
-		const int albedoTextureIndex = TextureManager::GetInstance().GetWhite()->GetBindlessIndex();
-		material->WriteToBuffer("GBufferMaterial", "material.albedoTexture", albedoTextureIndex);
+		const int albedoTextureIndex = material->BindBindlessTexture(TextureManager::GetInstance().GetWhite());
+		material->WriteToBuffer("Bindless", "material.albedoTexture", albedoTextureIndex);
 	}
 
 	if (gltfMaterial.normalTexture.has_value())
@@ -3827,17 +3948,17 @@ std::shared_ptr<Material> Serializer::GenerateMaterial(
 			directory,
 			materialName + "_Normal" + FileFormats::Png()))
 		{
-			const int normalTextureIndex = normalTexture->GetBindlessIndex();
-			material->WriteToBuffer("GBufferMaterial", "material.normalTexture", normalTextureIndex);
+			const int normalTextureIndex = material->BindBindlessTexture(normalTexture);
+			material->WriteToBuffer("Bindless", "material.normalTexture", normalTextureIndex);
 
 			constexpr int useNormalMap = 1;
-			material->WriteToBuffer("GBufferMaterial", "material.useNormalMap", useNormalMap);
+			material->WriteToBuffer("Bindless", "material.useNormalMap", useNormalMap);
 		}
 	}
 	else
 	{
-		const int normalTextureIndex = TextureManager::GetInstance().GetWhite()->GetBindlessIndex();
-		material->WriteToBuffer("GBufferMaterial", "material.normalTexture", normalTextureIndex);
+		const int normalTextureIndex = material->BindBindlessTexture(TextureManager::GetInstance().GetWhite());
+		material->WriteToBuffer("Bindless", "material.normalTexture", normalTextureIndex);
 	}
 
 	if (gltfMaterial.pbrData.metallicRoughnessTexture.has_value())
@@ -3849,14 +3970,14 @@ std::shared_ptr<Material> Serializer::GenerateMaterial(
 			directory,
 			materialName + "_MetallicRoughness" + FileFormats::Png()))
 		{
-			const int metallicRoughnessTextureIndex = metallicRoughnessTexture->GetBindlessIndex();
-			material->WriteToBuffer("GBufferMaterial", "material.metallicRoughnessTexture", metallicRoughnessTextureIndex);
+			const int metallicRoughnessTextureIndex = material->BindBindlessTexture(metallicRoughnessTexture);
+			material->WriteToBuffer("Bindless", "material.metallicRoughnessTexture", metallicRoughnessTextureIndex);
 		}
 	}
 	else
 	{
-		const int metallicRoughnessTextureIndex = TextureManager::GetInstance().GetWhite()->GetBindlessIndex();
-		material->WriteToBuffer("GBufferMaterial", "material.metallicRoughnessTexture", metallicRoughnessTextureIndex);
+		const int metallicRoughnessTextureIndex = material->BindBindlessTexture(TextureManager::GetInstance().GetWhite());
+		material->WriteToBuffer("Bindless", "material.metallicRoughnessTexture", metallicRoughnessTextureIndex);
 	}
 
 	if (gltfMaterial.occlusionTexture.has_value())
@@ -3868,14 +3989,14 @@ std::shared_ptr<Material> Serializer::GenerateMaterial(
 			directory,
 			materialName + "_Occlusion" + FileFormats::Png()))
 		{
-			const int aoTextureIndex = aoTexture->GetBindlessIndex();
-			material->WriteToBuffer("GBufferMaterial", "material.aoTexture", aoTextureIndex);
+			const int aoTextureIndex = material->BindBindlessTexture(aoTexture);
+			material->WriteToBuffer("Bindless", "material.aoTexture", aoTextureIndex);
 		}
 	}
 	else
 	{
-		const int aoTextureIndex = TextureManager::GetInstance().GetWhite()->GetBindlessIndex();
-		material->WriteToBuffer("GBufferMaterial", "material.aoTexture", aoTextureIndex);
+		const int aoTextureIndex = material->BindBindlessTexture(TextureManager::GetInstance().GetWhite());
+		material->WriteToBuffer("Bindless", "material.aoTexture", aoTextureIndex);
 	}
 
 	if (gltfMaterial.emissiveTexture.has_value())
@@ -3887,18 +4008,15 @@ std::shared_ptr<Material> Serializer::GenerateMaterial(
 			directory,
 			materialName + "_Emissive" + FileFormats::Png()))
 		{
-			const int emissiveTextureIndex = emissiveTexture->GetBindlessIndex();
-			material->WriteToBuffer("GBufferMaterial", "material.emissiveTexture", emissiveTextureIndex);
+			const int emissiveTextureIndex = material->BindBindlessTexture(emissiveTexture);
+			material->WriteToBuffer("Bindless", "material.emissiveTexture", emissiveTextureIndex);
 		}
 	}
 	else
 	{
-		const int emissiveTextureIndex = TextureManager::GetInstance().GetWhite()->GetBindlessIndex();
-		material->WriteToBuffer("GBufferMaterial", "material.emissiveTexture", emissiveTextureIndex);
+		const int emissiveTextureIndex =  material->BindBindlessTexture(TextureManager::GetInstance().GetWhite());
+		material->WriteToBuffer("Bindless", "material.emissiveTexture", emissiveTextureIndex);
 	}
-
-	material->GetBuffer("GBufferMaterial")->Flush();
-	uniformWriter->Flush();
 
 	Material::Save(material);
 

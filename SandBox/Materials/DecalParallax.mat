@@ -2,10 +2,9 @@ Mat:
   Basemat: 0xb4ece70155b18cc7c648bb6994b87058
   Options:
     []
-  Pipelines:
-    - RenderPass: Decals
-      Uniforms:
-        - Name: GBufferMaterial
+  Bindless:
+    - Uniforms:
+        - Name: Material
           Values:
             - Name: material.albedoColor
               Value: [1, 1, 1, 1]

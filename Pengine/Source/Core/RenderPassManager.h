@@ -84,6 +84,7 @@ namespace Pengine
 
 		struct InstanceData
 		{
+			int materialIndex;
 			glm::mat4 transform;
 			glm::mat3 inverseTransform;
 		};

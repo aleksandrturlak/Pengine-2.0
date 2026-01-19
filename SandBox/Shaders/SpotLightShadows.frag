@@ -13,6 +13,11 @@ layout(set = 0, binding = 0) uniform GBufferMaterial
 
 layout(set = 1, binding = 0) uniform sampler2D bindlessTextures[10000];
 
+layout(set = 1, binding = 1) buffer readonly BindlessMaterials
+{
+	DefaultMaterial materials[1000];
+};
+
 void main()
 {
 	if (material.useAlphaCutoff > 0)

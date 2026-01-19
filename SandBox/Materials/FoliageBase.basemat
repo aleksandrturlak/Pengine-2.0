@@ -12,11 +12,8 @@ Basemat:
         - Type: Renderer
           RenderPass: DefaultReflection
           Set: 0
-        - Type: Material
-          RenderPass: GBuffer
-          Set: 1
         - Type: Bindless
-          Set: 2
+          Set: 1
       VertexInputBindingDescriptions:
         - Binding: 0
           InputRate: Vertex
@@ -38,6 +35,7 @@ Basemat:
         - Binding: 3
           InputRate: Instance
           Names:
+            - materialIndexA
             - transformA
             - inverseTransformA
       ColorBlendStates:
@@ -60,14 +58,11 @@ Basemat:
         - Type: Renderer
           RenderPass: CSM
           Set: 0
-        - Type: Material
-          RenderPass: GBuffer
-          Set: 1
         - Type: Bindless
-          Set: 2
+          Set: 1
         - Type: Renderer
           RenderPass: DefaultReflection
-          Set: 3
+          Set: 2
       VertexInputBindingDescriptions:
         - Binding: 0
           InputRate: Vertex
@@ -85,6 +80,7 @@ Basemat:
           Names:
             - transformA
             - layersA
+            - materialIndexA
       ColorBlendStates:
         []
     - RenderPass: PointLightShadows

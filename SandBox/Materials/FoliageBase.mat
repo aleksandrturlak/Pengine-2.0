@@ -1,9 +1,8 @@
 Mat:
   Basemat: 0xd4e01e5fd1e00c656d6ca62d11cf247e
-  Pipelines:
-    - RenderPass: GBuffer
-      Uniforms:
-        - Name: GBufferMaterial
+  Bindless:
+    - Uniforms:
+        - Name: Material
           Values:
             - Name: material.albedoColor
               Value: [0.337254912, 0.337254912, 0.337254912, 1]
@@ -65,9 +64,3 @@ Mat:
             - Name: material.heightTexture
               Value: White
               Type: texture
-    - RenderPass: CSM
-      Uniforms:
-        []
-    - RenderPass: ZPrePass
-      Uniforms:
-        []

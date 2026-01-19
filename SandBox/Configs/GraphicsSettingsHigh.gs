@@ -53,11 +53,11 @@ SSR:
   ResolutionScale: 1
   StepCount: 20
   Thickness: 5
-  BlurRange: 0
+  BlurRange: 1
   BlurOffset: 1
   MipMultiplier: 0
   UseSkyBoxFallback: false
-  Blur: 1
+  Blur: 0
 PostProcess:
   Gamma: 2.20000005
   ToneMapper: 1

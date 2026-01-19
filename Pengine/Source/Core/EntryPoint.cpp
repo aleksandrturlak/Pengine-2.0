@@ -143,17 +143,10 @@ void EntryPoint::Run() const
 
 	Serializer::GenerateFilesUUID(std::filesystem::current_path());
 
-	BindlessUniformWriter::GetInstance().Initialize();
 	RenderPassManager::GetInstance().Initialize();
 	AsyncAssetLoader::GetInstance().Initialize();
 	ThreadPool::GetInstance().Initialize(std::thread::hardware_concurrency() - 1);
 	FontManager::GetInstance().Initialize();
-
-	TextureManager::GetInstance().CreateDefaultResources();
-	TextureManager::GetInstance().LoadFromFolder(std::filesystem::path("Editor") / "Images");
-
-	CreateDefaultResources();
-	LoadAllBaseMaterials(std::filesystem::path("Materials"));
 
 	std::shared_ptr<Window> mainWindow = WindowManager::GetInstance().Create("Pengine", "Main",
 		{ 800, 800 });
@@ -161,6 +154,13 @@ void EntryPoint::Run() const
 	mainWindow->GetViewportManager().Create("Main", { 800, 800 });
 
 	WindowManager::GetInstance().SetCurrentWindow(mainWindow);
+
+	BindlessUniformWriter::GetInstance().Initialize();
+	TextureManager::GetInstance().CreateDefaultResources();
+	TextureManager::GetInstance().LoadFromFolder(std::filesystem::path("Editor") / "Images");
+
+	CreateDefaultResources();
+	LoadAllBaseMaterials(std::filesystem::path("Materials"));
 
 	m_Application->OnPreStart();
 

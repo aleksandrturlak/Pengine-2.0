@@ -6,18 +6,18 @@
 
 using namespace Pengine;
 
-AsyncAssetLoader& Pengine::AsyncAssetLoader::GetInstance()
+AsyncAssetLoader& AsyncAssetLoader::GetInstance()
 {
 	static AsyncAssetLoader asyncAssetLoader;
 	return asyncAssetLoader;
 }
 
-void Pengine::AsyncAssetLoader::Initialize()
+void AsyncAssetLoader::Initialize()
 {
 	m_ThreadPool.Initialize(10);
 }
 
-void Pengine::AsyncAssetLoader::Shutdown()
+void AsyncAssetLoader::Shutdown()
 {
 	m_ThreadPool.Shutdown();
 }

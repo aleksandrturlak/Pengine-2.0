@@ -5,12 +5,14 @@ layout(location = 1) in vec2 uvA;
 layout(location = 2) in uint colorA;
 layout(location = 3) in mat4 transformA;
 layout(location = 7) in uint layersA;
+layout(location = 8) in int materialIndexA;
 
 layout(location = 0) out vec2 uv;
 layout(location = 1) flat out uint layers;
+layout(location = 2) flat out int materialIndex;
 
 #include "Shaders/Includes/Camera.h"
-layout(set = 3, binding = 0) uniform GlobalBuffer
+layout(set = 2, binding = 0) uniform GlobalBuffer
 {
 	Camera camera;
 };
@@ -27,6 +29,7 @@ void main()
 	vec3 windDisplacement = camera.wind.direction * windWave * windInfluence;
 
 	gl_Position = transformA * vec4(windDisplacement + positionA, 1.0f);
+	materialIndex = materialIndexA;
 	layers = layersA;
 	uv = uvA;
 }

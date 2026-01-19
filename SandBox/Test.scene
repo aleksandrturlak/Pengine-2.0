@@ -17,7 +17,7 @@ Scene:
       FollowOwner: true
     DirectionalLight:
       Color: [1, 1, 1]
-      Intensity: 0.143000007
+      Intensity: 0.150000006
       Ambient: 0.100000001
     Childs:
       []
@@ -25,8 +25,8 @@ Scene:
     Name: Camera
     IsEnabled: true
     Transform:
-      Position: [-8.5869875, 7.20628166, 5.41488504]
-      Rotation: [-0.516009152, -0.87713635, 0]
+      Position: [-9.22166348, 5.83874273, 3.50304484]
+      Rotation: [-0.383715242, -0.988307893, 0]
       Scale: [1, 1, 1]
       FollowOwner: true
     Camera:
@@ -144,7 +144,7 @@ Scene:
       Intensity: 50
       Radius: 20
       Bias: 0.0399999991
-      InnerCutOff: 0.785398185
+      InnerCutOff: 0.87266463
       OuterCutOff: 0.785398185
       DrawBoundingSphere: false
       CastShadows: true

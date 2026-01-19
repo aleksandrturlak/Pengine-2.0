@@ -24,6 +24,7 @@ namespace Pengine
 		struct CreateInfo
 		{
 			std::unordered_map<std::string, Pipeline::UniformInfo> uniformInfos;
+			std::optional<Pipeline::UniformBufferInfo> bindlessMaterial;
 			std::unordered_map<std::string, Option> optionsByName;
 			std::filesystem::path baseMaterial;
 		};
@@ -66,6 +67,12 @@ namespace Pengine
 
 		void SetOption(const std::string& name, bool isEnabled);
 
+		[[nodiscard]] bool IsBindless() const { return m_BindlessIndex != -1; }
+
+		[[nodiscard]] int GetBindlessIndex() const { return m_BindlessIndex; }
+
+		void SetBindlessIndex(const int index) { m_BindlessIndex = index; }
+
 		template<typename T>
 		void WriteToBuffer(
 			const std::string& uniformBufferName,
@@ -86,6 +93,16 @@ namespace Pengine
 	private:
 		void CreateResources(const CreateInfo& createInfo);
 
+		static void CreateBindlessResources(
+			const CreateInfo& createInfo,
+			const std::shared_ptr<Material>& material);
+
+		void WriteToBindlessBuffer(
+			const std::string& valueName,
+			void* value);
+
+		void* GetBindlessBufferValue(const std::string& valueName);
+
 		std::shared_ptr<BaseMaterial> m_BaseMaterial;
 		std::unordered_map<std::string, std::shared_ptr<UniformWriter>> m_UniformWriterByPass;
 		std::unordered_map<std::string, std::shared_ptr<Buffer>> m_BuffersByName;
@@ -93,6 +110,8 @@ namespace Pengine
 		std::unordered_map<std::string, bool> m_PipelineStates;
 
 		std::unordered_map<int, std::shared_ptr<class Texture>> m_BindlessTexturesByIndex;
+
+		int m_BindlessIndex = -1;
 	};
 
 	template<typename T>
@@ -101,13 +120,29 @@ namespace Pengine
 		const std::string& valueName,
 		T& value)
 	{
-		m_BaseMaterial->WriteToBuffer(GetBuffer(uniformBufferName), uniformBufferName, valueName, value);
+		const auto& buffer = GetBuffer(uniformBufferName);
+		if (buffer)
+		{
+			m_BaseMaterial->WriteToBuffer(buffer, uniformBufferName, valueName, value);
+		}
+		else if (GetBindlessIndex() != -1)
+		{
+			WriteToBindlessBuffer(valueName, (void*)&value);
+		}
 	}
 
 	template<typename T>
 	inline T Material::GetBufferValue(const std::string& uniformBufferName, const std::string& valueName)
 	{
-		return m_BaseMaterial->GetBufferValue<T>(GetBuffer(uniformBufferName), uniformBufferName, valueName);
+		const auto& buffer = GetBuffer(uniformBufferName);
+		if (buffer)
+		{
+			return m_BaseMaterial->GetBufferValue<T>(buffer, uniformBufferName, valueName);
+		}
+		else if (GetBindlessIndex() != -1)
+		{
+			return *(T*)GetBindlessBufferValue(valueName);
+		}
 	}
 
 }

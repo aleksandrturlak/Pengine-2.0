@@ -4,6 +4,7 @@
 #include "../Core/Profiler.h"
 #include "../Core/Serializer.h"
 #include "../Core/TextureManager.h"
+#include "../Core/BindlessUniformWriter.h"
 #include "../EventSystem/EventSystem.h"
 #include "../EventSystem/NextFrameEvent.h"
 
@@ -290,6 +291,30 @@ std::optional<ShaderReflection::ReflectVariable> BaseMaterial::GetUniformValue(
 	return std::nullopt;
 }
 
+std::shared_ptr<Texture> BaseMaterial::GetBindlessTexture(const int index) const
+{
+	auto bindlessTextureByIndex = m_BindlessTexturesByIndex.find(index);
+	if (bindlessTextureByIndex != m_BindlessTexturesByIndex.end())
+	{
+		return bindlessTextureByIndex->second;
+	}
+
+	return nullptr;
+}
+
+int BaseMaterial::BindBindlessTexture(const std::shared_ptr<Texture>& texture)
+{
+    const int index = BindlessUniformWriter::GetInstance().BindTexture(texture);
+	m_BindlessTexturesByIndex[index] = texture;
+	return index;
+}
+
+void BaseMaterial::UnBindBindlessTexture(const std::shared_ptr<Texture>& texture)
+{
+	m_BindlessTexturesByIndex.erase(texture->GetBindlessIndex());
+	BindlessUniformWriter::GetInstance().UnBindTexture(texture);
+}
+
 void BaseMaterial::CreateResources(const CreateInfo& createInfo)
 {
 	for (const GraphicsPipeline::CreateGraphicsInfo& pipelineCreateGraphicsInfo : createInfo.pipelineCreateGraphicsInfos)
@@ -402,6 +427,13 @@ void BaseMaterial::CreatePipelineResources(
 		for (auto const& [loadedValueName, loadedValue] : bufferInfo.vec2ValuesByName)
 		{
 			WriteToBuffer(uniformBufferName, loadedValueName, loadedValue);
+		}
+
+		for (const auto& [name, filepath] : bufferInfo.texturesByName)
+		{
+			std::shared_ptr<Texture> texture = TextureManager::GetInstance().Load(filepath);
+			const int index = BindBindlessTexture(texture);
+			WriteToBuffer(uniformBufferName, name, index);
 		}
 	}
 }

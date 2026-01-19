@@ -6,12 +6,14 @@ layout(location = 2) in vec4 weightsA;
 layout(location = 3) in ivec4 boneIdsA;
 layout(location = 4) in mat4 transformA;
 layout(location = 8) in uint layersA;
+layout(location = 9) in int materialIndexA;
 
 layout(location = 0) out vec2 uv;
 layout(location = 1) flat out uint layers;
+layout(location = 2) flat out int materialIndex;
 
 #include "Shaders/Includes/Bones.h"
-layout(set = 3, binding = 0) uniform BoneMatrices
+layout(set = 2, binding = 0) uniform BoneMatrices
 {
 	mat4 boneMatrices[MAX_BONES];
 };
@@ -35,6 +37,7 @@ void main()
 	}
 
 	gl_Position = transformA * totalPosition;
+	materialIndex = materialIndexA;
 	layers = layersA;
 	uv = uvA;
 }

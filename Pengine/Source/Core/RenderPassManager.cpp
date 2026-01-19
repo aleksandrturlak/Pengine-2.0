@@ -612,6 +612,36 @@ void RenderPassManager::CreateGBuffer()
 	createInfo.resizeWithViewport = true;
 	createInfo.resizeViewportScale = { 1.0f, 1.0f };
 
+	//struct Lod
+	//{
+	//	uint32_t indexOffset;
+	//	uint32_t indexCount;
+	//};
+
+	//#define MAX_LODS 10
+	//struct Mesh
+	//{
+	//	size_t vertexBufferDefault;
+	//	size_t vertexBufferSkinned;
+	//	size_t indexBuffer;
+	//	Lod lods[MAX_LODS];
+	//	size_t flags; // skinned, static, foliage, etc.
+	//};
+
+	//struct Entity
+	//{
+	//	int materialIndex;
+	//	int meshIndex;
+	//	glm::mat4 transform;
+	//};
+
+	//struct Scene
+	//{
+	//	Material materials[];
+	//	Mesh meshes[];
+	//	Entity entities[];
+	//};
+
 	createInfo.executeCallback = [this](const RenderPass::RenderCallbackInfo& renderInfo)
 	{
 		PROFILER_SCOPE(GBuffer);
@@ -630,7 +660,28 @@ void RenderPassManager::CreateGBuffer()
 
 		size_t renderableCount = 0;
 
-		RenderableEntities renderableEntities;
+		struct DrawInfo
+		{
+			struct Instanced
+			{
+				std::vector<std::vector<entt::entity>> entities;
+				std::shared_ptr<Material> material;
+			};
+
+			std::unordered_map<std::shared_ptr<Mesh>, Instanced> instanced;
+
+			struct Single
+			{
+				std::shared_ptr<Material> material;
+				std::shared_ptr<class Mesh> mesh;
+				entt::entity entity;
+				uint32_t lod;
+			};
+
+			std::vector<Single> single;
+		};
+
+		std::unordered_map<std::shared_ptr<BaseMaterial>, DrawInfo> renderableEntities;
 		const std::shared_ptr<Scene> scene = renderInfo.scene;
 		entt::registry& registry = scene->GetRegistry();
 		const Camera& camera = renderInfo.camera->GetComponent<Camera>();
@@ -664,6 +715,8 @@ void RenderPassManager::CreateGBuffer()
 					r3d.mesh->GetLods());
 			}
 			
+			DrawInfo& drawInfo = renderableEntities[r3d.material->GetBaseMaterial()];
+
 			if (r3d.mesh->GetType() == Mesh::Type::SKINNED)
 			{
 				if (const auto skeletalAnimatorEntity = scene->FindEntityByUUID(r3d.skeletalAnimatorEntityUUID))
@@ -675,16 +728,19 @@ void RenderPassManager::CreateGBuffer()
 					}
 				}
 
-				EntitiesByMesh::Single single{};
+				DrawInfo::Single single{};
 				single.entity = entity;
 				single.mesh = r3d.mesh;
+				single.material = r3d.material;
 				single.lod = lod;
 
-				renderableEntities[r3d.material->GetBaseMaterial()][r3d.material].single.emplace_back(single);
+				drawInfo.single.emplace_back(single);
 			}
 			else if (r3d.mesh->GetType() == Mesh::Type::STATIC)
 			{
-				auto& entities = renderableEntities[r3d.material->GetBaseMaterial()][r3d.material].instanced[r3d.mesh];
+				DrawInfo::Instanced& instanced = drawInfo.instanced[r3d.mesh];
+				instanced.material = r3d.material;
+				auto& entities = instanced.entities;
 				entities.resize(lodCount);
 				entities[lod].emplace_back(entity);
 			}
@@ -738,7 +794,7 @@ void RenderPassManager::CreateGBuffer()
 		vertexBufferOffsets.reserve(arbitraryVertexBufferCount);
 
 		// Render all base materials -> materials -> meshes | put gameobjects into the instance buffer.
-		for (const auto& [baseMaterial, meshesByMaterial] : renderableEntities)
+		for (const auto& [baseMaterial, drawInfo] : renderableEntities)
 		{
 			const std::shared_ptr<Pipeline> pipeline = baseMaterial->GetPipeline(renderPassName);
 			if (!pipeline)
@@ -765,105 +821,91 @@ void RenderPassManager::CreateGBuffer()
 				continue;
 			}
 
-			for (const auto& [material, gameObjectsByMeshes] : meshesByMaterial)
+			for (const auto& [mesh, entitiesByLod] : drawInfo.instanced)
 			{
-				if (!BindAndFlushUniformWriters(
-					pipeline,
-					nullptr,
-					material,
-					renderInfo,
-					{
-						Pipeline::DescriptorSetIndexType::MATERIAL,
-					}
-				))
+				GetVertexBuffers(pipeline, mesh, vertexBuffers, vertexBufferOffsets);
+
+				for (size_t lod = 0; lod < entitiesByLod.entities.size(); lod++)
 				{
-					continue;
-				}
+					if (entitiesByLod.entities[lod].empty()) continue;
 
-				for (const auto& [mesh, entitiesByLod] : gameObjectsByMeshes.instanced)
-				{
-					GetVertexBuffers(pipeline, mesh, vertexBuffers, vertexBufferOffsets);
-
-					for (size_t lod = 0; lod < entitiesByLod.size(); lod++)
-					{
-						if (entitiesByLod[lod].empty()) continue;
-
-						const size_t instanceDataOffset = instanceDatas.size();
-
-						for (const entt::entity& entity : entitiesByLod[lod])
-						{
-							InstanceData data{};
-							const Transform& transform = registry.get<Transform>(entity);
-							data.transform = transform.GetTransform();
-							data.inverseTransform = glm::transpose(transform.GetInverseTransform());
-							instanceDatas.emplace_back(data);
-						}
-
-						renderInfo.renderer->BindVertexBuffers(
-							vertexBuffers,
-							vertexBufferOffsets,
-							mesh->GetIndexBuffer()->GetNativeHandle(),
-							mesh->GetLods()[lod].indexOffset * sizeof(uint32_t),
-							instanceBuffer->GetNativeHandle(),
-							instanceDataOffset * instanceBuffer->GetInstanceSize(),
-							renderInfo.frame);
-						
-						renderInfo.renderer->DrawIndexed(
-							mesh->GetLods()[lod].indexCount,
-							entitiesByLod[lod].size(),
-							renderInfo.frame);
-					}
-				}
-
-				for (const auto& single : gameObjectsByMeshes.single)
-				{
 					const size_t instanceDataOffset = instanceDatas.size();
 
-					InstanceData data{};
-					const Transform& transform = registry.get<Transform>(single.entity);
-					data.transform = transform.GetTransform();
-					data.inverseTransform = glm::transpose(transform.GetInverseTransform());
-					instanceDatas.emplace_back(data);
-
-					const SkeletalAnimator* skeletalAnimator = nullptr;
-					const Renderer3D& r3d = registry.get<Renderer3D>(single.entity);
-					if (const auto skeletalAnimatorEntity = scene->FindEntityByUUID(r3d.skeletalAnimatorEntityUUID))
+					for (const entt::entity& entity : entitiesByLod.entities[lod])
 					{
-						skeletalAnimator = registry.try_get<SkeletalAnimator>(skeletalAnimatorEntity->GetHandle());
+						InstanceData data{};
+						const Transform& transform = registry.get<Transform>(entity);
+						data.materialIndex = entitiesByLod.material->GetBindlessIndex();
+						data.transform = transform.GetTransform();
+						data.inverseTransform = glm::transpose(transform.GetInverseTransform());
+						instanceDatas.emplace_back(data);
 					}
 
-					if (skeletalAnimator)
-					{
-						if (!BindAndFlushUniformWriters(
-							pipeline,
-							nullptr,
-							nullptr,
-							renderInfo,
-							{
-								Pipeline::DescriptorSetIndexType::OBJECT,
-							},
-							skeletalAnimator->GetUniformWriter()
-						))
+					renderInfo.renderer->BindVertexBuffers(
+						vertexBuffers,
+						vertexBufferOffsets,
+						mesh->GetIndexBuffer()->GetNativeHandle(),
+						mesh->GetLods()[lod].indexOffset * sizeof(uint32_t),
+						instanceBuffer->GetNativeHandle(),
+						instanceDataOffset * instanceBuffer->GetInstanceSize(),
+						renderInfo.frame);
+					
+					renderInfo.renderer->DrawIndexed(
+						mesh->GetLods()[lod].indexCount,
+						entitiesByLod.entities[lod].size(),
+						renderInfo.frame);
+				}
+			}
+
+			for (const auto& single : drawInfo.single)
+			{
+				const size_t instanceDataOffset = instanceDatas.size();
+
+				InstanceData data{};
+				const Transform& transform = registry.get<Transform>(single.entity);
+				data.materialIndex = single.material->GetBindlessIndex();
+				data.transform = transform.GetTransform();
+				data.inverseTransform = glm::transpose(transform.GetInverseTransform());
+				instanceDatas.emplace_back(data);
+
+				const SkeletalAnimator* skeletalAnimator = nullptr;
+				const Renderer3D& r3d = registry.get<Renderer3D>(single.entity);
+				if (const auto skeletalAnimatorEntity = scene->FindEntityByUUID(r3d.skeletalAnimatorEntityUUID))
+				{
+					skeletalAnimator = registry.try_get<SkeletalAnimator>(skeletalAnimatorEntity->GetHandle());
+				}
+
+				if (skeletalAnimator)
+				{
+					if (!BindAndFlushUniformWriters(
+						pipeline,
+						nullptr,
+						nullptr,
+						renderInfo,
 						{
-							continue;
-						}
-						
-						GetVertexBuffers(pipeline, single.mesh, vertexBuffers, vertexBufferOffsets);
-
-						renderInfo.renderer->BindVertexBuffers(
-							vertexBuffers,
-							vertexBufferOffsets,
-							single.mesh->GetIndexBuffer()->GetNativeHandle(),
-							single.mesh->GetLods()[single.lod].indexOffset * sizeof(uint32_t),
-							instanceBuffer->GetNativeHandle(),
-							instanceDataOffset * instanceBuffer->GetInstanceSize(),
-							renderInfo.frame);
-						
-						renderInfo.renderer->DrawIndexed(
-							single.mesh->GetLods()[single.lod].indexCount,
-							1,
-							renderInfo.frame);
+							Pipeline::DescriptorSetIndexType::OBJECT,
+						},
+						skeletalAnimator->GetUniformWriter()
+					))
+					{
+						continue;
 					}
+					
+					GetVertexBuffers(pipeline, single.mesh, vertexBuffers, vertexBufferOffsets);
+
+					renderInfo.renderer->BindVertexBuffers(
+						vertexBuffers,
+						vertexBufferOffsets,
+						single.mesh->GetIndexBuffer()->GetNativeHandle(),
+						single.mesh->GetLods()[single.lod].indexOffset * sizeof(uint32_t),
+						instanceBuffer->GetNativeHandle(),
+						instanceDataOffset * instanceBuffer->GetInstanceSize(),
+						renderInfo.frame);
+					
+					renderInfo.renderer->DrawIndexed(
+						single.mesh->GetLods()[single.lod].indexCount,
+						1,
+						renderInfo.frame);
 				}
 			}
 		}
@@ -1428,6 +1470,7 @@ void RenderPassManager::CreateTransparent()
 				const size_t instanceDataOffset = instanceDatas.size();
 
 				InstanceData data{};
+				data.materialIndex = renderData.r3d.material->GetBindlessIndex();
 				data.transform = renderData.transformMat4;
 				data.inverseTransform = glm::transpose(renderData.inversetransformMat3);
 				instanceDatas.emplace_back(data);

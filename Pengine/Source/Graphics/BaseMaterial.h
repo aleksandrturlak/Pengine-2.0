@@ -57,6 +57,12 @@ namespace Pengine
 			const std::string& uniformBufferName,
 			const std::string& valueName);
 
+		std::shared_ptr<Texture> GetBindlessTexture(const int index) const;
+
+		int BindBindlessTexture(const std::shared_ptr<Texture>& texture);
+
+		void UnBindBindlessTexture(const std::shared_ptr<Texture>& texture);
+
 		template<typename T>
 		void WriteToBuffer(
 			const std::string& uniformBufferName,
@@ -135,6 +141,8 @@ namespace Pengine
 		std::unordered_map<std::string, std::shared_ptr<Pipeline>> m_PipelinesByPass;
 		std::unordered_map<std::string, std::shared_ptr<UniformWriter>> m_UniformWriterByPass;
 		std::unordered_map<std::string, std::shared_ptr<Buffer>> m_BuffersByName;
+		
+		std::unordered_map<int, std::shared_ptr<class Texture>> m_BindlessTexturesByIndex;
 
 		mutable std::mutex m_UniformCacheMutex;
 		// map<BufferName, map<ValueName, <Size, Offset>>>

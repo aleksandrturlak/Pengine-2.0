@@ -12,14 +12,11 @@ Basemat:
         - Type: Renderer
           RenderPass: DefaultReflection
           Set: 0
-        - Type: Material
-          RenderPass: GBuffer
-          Set: 1
         - Type: Bindless
-          Set: 2
+          Set: 1
         - Type: Object
           RenderPass: GBuffer
-          Set: 3
+          Set: 2
       VertexInputBindingDescriptions:
         - Binding: 0
           InputRate: Vertex
@@ -47,6 +44,7 @@ Basemat:
         - Binding: 4
           InputRate: Instance
           Names:
+            - materialIndexA
             - transformA
             - inverseTransformA
       ColorBlendStates:
@@ -66,20 +64,17 @@ Basemat:
         - Type: Renderer
           RenderPass: DefaultReflection
           Set: 0
-        - Type: Material
-          RenderPass: GBuffer
-          Set: 1
         - Type: Bindless
-          Set: 2
+          Set: 1
         - Type: Renderer
           RenderPass: Deferred
-          Set: 3
+          Set: 2
         - Type: Renderer
           RenderPass: Lights
-          Set: 4
+          Set: 3
         - Type: Object
           RenderPass: GBuffer
-          Set: 5
+          Set: 4
       VertexInputBindingDescriptions:
         - Binding: 0
           InputRate: Vertex
@@ -107,6 +102,7 @@ Basemat:
         - Binding: 4
           InputRate: Instance
           Names:
+            - materialIndexA
             - transformA
             - inverseTransformA
       ColorBlendStates:
@@ -129,14 +125,11 @@ Basemat:
         - Type: Renderer
           RenderPass: CSM
           Set: 0
-        - Type: Material
-          RenderPass: GBuffer
-          Set: 1
         - Type: Bindless
-          Set: 2
+          Set: 1
         - Type: Object
           RenderPass: GBuffer
-          Set: 3
+          Set: 2
       VertexInputBindingDescriptions:
         - Binding: 0
           InputRate: Vertex
@@ -155,6 +148,7 @@ Basemat:
           Names:
             - transformA
             - layersA
+            - materialIndexA
       ColorBlendStates:
         []
     - RenderPass: PointLightShadows

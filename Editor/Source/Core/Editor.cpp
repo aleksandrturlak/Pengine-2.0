@@ -1,6 +1,7 @@
 #include "Editor.h"
 
 #include "Core/AsyncAssetLoader.h"
+#include "Core/BindlessUniformWriter.h"
 #include "Core/FileFormatNames.h"
 #include "Core/Input.h"
 #include "Core/KeyCode.h"
@@ -3476,6 +3477,91 @@ void Editor::MaterialMenu::Update(Editor& editor)
 			}
 		}
 
+		std::function<void(
+			const ShaderReflection::ReflectVariable&, bool&, void*, Editor&, const std::shared_ptr<Material>&)> drawVariable = [
+			&drawTextureVariable,
+			&drawVariable
+		](
+			const ShaderReflection::ReflectVariable& variable,
+			bool& isChanged,
+			void* data,
+			Editor& editor,
+			const std::shared_ptr<Material>& material)
+		{
+			// Variables with names that contain any "color" part and types vec3 or vec4 will be considered as a color variable
+			// and will be represented in the editor as color pickers.
+			if (Utils::Contains(Utils::ToLower(variable.name), "color"))
+			{
+				if (variable.type == ShaderReflection::ReflectVariable::Type::VEC3)
+				{
+					isChanged += ImGui::ColorEdit3(variable.name.c_str(), &Utils::GetValue<glm::vec3>(data, variable.offset)[0]);
+				}
+				if (variable.type == ShaderReflection::ReflectVariable::Type::VEC4)
+				{
+					isChanged += ImGui::ColorEdit4(variable.name.c_str(), &Utils::GetValue<glm::vec4>(data, variable.offset)[0]);
+				}
+
+				return;
+			}
+
+			// Variable with names that contain any "use" part and types int will be considered as a bool variable
+			// and will be represented in the editor as check boxes.
+			if (Utils::Contains(Utils::ToLower(variable.name), "use"))
+			{
+				if (variable.type == ShaderReflection::ReflectVariable::Type::INT)
+				{
+					bool used = (bool)Utils::GetValue<int>(data, variable.offset);
+					isChanged += ImGui::Checkbox(variable.name.c_str(), &used);
+					Utils::GetValue<int>(data, variable.offset) = (int)used;
+				}
+				return;
+			}
+
+			if (variable.type == ShaderReflection::ReflectVariable::Type::FLOAT)
+			{
+				isChanged += ImGui::SliderFloat(variable.name.c_str(), &Utils::GetValue<float>(data, variable.offset), 0.0f, 1.0f);
+			}
+			if (variable.type == ShaderReflection::ReflectVariable::Type::INT)
+			{
+				isChanged += ImGui::InputInt(variable.name.c_str(), &Utils::GetValue<int>(data, variable.offset));
+			}
+			if (variable.type == ShaderReflection::ReflectVariable::Type::VEC2)
+			{
+				isChanged += editor.DrawVec2Control(variable.name.c_str(), Utils::GetValue<glm::vec2>(data, variable.offset));
+			}
+			if (variable.type == ShaderReflection::ReflectVariable::Type::VEC3)
+			{
+				isChanged += editor.DrawVec3Control(variable.name.c_str(), Utils::GetValue<glm::vec3>(data, variable.offset));
+			}
+			if (variable.type == ShaderReflection::ReflectVariable::Type::VEC4)
+			{
+				isChanged += editor.DrawVec4Control(variable.name.c_str(), Utils::GetValue<glm::vec4>(data, variable.offset));
+			}
+			if (variable.type == ShaderReflection::ReflectVariable::Type::TEXTURE)
+			{
+				int& bindlessTextureIndex = Utils::GetValue<int>(data, variable.offset);
+				const auto texture = material->GetBindlessTexture(bindlessTextureIndex);
+
+				std::shared_ptr<Texture> newTexture = texture;
+				drawTextureVariable(texture, variable.name, newTexture);
+
+				if (newTexture && newTexture != texture)
+				{
+					// Note: Lets assume that we never unbind manually, it will unbind on delete.
+					//material->UnBindBindlessTexture(texture);
+					bindlessTextureIndex = material->BindBindlessTexture(newTexture);
+					isChanged += 1;
+				}
+			}
+			if (variable.type == ShaderReflection::ReflectVariable::Type::STRUCT)
+			{
+				for (const auto& memberVariable : variable.variables)
+				{
+					drawVariable(memberVariable, isChanged, data, editor, material);
+				}
+			}
+		};
+
 		for (const auto& [passName, pipeline] : material->GetBaseMaterial()->GetPipelinesByPass())
 		{
 			if (ImGui::CollapsingHeader(passName.c_str()))
@@ -3499,7 +3585,7 @@ void Editor::MaterialMenu::Update(Editor& editor)
 								drawTexture(texture, binding, passName, isChangedToSerialize);
 							}
 						}
-						else if (binding.type == ShaderReflection::Type::UNIFORM_BUFFER)
+						else if (binding.type == ShaderReflection::Type::UNIFORM_BUFFER || binding.type == ShaderReflection::Type::STORAGE_BUFFER)
 						{
 							const std::shared_ptr<Buffer> buffer = material->GetBuffer(binding.name);
 							if (!buffer)
@@ -3511,90 +3597,10 @@ void Editor::MaterialMenu::Update(Editor& editor)
 
 							void* data = (char*)buffer->GetData();
 
-							std::function<void(const ShaderReflection::ReflectVariable&, bool&)> drawVariable = [&](
-								const ShaderReflection::ReflectVariable& variable,
-								bool& isChanged)
-							{
-								// Variables with names that contain any "color" part and types vec3 or vec4 will be considered as a color variable
-								// and will be represented in the editor as color pickers.
-								if (Utils::Contains(Utils::ToLower(variable.name), "color"))
-								{
-									if (variable.type == ShaderReflection::ReflectVariable::Type::VEC3)
-									{
-										isChanged += ImGui::ColorEdit3(variable.name.c_str(), &Utils::GetValue<glm::vec3>(data, variable.offset)[0]);
-									}
-									if (variable.type == ShaderReflection::ReflectVariable::Type::VEC4)
-									{
-										isChanged += ImGui::ColorEdit4(variable.name.c_str(), &Utils::GetValue<glm::vec4>(data, variable.offset)[0]);
-									}
-
-									return;
-								}
-
-								// Variable with names that contain any "use" part and types int will be considered as a bool variable
-								// and will be represented in the editor as check boxes.
-								if (Utils::Contains(Utils::ToLower(variable.name), "use"))
-								{
-									if (variable.type == ShaderReflection::ReflectVariable::Type::INT)
-									{
-										bool used = (bool)Utils::GetValue<int>(data, variable.offset);
-										isChanged += ImGui::Checkbox(variable.name.c_str(), &used);
-										Utils::GetValue<int>(data, variable.offset) = (int)used;
-									}
-									return;
-								}
-
-								if (variable.type == ShaderReflection::ReflectVariable::Type::FLOAT)
-								{
-									isChanged += ImGui::SliderFloat(variable.name.c_str(), &Utils::GetValue<float>(data, variable.offset), 0.0f, 1.0f);
-								}
-								if (variable.type == ShaderReflection::ReflectVariable::Type::INT)
-								{
-									isChanged += ImGui::InputInt(variable.name.c_str(), &Utils::GetValue<int>(data, variable.offset));
-								}
-								if (variable.type == ShaderReflection::ReflectVariable::Type::VEC2)
-								{
-									isChanged += editor.DrawVec2Control(variable.name.c_str(), Utils::GetValue<glm::vec2>(data, variable.offset));
-								}
-								if (variable.type == ShaderReflection::ReflectVariable::Type::VEC3)
-								{
-									isChanged += editor.DrawVec3Control(variable.name.c_str(), Utils::GetValue<glm::vec3>(data, variable.offset));
-								}
-								if (variable.type == ShaderReflection::ReflectVariable::Type::VEC4)
-								{
-									isChanged += editor.DrawVec4Control(variable.name.c_str(), Utils::GetValue<glm::vec4>(data, variable.offset));
-								}
-								if (variable.type == ShaderReflection::ReflectVariable::Type::TEXTURE)
-								{
-									int& bindlessTextureIndex = Utils::GetValue<int>(data, variable.offset);
-									const auto texture = material->GetBindlessTexture(bindlessTextureIndex);
-
-									std::shared_ptr<Texture> newTexture = texture;
-									drawTextureVariable(texture, variable.name, newTexture);
-
-									if (newTexture && newTexture != texture)
-									{
-										// Note: Lets assume that we never unbind manually, it will unbind on delete.
-										//material->UnBindBindlessTexture(texture);
-										bindlessTextureIndex = material->BindBindlessTexture(newTexture);
-
-										isChangedToSerialize = true;
-										isChanged += 1;
-									}
-								}
-								if (variable.type == ShaderReflection::ReflectVariable::Type::STRUCT)
-								{
-									for (const auto& memberVariable : variable.variables)
-									{
-										drawVariable(memberVariable, isChanged);
-									}
-								}
-							};
-
 							bool isChanged = false;
 							for (const auto& variable : binding.buffer->variables)
 							{
-								drawVariable(variable, isChanged);
+								drawVariable(variable, isChanged, data, editor, material);
 							}
 
 							if (isChanged)
@@ -3604,6 +3610,38 @@ void Editor::MaterialMenu::Update(Editor& editor)
 
 								isChangedToSerialize = true;
 							}
+						}
+					}
+				}
+			}
+		}
+
+		if (material->IsBindless())
+		{
+			if (ImGui::CollapsingHeader("Bindless"))
+			{
+				BindlessUniformWriter& bindlessUniformWriter = BindlessUniformWriter::GetInstance();
+				const auto bindings = bindlessUniformWriter.GetBaseMaterial()->GetPipeline(DefaultReflection)->GetUniformLayout(2)->GetBindings();
+				for (const auto& binding : bindings)
+				{
+					if (binding.type == ShaderReflection::Type::UNIFORM_BUFFER || binding.type == ShaderReflection::Type::STORAGE_BUFFER)
+					{
+						void* data = bindlessUniformWriter.GetBindlessMaterialBufferData(material->GetBindlessIndex());
+
+						ImGui::Text("%s", binding.name.c_str());
+
+						bool isChanged = false;
+						for (const auto& variable : binding.buffer->variables)
+						{
+							drawVariable(variable, isChanged, data, editor, material);
+						}
+
+						if (isChanged)
+						{
+							// Need to mark for flush that the buffer was changed.
+							bindlessUniformWriter.GetBindlessMaterialBuffer()->WriteToBuffer(data, 0, 0);
+
+							isChangedToSerialize = true;
 						}
 					}
 				}

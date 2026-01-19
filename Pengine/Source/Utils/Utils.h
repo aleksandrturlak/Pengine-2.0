@@ -67,8 +67,8 @@ namespace Pengine::Utils
 		return {};
 	}
 
-	template<typename T, typename U>
-	T Find(const U& key, const std::unordered_map<U, T>& map)
+	template<typename T, typename U, typename V = T>
+	V Find(const U& key, const std::unordered_map<U, T>& map)
 	{
 		auto foundItem = map.find(key);
 		if (foundItem != map.end())
@@ -79,8 +79,8 @@ namespace Pengine::Utils
 		return {};
 	}
 
-	template<typename T, typename U>
-	T Find(const U& key, const std::map<U, T>& map)
+	template<typename T, typename U, typename V = T>
+	V Find(const U& key, const std::map<U, T>& map)
 	{
 		auto foundItem = map.find(key);
 		if (foundItem != map.end())
