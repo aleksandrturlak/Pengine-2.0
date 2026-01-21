@@ -76,10 +76,6 @@ set(CORE_SOURCES
 	Core/Time.cpp Core/Time.h
 	Core/Timer.cpp Core/Timer.h
 	Core/UUID.cpp Core/UUID.h
-	Core/Serialization/YamlConverters.cpp Core/Serialization/YamlConverters.h
-	Core/Serialization/SerializerCore.cpp
-	Core/Serialization/SerializerAssets.cpp
-	Core/Serialization/SerializerScenes.cpp
 	Core/UIRenderer.cpp Core/UIRenderer.h
 	Core/Viewport.cpp Core/Viewport.h
 	Core/ViewportManager.cpp Core/ViewportManager.h

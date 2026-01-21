@@ -17,8 +17,6 @@
 #include <fastgltf/core.hpp>
 #include <fastgltf/types.hpp>
 
-#include "Serialization/YamlConverters.h"
-
 namespace Pengine
 {
 
