@@ -339,6 +339,43 @@ void Material::CreateResources(const CreateInfo &createInfo)
 
 	for (const auto& [passName, pipeline] : m_BaseMaterial->GetPipelinesByPass())
 	{
+		for (const auto& [set, uniformLayout] : pipeline->GetUniformLayouts())
+		{
+			bool useAsDescriptorSet = false;
+			for (const auto& descriptorSet : pipeline->GetSortedDescriptorSets())
+			{
+				if (descriptorSet.first == set)
+				{
+					useAsDescriptorSet = true;
+					break;
+				}
+			}
+
+			if (useAsDescriptorSet)
+			{
+				continue;
+			}
+
+			for (const auto& binding : uniformLayout->GetBindings())
+			{
+				if (binding.buffer)
+				{
+					Logger::Log(std::format("Found Buffer in pass: {} in material: {}", passName, GetName()));
+
+					const std::shared_ptr<Buffer> buffer = Buffer::Create(
+						binding.buffer->size,
+						1,
+						{ Buffer::Usage::STORAGE_BUFFER },
+						MemoryType::CPU,
+						true);
+					m_BuffersByName[binding.buffer->name] = buffer;
+				}
+			}
+		}
+	}
+
+	for (const auto& [passName, pipeline] : m_BaseMaterial->GetPipelinesByPass())
+	{
 		auto baseMaterialIndex = pipeline->GetDescriptorSetIndexByType(Pipeline::DescriptorSetIndexType::MATERIAL, passName);
 		if (baseMaterialIndex)
 		{
@@ -363,8 +400,9 @@ void Material::CreateResources(const CreateInfo &createInfo)
 					const std::shared_ptr<Buffer> buffer = Buffer::Create(
 						binding.buffer->size,
 						1,
-						usage,
-						MemoryType::CPU);
+						{ usage },
+						MemoryType::CPU,
+						true);
 					m_BuffersByName[binding.buffer->name] = buffer;
 					uniformWriter->WriteBuffer(binding.buffer->name, buffer);
 					uniformWriter->Flush();
@@ -381,17 +419,15 @@ void Material::CreateResources(const CreateInfo &createInfo)
 		}
 
 		const std::shared_ptr<UniformWriter> uniformWriter = GetUniformWriter(passName);
-		if (!uniformWriter)
+		if (uniformWriter)
 		{
-			continue;
+			for (const auto& [name, filepath] : uniformInfo.texturesByName)
+			{
+				std::shared_ptr<Texture> texture = TextureManager::GetInstance().Load(filepath);
+				uniformWriter->WriteTexture(name, texture);
+			}
+			uniformWriter->Flush();
 		}
-
-		for (const auto& [name, filepath] : uniformInfo.texturesByName)
-		{
-			std::shared_ptr<Texture> texture = TextureManager::GetInstance().Load(filepath);
-			uniformWriter->WriteTexture(name, texture);
-		}
-		uniformWriter->Flush();
 
 		for (const auto& [uniformBufferName, bufferInfo] : uniformInfo.uniformBuffersByName)
 		{

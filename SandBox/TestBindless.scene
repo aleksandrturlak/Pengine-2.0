@@ -11,8 +11,8 @@ Scene:
     Name: Camera
     IsEnabled: true
     Transform:
-      Position: [-0.944711268, 2.45707512, -0.843515277]
-      Rotation: [-0.676235914, -2.48532391, 0]
+      Position: [-4.51527309, 2.53745365, 3.50239801]
+      Rotation: [-0.37673229, -0.350194961, 0]
       Scale: [1, 1, 1]
       FollowOwner: true
     Camera:
@@ -65,4 +65,18 @@ Scene:
       Position: [0, 1.44043362, 8.58565343e-08]
       Rotation: [-1.57079625, -0, 0]
       Scale: [0.00999999978, 0.00999999885, 0.00999999885]
+      FollowOwner: true
+  - PrefabFilepath: 0x1e460b9c3f7ac077ee6d5fa88d7e14f8
+    UUID: 0x718211cff93929571028728b7e5c1eaa
+    Transform:
+      Position: [-5.04480076, 0, 0.273344696]
+      Rotation: [0, -0, 0]
+      Scale: [1, 1, 1]
+      FollowOwner: true
+  - PrefabFilepath: 0x1e460b9c3f7ac077ee6d5fa88d7e14f8
+    UUID: 0x26bcd1deae7b6114fc06c68cc7e65192
+    Transform:
+      Position: [-3.0699327, 0, -0.428590924]
+      Rotation: [0, -0, 0]
+      Scale: [1, 1, 1]
       FollowOwner: true

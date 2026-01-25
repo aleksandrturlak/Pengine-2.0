@@ -23,7 +23,7 @@ CSM:
     - 1
   StabilizeCascades: true
 SSS:
-  IsEnabled: false
+  IsEnabled: true
   ResolutionScale: 2
   ResolutionBlurScale: 2
   MaxRayDistance: 0.100000001
@@ -56,7 +56,7 @@ SSR:
   BlurRange: 1
   BlurOffset: 1
   MipMultiplier: 0
-  UseSkyBoxFallback: false
+  UseSkyBoxFallback: true
   Blur: 0
 PostProcess:
   Gamma: 2.20000005

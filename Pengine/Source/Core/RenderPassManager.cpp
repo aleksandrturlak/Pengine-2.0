@@ -218,8 +218,14 @@ void RenderPassManager::PrepareUniformsPerViewportBeforeDraw(const RenderPass::R
 
 	const std::shared_ptr<UniformWriter> renderUniformWriter = GetOrCreateUniformWriter(renderInfo.renderView, pipeline, Pipeline::DescriptorSetIndexType::RENDERER, DefaultReflection);
 	const std::string globalBufferName = "GlobalBuffer";
-	const std::shared_ptr<Buffer> globalBuffer = GetOrCreateRenderBuffer(renderInfo.renderView, renderUniformWriter, globalBufferName);
-
+	const std::shared_ptr<Buffer> globalBuffer = GetOrCreateRenderBuffer(
+		renderInfo.renderView,
+		renderUniformWriter,
+		globalBufferName,
+		{},
+		{ Buffer::Usage::UNIFORM_BUFFER },
+		MemoryType::CPU, true);
+	
 	const Camera& camera = renderInfo.camera->GetComponent<Camera>();
 	const Transform& cameraTransform = renderInfo.camera->GetComponent<Transform>();
 	const glm::mat4 viewProjectionMat4 = renderInfo.projection * camera.GetViewMat4();
@@ -255,6 +261,15 @@ void RenderPassManager::PrepareUniformsPerViewportBeforeDraw(const RenderPass::R
 		globalBufferName,
 		"camera.inverseRotationMat4",
 		inverseRotationMat4);
+
+	{
+		const std::array<glm::vec4, 6> frustumPlanes = Utils::GetFrustumPlanes(viewProjectionMat4);
+		uint32_t size, offset;
+		if (reflectionBaseMaterial->GetUniformDetails(globalBufferName, "camera.frustumPlanes", size, offset))
+		{
+			globalBuffer->WriteToBuffer((void*)frustumPlanes.data(), size, offset);
+		}
+	}
 
 	const glm::vec3 positionViewSpace = camera.GetViewMat4() * glm::vec4(cameraTransform.GetPosition(), 1.0f);
 	reflectionBaseMaterial->WriteToBuffer(
@@ -387,6 +402,7 @@ void RenderPassManager::Initialize()
 {
 	CreateDefaultReflection();
 	CreateZPrePass();
+	CreateComputeInderectDrawGBuffer();
 	CreateGBuffer();
 	CreateDeferred();
 	CreateAtmosphere();
@@ -521,9 +537,179 @@ void RenderPassManager::CreateZPrePass()
 
 			visibleData->visibleEntities.emplace_back(entity);
 		}
+
+		// TODO: It should be a scene pass!
+		ComputeIndirectGBufferData* computeIndirectGBufferData = (ComputeIndirectGBufferData*)renderInfo.scene->GetRenderView()->GetCustomData("ComputeIndirectGBufferData");
+		if (!computeIndirectGBufferData)
+		{
+			computeIndirectGBufferData = new ComputeIndirectGBufferData();
+			renderInfo.scene->GetRenderView()->SetCustomData("ComputeIndirectGBufferData", computeIndirectGBufferData);
+		}
+
+		std::shared_ptr<Buffer> entityBuffer;
+		std::shared_ptr<UniformWriter> entityUniformWriter = renderInfo.scene->GetRenderView()->GetUniformWriter("BindlessEntities");
+		if (!entityUniformWriter)
+		{
+			BindlessUniformWriter::GetInstance().CreateBindlessEntitiesResources(
+				entityUniformWriter,
+				entityBuffer);
+			renderInfo.scene->GetRenderView()->SetUniformWriter("BindlessEntities", entityUniformWriter);
+		}
+		else
+		{
+			entityBuffer = entityUniformWriter->GetBuffer("BindlessEntities").front();
+		}
+
+		void* data = entityBuffer->GetData();
+		memset(data, 0, entityBuffer->GetSize());
+		entityBuffer->WriteToBuffer(0, 0);
+
+		uint32_t pipelineId = 0;
+		computeIndirectGBufferData->entityCount = 0;
+		computeIndirectGBufferData->pipelineInfos.clear();
+		scene->GetRegistry().view<Renderer3D>().each([&](auto entity, Renderer3D& r3d)
+		{
+			if ((r3d.objectVisibilityMask & camera.GetObjectVisibilityMask()) == 0)
+			{
+				return;
+			}
+
+			if (!r3d.material || !r3d.mesh || !r3d.isEnabled)
+			{
+				return;
+			}
+
+			// TODO: Remove later when bda materials are supported.
+			if (!r3d.material->IsBindless())
+			{
+				return;
+			}
+
+			const std::shared_ptr<Pipeline> pipeline = r3d.material->GetBaseMaterial()->GetPipeline(GBuffer);
+			if (!pipeline)
+			{
+				return;
+			}
+
+			const Transform& transform = scene->GetRegistry().get<Transform>(entity);
+			if (!transform.GetEntity()->IsEnabled())
+			{
+				return;
+			}
+
+			auto& pipelineInfo = computeIndirectGBufferData->pipelineInfos[pipeline];
+
+			if (pipelineInfo.id == -1)
+			{
+				pipelineInfo.id = pipelineId++;
+			}
+
+			BindlessUniformWriter::EntityInfo entityInfo{};
+
+			entityInfo.pipelineId = pipelineInfo.id;
+			entityInfo.flags = (uint32_t)BindlessUniformWriter::EntityFlagBits::VALID;
+			entityInfo.transform = transform.GetTransform();
+			entityInfo.aabb = Utils::LocalToWorldAABB({ r3d.mesh->GetBoundingBox().min, r3d.mesh->GetBoundingBox().max }, entityInfo.transform);
+			entityInfo.materialIndex = r3d.material->GetBindlessIndex();
+			entityInfo.meshInfoBuffer = r3d.mesh->GetMeshInfoBuffer()->GetDeviceAddress().Get();
+
+			if (const auto skeletalAnimatorEntity = scene->FindEntityByUUID(r3d.skeletalAnimatorEntityUUID))
+			{
+				SkeletalAnimator* skeletalAnimator = scene->GetRegistry().try_get<SkeletalAnimator>(skeletalAnimatorEntity->GetHandle());
+				if (skeletalAnimator)
+				{
+					entityInfo.boneBuffer = skeletalAnimator->GetBuffer()->GetDeviceAddress().Get();
+					if (r3d.mesh->GetType() == Mesh::Type::SKINNED)
+					{
+						entityInfo.flags |= (uint32_t)BindlessUniformWriter::EntityFlagBits::SKINNED;
+					}
+				}
+			}
+
+			entityBuffer->WriteToBuffer(
+				&entityInfo,
+				sizeof(BindlessUniformWriter::EntityInfo),
+				sizeof(BindlessUniformWriter::EntityInfo) * computeIndirectGBufferData->entityCount++);
+
+			pipelineInfo.maxDrawCount++;
+		});
+
+		for (const auto& [pipeline, info] : computeIndirectGBufferData->pipelineInfos)
+		{
+			computeIndirectGBufferData->sortedPipelines[info.id] = pipeline;
+		}
+
+		entityBuffer->Flush();
 	};
 
 	CreateRenderPass(createInfo);
+}
+
+void RenderPassManager::CreateComputeInderectDrawGBuffer()
+{
+	ComputePass::CreateInfo createInfo{};
+	createInfo.type = Pass::Type::COMPUTE;
+	createInfo.name = ComputeIndirectDrawGBuffer;
+
+	createInfo.executeCallback = [this, passName = createInfo.name](const RenderPass::RenderCallbackInfo& renderInfo)
+	{
+		PROFILER_SCOPE(ComputeIndirectDrawGBuffer);
+
+		const std::shared_ptr<BaseMaterial> baseMaterial = MaterialManager::GetInstance().LoadBaseMaterial(
+			std::filesystem::path("Materials") / "ComputeIndirectDrawGBuffer.basemat");
+		const std::shared_ptr<Pipeline> pipeline = baseMaterial->GetPipeline(passName);
+		if (!pipeline)
+		{
+			return;
+		}
+
+		ComputeIndirectGBufferData* computeIndirectGBufferData = (ComputeIndirectGBufferData*)renderInfo.scene->GetRenderView()->GetCustomData("ComputeIndirectGBufferData");
+
+		const std::shared_ptr<UniformWriter>& renderUniformWriter = GetOrCreateRendererUniformWriter(renderInfo.renderView, pipeline, ComputeIndirectDrawGBuffer, {}, true);
+		const std::shared_ptr<Buffer>& indirectDrawCommandsBuffer = GetOrCreateRenderBuffer(
+			renderInfo.renderView, renderUniformWriter, "IndirectDrawCommands", {}, { Buffer::Usage::STORAGE_BUFFER, Buffer::Usage::INDIRECT_BUFFER }, MemoryType::GPU, true);
+		const std::shared_ptr<Buffer>& indirectDrawCommandCountBuffer = GetOrCreateRenderBuffer(
+			renderInfo.renderView, renderUniformWriter, "IndirectDrawCommandCount", {}, { Buffer::Usage::STORAGE_BUFFER, Buffer::Usage::INDIRECT_BUFFER }, MemoryType::GPU, true);
+		const std::shared_ptr<Buffer>& pipelineInfoBuffer = GetOrCreateRenderBuffer(
+			renderInfo.renderView, renderUniformWriter, "PipelineInfoBuffer", {}, { Buffer::Usage::STORAGE_BUFFER, Buffer::Usage::INDIRECT_BUFFER }, MemoryType::CPU, true);
+
+		uint32_t offset = 0;
+		for (const auto& [id, pipeline] : computeIndirectGBufferData->sortedPipelines)
+		{
+			pipelineInfoBuffer->WriteToBuffer(
+				(void*)&offset,
+				sizeof(ComputeIndirectGBufferData::PipelineInfo::maxDrawCount),
+				sizeof(ComputeIndirectGBufferData::PipelineInfo::maxDrawCount) * id);
+			offset += computeIndirectGBufferData->pipelineInfos[pipeline].maxDrawCount;
+		}
+		pipelineInfoBuffer->Flush();
+
+		std::vector<NativeHandle> uniformWriterNativeHandles;
+		std::vector<std::shared_ptr<UniformWriter>> uniformWriters;
+		GetUniformWriters(pipeline, baseMaterial, nullptr, renderInfo, uniformWriters, uniformWriterNativeHandles);
+		if (FlushUniformWriters(uniformWriters))
+		{
+			renderInfo.renderer->BeginCommandLabel(passName,  topLevelRenderPassDebugColor, renderInfo.frame);
+
+			renderInfo.renderer->FillBuffer(
+				indirectDrawCommandCountBuffer->GetNativeHandle(),
+				indirectDrawCommandCountBuffer->GetSize(),
+				0,
+				0,
+				renderInfo.frame);
+
+			uint32_t groupCount = computeIndirectGBufferData->entityCount / 16;
+			groupCount += 1;
+			renderInfo.renderer->Compute(pipeline, { groupCount, 1, 1 }, uniformWriterNativeHandles, renderInfo.frame);
+			
+			renderInfo.renderer->MemoryBufferBarrierVertexReadWrite(indirectDrawCommandsBuffer->GetNativeHandle(), renderInfo.frame);
+			renderInfo.renderer->MemoryBufferBarrierVertexReadWrite(indirectDrawCommandCountBuffer->GetNativeHandle(), renderInfo.frame);
+
+			renderInfo.renderer->EndCommandLabel(renderInfo.frame);
+		}
+	};
+
+	CreateComputePass(createInfo);
 }
 
 void RenderPassManager::CreateGBuffer()
@@ -612,36 +798,6 @@ void RenderPassManager::CreateGBuffer()
 	createInfo.resizeWithViewport = true;
 	createInfo.resizeViewportScale = { 1.0f, 1.0f };
 
-	//struct Lod
-	//{
-	//	uint32_t indexOffset;
-	//	uint32_t indexCount;
-	//};
-
-	//#define MAX_LODS 10
-	//struct Mesh
-	//{
-	//	size_t vertexBufferDefault;
-	//	size_t vertexBufferSkinned;
-	//	size_t indexBuffer;
-	//	Lod lods[MAX_LODS];
-	//	size_t flags; // skinned, static, foliage, etc.
-	//};
-
-	//struct Entity
-	//{
-	//	int materialIndex;
-	//	int meshIndex;
-	//	glm::mat4 transform;
-	//};
-
-	//struct Scene
-	//{
-	//	Material materials[];
-	//	Mesh meshes[];
-	//	Entity entities[];
-	//};
-
 	createInfo.executeCallback = [this](const RenderPass::RenderCallbackInfo& renderInfo)
 	{
 		PROFILER_SCOPE(GBuffer);
@@ -658,95 +814,13 @@ void RenderPassManager::CreateGBuffer()
 			renderInfo.scene->GetRenderView()->SetCustomData("LineRenderer", lineRenderer);
 		}
 
-		size_t renderableCount = 0;
+		ComputeIndirectGBufferData* computeIndirectGBufferData = (ComputeIndirectGBufferData*)renderInfo.scene->GetRenderView()->GetCustomData("ComputeIndirectGBufferData");
 
-		struct DrawInfo
-		{
-			struct Instanced
-			{
-				std::vector<std::vector<entt::entity>> entities;
-				std::shared_ptr<Material> material;
-			};
-
-			std::unordered_map<std::shared_ptr<Mesh>, Instanced> instanced;
-
-			struct Single
-			{
-				std::shared_ptr<Material> material;
-				std::shared_ptr<class Mesh> mesh;
-				entt::entity entity;
-				uint32_t lod;
-			};
-
-			std::vector<Single> single;
-		};
-
-		std::unordered_map<std::shared_ptr<BaseMaterial>, DrawInfo> renderableEntities;
 		const std::shared_ptr<Scene> scene = renderInfo.scene;
 		entt::registry& registry = scene->GetRegistry();
 		const Camera& camera = renderInfo.camera->GetComponent<Camera>();
 		const glm::vec3 cameraPosition = camera.GetEntity()->GetComponent<Transform>().GetPosition();
 		const glm::mat4 viewProjectionMat4 = renderInfo.projection * camera.GetViewMat4();
-
-		for (const auto& entity : visibleData->visibleEntities)
-		{
-			const Renderer3D& r3d = registry.get<Renderer3D>(entity);
-
-			if (!r3d.material->IsPipelineEnabled(renderPassName))
-			{
-				continue;
-			}
-
-			const std::shared_ptr<Pipeline>& pipeline = r3d.material->GetBaseMaterial()->GetPipeline(renderPassName);
-			if (!pipeline)
-			{
-				continue;
-			}
-
-			size_t lod = 0;
-			const size_t lodCount = r3d.mesh->GetLods().size();
-			if (lodCount > 1)
-			{
-				const Transform& transform = registry.get<Transform>(entity);
-				lod = GetLod(
-					cameraPosition,
-					transform.GetPosition(),
-					glm::length(transform.GetScale() * glm::max(glm::abs(r3d.mesh->GetBoundingBox().min), glm::abs(r3d.mesh->GetBoundingBox().max))),
-					r3d.mesh->GetLods());
-			}
-			
-			DrawInfo& drawInfo = renderableEntities[r3d.material->GetBaseMaterial()];
-
-			if (r3d.mesh->GetType() == Mesh::Type::SKINNED)
-			{
-				if (const auto skeletalAnimatorEntity = scene->FindEntityByUUID(r3d.skeletalAnimatorEntityUUID))
-				{
-					SkeletalAnimator* skeletalAnimator = registry.try_get<SkeletalAnimator>(skeletalAnimatorEntity->GetHandle());
-					if (skeletalAnimator)
-					{
-						UpdateSkeletalAnimator(skeletalAnimator, r3d.material->GetBaseMaterial(), pipeline);
-					}
-				}
-
-				DrawInfo::Single single{};
-				single.entity = entity;
-				single.mesh = r3d.mesh;
-				single.material = r3d.material;
-				single.lod = lod;
-
-				drawInfo.single.emplace_back(single);
-			}
-			else if (r3d.mesh->GetType() == Mesh::Type::STATIC)
-			{
-				DrawInfo::Instanced& instanced = drawInfo.instanced[r3d.mesh];
-				instanced.material = r3d.material;
-				auto& entities = instanced.entities;
-				entities.resize(lodCount);
-				entities[lod].emplace_back(entity);
-			}
-
-			renderableCount++;
-		}
 
 		if (scene->GetSettings().drawBoundingBoxes)
 		{
@@ -762,22 +836,6 @@ void RenderPassManager::CreateGBuffer()
 				});
 		}
 
-		std::shared_ptr<Buffer> instanceBuffer = renderInfo.renderView->GetBuffer("InstanceBuffer");
-		if ((renderableCount != 0 && !instanceBuffer) || (instanceBuffer && renderableCount != 0 && instanceBuffer->GetInstanceCount() < renderableCount))
-		{
-			instanceBuffer = Buffer::Create(
-				sizeof(InstanceData),
-				renderableCount * 2,
-				Buffer::Usage::VERTEX_BUFFER,
-				MemoryType::CPU,
-				true);
-
-			renderInfo.renderView->SetBuffer("InstanceBuffer", instanceBuffer);
-		}
-
-		std::vector<InstanceData> instanceDatas;
-		instanceDatas.reserve(renderableCount);
-
 		const std::shared_ptr<FrameBuffer> frameBuffer = renderInfo.renderView->GetFrameBuffer(renderPassName);
 
 		RenderPass::SubmitInfo submitInfo{};
@@ -786,27 +844,15 @@ void RenderPassManager::CreateGBuffer()
 		submitInfo.frameBuffer = frameBuffer;
 		renderInfo.renderer->BeginRenderPass(submitInfo);
 
-		std::vector<NativeHandle> vertexBuffers;
-		std::vector<size_t> vertexBufferOffsets;
-
-		constexpr size_t arbitraryVertexBufferCount = 10;
-		vertexBuffers.reserve(arbitraryVertexBufferCount);
-		vertexBufferOffsets.reserve(arbitraryVertexBufferCount);
-
-		// Render all base materials -> materials -> meshes | put gameobjects into the instance buffer.
-		for (const auto& [baseMaterial, drawInfo] : renderableEntities)
+		size_t offset = 0;
+		size_t counterBufferOffset = 0;
+		for (const auto& [id, pipeline] : computeIndirectGBufferData->sortedPipelines)
 		{
-			const std::shared_ptr<Pipeline> pipeline = baseMaterial->GetPipeline(renderPassName);
-			if (!pipeline)
-			{
-				continue;
-			}
-
 			renderInfo.renderer->BindPipeline(pipeline, renderInfo.frame);
 
-			if (!BindAndFlushUniformWriters(
+			if (BindAndFlushUniformWriters(
 				pipeline,
-				baseMaterial,
+				nullptr,
 				nullptr,
 				renderInfo,
 				{
@@ -818,104 +864,22 @@ void RenderPassManager::CreateGBuffer()
 				}
 			))
 			{
-				continue;
+				const std::shared_ptr<Buffer>& indirectDrawCommandsBuffer = GetOrCreateRenderBuffer(
+					renderInfo.renderView, nullptr, "IndirectDrawCommands");
+				const std::shared_ptr<Buffer>& indirectDrawCommandCountBuffer = GetOrCreateRenderBuffer(
+					renderInfo.renderView, nullptr, "IndirectDrawCommandCount");
+
+				renderInfo.renderer->DrawIndirectCount(
+					indirectDrawCommandsBuffer->GetNativeHandle(),
+					offset,
+					indirectDrawCommandCountBuffer->GetNativeHandle(),
+					counterBufferOffset,
+					computeIndirectGBufferData->pipelineInfos[pipeline].maxDrawCount,
+					renderInfo.frame);
+
+				offset += computeIndirectGBufferData->pipelineInfos[pipeline].maxDrawCount;
+				counterBufferOffset++;
 			}
-
-			for (const auto& [mesh, entitiesByLod] : drawInfo.instanced)
-			{
-				GetVertexBuffers(pipeline, mesh, vertexBuffers, vertexBufferOffsets);
-
-				for (size_t lod = 0; lod < entitiesByLod.entities.size(); lod++)
-				{
-					if (entitiesByLod.entities[lod].empty()) continue;
-
-					const size_t instanceDataOffset = instanceDatas.size();
-
-					for (const entt::entity& entity : entitiesByLod.entities[lod])
-					{
-						InstanceData data{};
-						const Transform& transform = registry.get<Transform>(entity);
-						data.materialIndex = entitiesByLod.material->GetBindlessIndex();
-						data.transform = transform.GetTransform();
-						data.inverseTransform = glm::transpose(transform.GetInverseTransform());
-						instanceDatas.emplace_back(data);
-					}
-
-					renderInfo.renderer->BindVertexBuffers(
-						vertexBuffers,
-						vertexBufferOffsets,
-						mesh->GetIndexBuffer()->GetNativeHandle(),
-						mesh->GetLods()[lod].indexOffset * sizeof(uint32_t),
-						instanceBuffer->GetNativeHandle(),
-						instanceDataOffset * instanceBuffer->GetInstanceSize(),
-						renderInfo.frame);
-					
-					renderInfo.renderer->DrawIndexed(
-						mesh->GetLods()[lod].indexCount,
-						entitiesByLod.entities[lod].size(),
-						renderInfo.frame);
-				}
-			}
-
-			for (const auto& single : drawInfo.single)
-			{
-				const size_t instanceDataOffset = instanceDatas.size();
-
-				InstanceData data{};
-				const Transform& transform = registry.get<Transform>(single.entity);
-				data.materialIndex = single.material->GetBindlessIndex();
-				data.transform = transform.GetTransform();
-				data.inverseTransform = glm::transpose(transform.GetInverseTransform());
-				instanceDatas.emplace_back(data);
-
-				const SkeletalAnimator* skeletalAnimator = nullptr;
-				const Renderer3D& r3d = registry.get<Renderer3D>(single.entity);
-				if (const auto skeletalAnimatorEntity = scene->FindEntityByUUID(r3d.skeletalAnimatorEntityUUID))
-				{
-					skeletalAnimator = registry.try_get<SkeletalAnimator>(skeletalAnimatorEntity->GetHandle());
-				}
-
-				if (skeletalAnimator)
-				{
-					if (!BindAndFlushUniformWriters(
-						pipeline,
-						nullptr,
-						nullptr,
-						renderInfo,
-						{
-							Pipeline::DescriptorSetIndexType::OBJECT,
-						},
-						skeletalAnimator->GetUniformWriter()
-					))
-					{
-						continue;
-					}
-					
-					GetVertexBuffers(pipeline, single.mesh, vertexBuffers, vertexBufferOffsets);
-
-					renderInfo.renderer->BindVertexBuffers(
-						vertexBuffers,
-						vertexBufferOffsets,
-						single.mesh->GetIndexBuffer()->GetNativeHandle(),
-						single.mesh->GetLods()[single.lod].indexOffset * sizeof(uint32_t),
-						instanceBuffer->GetNativeHandle(),
-						instanceDataOffset * instanceBuffer->GetInstanceSize(),
-						renderInfo.frame);
-					
-					renderInfo.renderer->DrawIndexed(
-						single.mesh->GetLods()[single.lod].indexCount,
-						1,
-						renderInfo.frame);
-				}
-			}
-		}
-
-		// Because these are all just commands and will be rendered later we can write the instance buffer
-		// just once when all instance data is collected.
-		if (instanceBuffer && !instanceDatas.empty())
-		{
-			instanceBuffer->WriteToBuffer(instanceDatas.data(), instanceDatas.size() * sizeof(InstanceData));
-			instanceBuffer->Flush();
 		}
 
 		lineRenderer->Render(renderInfo);
@@ -981,7 +945,14 @@ void RenderPassManager::CreateDeferred()
 
 		const std::string lightsBufferName = "Lights";
 		const std::shared_ptr<UniformWriter> lightsUniformWriter = GetOrCreateRendererUniformWriter(renderInfo.renderView, pipeline, lightsBufferName);
-		const std::shared_ptr<Buffer> lightsBuffer = GetOrCreateRenderBuffer(renderInfo.renderView, lightsUniformWriter, lightsBufferName);
+		const std::shared_ptr<Buffer> lightsBuffer = GetOrCreateRenderBuffer(
+			renderInfo.renderView,
+			lightsUniformWriter,
+			lightsBufferName,
+			{},
+			{ Buffer::Usage::UNIFORM_BUFFER },
+			MemoryType::CPU,
+			true);
 
 		const Camera& camera = renderInfo.camera->GetComponent<Camera>();
 
@@ -1176,7 +1147,14 @@ void RenderPassManager::CreateAtmosphere()
 		const std::shared_ptr<UniformWriter> renderUniformWriter = GetOrCreateUniformWriter(
 			renderInfo.scene->GetRenderView(), pipeline, Pipeline::DescriptorSetIndexType::SCENE, renderPassName);
 		const std::string atmosphereBufferName = "AtmosphereBuffer";
-		const std::shared_ptr<Buffer> atmosphereBuffer = GetOrCreateRenderBuffer(renderInfo.scene->GetRenderView(), renderUniformWriter, atmosphereBufferName);
+		const std::shared_ptr<Buffer> atmosphereBuffer = GetOrCreateRenderBuffer(
+			renderInfo.scene->GetRenderView(),
+			renderUniformWriter,
+			atmosphereBufferName,
+			{},
+			{ Buffer::Usage::UNIFORM_BUFFER },
+			MemoryType::CPU,
+			true);
 
 		if (hasDirectionalLight)
 		{
@@ -1383,15 +1361,6 @@ void RenderPassManager::CreateTransparent()
 			renderData.scale = transform.GetScale();
 			renderData.position = transform.GetPosition();
 
-			if (const auto skeletalAnimatorEntity = scene->FindEntityByUUID(r3d.skeletalAnimatorEntityUUID))
-			{
-				SkeletalAnimator* skeletalAnimator = registry.try_get<SkeletalAnimator>(skeletalAnimatorEntity->GetHandle());
-				if (skeletalAnimator)
-				{
-					UpdateSkeletalAnimator(skeletalAnimator, r3d.material->GetBaseMaterial(), pipeline);
-				}
-			}
-
 			renderDatasByRenderingOrder[r3d.renderingOrder].emplace_back(renderData);
 
 			renderableCount++;
@@ -1445,7 +1414,7 @@ void RenderPassManager::CreateTransparent()
 			instanceBuffer = Buffer::Create(
 				sizeof(InstanceData),
 				renderableCount * 2,
-				Buffer::Usage::VERTEX_BUFFER,
+				{ Buffer::Usage::VERTEX_BUFFER },
 				MemoryType::CPU,
 				true);
 
@@ -1493,10 +1462,10 @@ void RenderPassManager::CreateTransparent()
 					skeletalAnimator = registry.try_get<SkeletalAnimator>(skeletalAnimatorEntity->GetHandle());
 				}
 
-				if (skeletalAnimator)
-				{
-					uniformWriters.emplace_back(skeletalAnimator->GetUniformWriter());
-				}
+				// if (skeletalAnimator)
+				// {
+				// 	uniformWriters.emplace_back(skeletalAnimator->GetUniformWriter());
+				// }
 				
 				if (!FlushUniformWriters(uniformWriters))
 				{
@@ -1707,25 +1676,25 @@ void RenderPassManager::CreateCSM()
 				glm::length(transform.GetScale() * glm::max(glm::abs(r3d.mesh->GetBoundingBox().min), glm::abs(r3d.mesh->GetBoundingBox().max))),
 				r3d.mesh->GetLods());
 
-			if (r3d.mesh->GetType() == Mesh::Type::SKINNED)
-			{
-				if (const auto skeletalAnimatorEntity = scene->FindEntityByUUID(r3d.skeletalAnimatorEntityUUID))
-				{
-					SkeletalAnimator* skeletalAnimator = registry.try_get<SkeletalAnimator>(skeletalAnimatorEntity->GetHandle());
-					if (skeletalAnimator)
-					{
-						UpdateSkeletalAnimator(skeletalAnimator, r3d.material->GetBaseMaterial(), pipeline);
-					}
-				}
+			// if (r3d.mesh->GetType() == Mesh::Type::SKINNED)
+			// {
+			// 	if (const auto skeletalAnimatorEntity = scene->FindEntityByUUID(r3d.skeletalAnimatorEntityUUID))
+			// 	{
+			// 		SkeletalAnimator* skeletalAnimator = registry.try_get<SkeletalAnimator>(skeletalAnimatorEntity->GetHandle());
+			// 		if (skeletalAnimator)
+			// 		{
+			// 			UpdateSkeletalAnimator(skeletalAnimator, r3d.material->GetBaseMaterial(), pipeline);
+			// 		}
+			// 	}
 
-				EntitiesByMesh::Single single{};
-				single.entity = entity;
-				single.mesh = r3d.mesh;
-				single.lod = lod;
+			// 	EntitiesByMesh::Single single{};
+			// 	single.entity = entity;
+			// 	single.mesh = r3d.mesh;
+			// 	single.lod = lod;
 
-				renderableEntities[r3d.material->GetBaseMaterial()][r3d.material].single.emplace_back(single);
-			}
-			else if (r3d.mesh->GetType() == Mesh::Type::STATIC)
+			// 	renderableEntities[r3d.material->GetBaseMaterial()][r3d.material].single.emplace_back(single);
+			// }
+			// else if (r3d.mesh->GetType() == Mesh::Type::STATIC)
 			{
 				auto& entities = renderableEntities[r3d.material->GetBaseMaterial()][r3d.material].instanced[r3d.mesh];
 				entities.resize(r3d.mesh->GetLods().size());
@@ -1748,7 +1717,7 @@ void RenderPassManager::CreateCSM()
 			instanceBuffer = Buffer::Create(
 				sizeof(InstanceDataCSM),
 				renderableCount * 2,
-				Buffer::Usage::VERTEX_BUFFER,
+				{ Buffer::Usage::VERTEX_BUFFER },
 				MemoryType::CPU,
 				true);
 
@@ -1776,7 +1745,14 @@ void RenderPassManager::CreateCSM()
 
 			const std::shared_ptr<UniformWriter> renderUniformWriter = GetOrCreateRendererUniformWriter(renderInfo.renderView, pipeline, renderPassName);
 			const std::string lightSpaceMatricesBufferName = "LightSpaceMatrices";
-			const std::shared_ptr<Buffer> lightSpaceMatricesBuffer = GetOrCreateRenderBuffer(renderInfo.renderView, renderUniformWriter, lightSpaceMatricesBufferName);
+			const std::shared_ptr<Buffer> lightSpaceMatricesBuffer = GetOrCreateRenderBuffer(
+				renderInfo.renderView,
+				renderUniformWriter,
+				lightSpaceMatricesBufferName,
+				{},
+				{ Buffer::Usage::UNIFORM_BUFFER },
+				MemoryType::CPU,
+				true);
 
 			if (!updatedLightSpaceMatrices)
 			{
@@ -1872,28 +1848,28 @@ void RenderPassManager::CreateCSM()
 						skeletalAnimator = registry.try_get<SkeletalAnimator>(skeletalAnimatorEntity->GetHandle());
 					}
 
-					if (skeletalAnimator)
-					{
-						std::vector<NativeHandle> newUniformWriterNativeHandles = uniformWriterNativeHandles;
-						newUniformWriterNativeHandles.emplace_back(skeletalAnimator->GetUniformWriter()->GetNativeHandle());
+					// if (skeletalAnimator)
+					// {
+					// 	std::vector<NativeHandle> newUniformWriterNativeHandles = uniformWriterNativeHandles;
+					// 	newUniformWriterNativeHandles.emplace_back(skeletalAnimator->GetUniformWriter()->GetNativeHandle());
 
-						std::vector<NativeHandle> vertexBuffers;
-						std::vector<size_t> vertexBufferOffsets;
-						GetVertexBuffers(pipeline, single.mesh, vertexBuffers, vertexBufferOffsets);
+					// 	std::vector<NativeHandle> vertexBuffers;
+					// 	std::vector<size_t> vertexBufferOffsets;
+					// 	GetVertexBuffers(pipeline, single.mesh, vertexBuffers, vertexBufferOffsets);
 
-						renderInfo.renderer->Render(
-							vertexBuffers,
-							vertexBufferOffsets,
-							single.mesh->GetIndexBuffer()->GetNativeHandle(),
-							single.mesh->GetLods()[single.lod].indexOffset * sizeof(uint32_t),
-							single.mesh->GetLods()[single.lod].indexCount,
-							pipeline,
-							instanceBuffer->GetNativeHandle(),
-							instanceDataOffset * instanceBuffer->GetInstanceSize(),
-							1,
-							newUniformWriterNativeHandles,
-							renderInfo.frame);
-					}
+					// 	renderInfo.renderer->Render(
+					// 		vertexBuffers,
+					// 		vertexBufferOffsets,
+					// 		single.mesh->GetIndexBuffer()->GetNativeHandle(),
+					// 		single.mesh->GetLods()[single.lod].indexOffset * sizeof(uint32_t),
+					// 		single.mesh->GetLods()[single.lod].indexCount,
+					// 		pipeline,
+					// 		instanceBuffer->GetNativeHandle(),
+					// 		instanceDataOffset * instanceBuffer->GetInstanceSize(),
+					// 		1,
+					// 		newUniformWriterNativeHandles,
+					// 		renderInfo.frame);
+					// }
 				}
 			}
 		}
@@ -2023,7 +1999,14 @@ void RenderPassManager::CreatePointLightShadows()
 
 		const std::string lightsBufferName = "Lights";
 		const std::shared_ptr<UniformWriter> lightsUniformWriter = GetOrCreateRendererUniformWriter(renderInfo.renderView, deferredPipeline, lightsBufferName);
-		const std::shared_ptr<Buffer> lightsBuffer = GetOrCreateRenderBuffer(renderInfo.renderView, lightsUniformWriter, lightsBufferName);
+		const std::shared_ptr<Buffer> lightsBuffer = GetOrCreateRenderBuffer(
+			renderInfo.renderView,
+			lightsUniformWriter,
+			lightsBufferName,
+			{},
+			{ Buffer::Usage::UNIFORM_BUFFER },
+			MemoryType::CPU,
+			true);
 
 		const int isPointLightShadowsEnabled = pointLightShadowsSettings.isEnabled;
 		deferredBaseMaterial->WriteToBuffer(lightsBuffer, lightsBufferName, "pointLightShadows.isEnabled", isPointLightShadowsEnabled);
@@ -2233,25 +2216,25 @@ void RenderPassManager::CreatePointLightShadows()
 						glm::length(transform.GetScale() * glm::max(glm::abs(r3d.mesh->GetBoundingBox().min), glm::abs(r3d.mesh->GetBoundingBox().max))),
 						r3d.mesh->GetLods());
 
-					if (r3d.mesh->GetType() == Mesh::Type::SKINNED)
-					{
-						if (const auto skeletalAnimatorEntity = scene->FindEntityByUUID(r3d.skeletalAnimatorEntityUUID))
-						{
-							SkeletalAnimator* skeletalAnimator = registry.try_get<SkeletalAnimator>(skeletalAnimatorEntity->GetHandle());
-							if (skeletalAnimator)
-							{
-								UpdateSkeletalAnimator(skeletalAnimator, r3d.material->GetBaseMaterial(), pipeline);
-							}
-						}
+					// if (r3d.mesh->GetType() == Mesh::Type::SKINNED)
+					// {
+					// 	if (const auto skeletalAnimatorEntity = scene->FindEntityByUUID(r3d.skeletalAnimatorEntityUUID))
+					// 	{
+					// 		SkeletalAnimator* skeletalAnimator = registry.try_get<SkeletalAnimator>(skeletalAnimatorEntity->GetHandle());
+					// 		if (skeletalAnimator)
+					// 		{
+					// 			UpdateSkeletalAnimator(skeletalAnimator, r3d.material->GetBaseMaterial(), pipeline);
+					// 		}
+					// 	}
 
-						EntitiesByMesh::Single single{};
-						single.entity = entity;
-						single.mesh = r3d.mesh;
-						single.lod = lod;
+					// 	EntitiesByMesh::Single single{};
+					// 	single.entity = entity;
+					// 	single.mesh = r3d.mesh;
+					// 	single.lod = lod;
 
-						faceInfo.renderableEntities[r3d.material->GetBaseMaterial()][r3d.material].single.emplace_back(single);
-					}
-					else if (r3d.mesh->GetType() == Mesh::Type::STATIC)
+					// 	faceInfo.renderableEntities[r3d.material->GetBaseMaterial()][r3d.material].single.emplace_back(single);
+					// }
+					// else if (r3d.mesh->GetType() == Mesh::Type::STATIC)
 					{
 						auto& entities = faceInfo.renderableEntities[r3d.material->GetBaseMaterial()][r3d.material].instanced[r3d.mesh];
 						entities.resize(r3d.mesh->GetLods().size());
@@ -2277,7 +2260,7 @@ void RenderPassManager::CreatePointLightShadows()
 			instanceBuffer = Buffer::Create(
 				sizeof(InstanceData),
 				renderableCount * 2,
-				Buffer::Usage::VERTEX_BUFFER,
+				{ Buffer::Usage::VERTEX_BUFFER },
 				MemoryType::CPU,
 				true);
 
@@ -2434,28 +2417,28 @@ void RenderPassManager::CreatePointLightShadows()
 								skeletalAnimator = registry.try_get<SkeletalAnimator>(skeletalAnimatorEntity->GetHandle());
 							}
 
-							if (skeletalAnimator)
-							{
-								std::vector<NativeHandle> newUniformWriterNativeHandles = uniformWriterNativeHandles;
-								newUniformWriterNativeHandles.emplace_back(skeletalAnimator->GetUniformWriter()->GetNativeHandle());
+							// if (skeletalAnimator)
+							// {
+							// 	std::vector<NativeHandle> newUniformWriterNativeHandles = uniformWriterNativeHandles;
+							// 	newUniformWriterNativeHandles.emplace_back(skeletalAnimator->GetUniformWriter()->GetNativeHandle());
 
-								std::vector<NativeHandle> vertexBuffers;
-								std::vector<size_t> vertexBufferOffsets;
-								GetVertexBuffers(pipeline, single.mesh, vertexBuffers, vertexBufferOffsets);
+							// 	std::vector<NativeHandle> vertexBuffers;
+							// 	std::vector<size_t> vertexBufferOffsets;
+							// 	GetVertexBuffers(pipeline, single.mesh, vertexBuffers, vertexBufferOffsets);
 
-								renderInfo.renderer->Render(
-									vertexBuffers,
-									vertexBufferOffsets,
-									single.mesh->GetIndexBuffer()->GetNativeHandle(),
-									single.mesh->GetLods()[single.lod].indexOffset * sizeof(uint32_t),
-									single.mesh->GetLods()[single.lod].indexCount,
-									pipeline,
-									instanceBuffer->GetNativeHandle(),
-									instanceDataOffset * instanceBuffer->GetInstanceSize(),
-									1,
-									newUniformWriterNativeHandles,
-									renderInfo.frame);
-							}
+							// 	renderInfo.renderer->Render(
+							// 		vertexBuffers,
+							// 		vertexBufferOffsets,
+							// 		single.mesh->GetIndexBuffer()->GetNativeHandle(),
+							// 		single.mesh->GetLods()[single.lod].indexOffset * sizeof(uint32_t),
+							// 		single.mesh->GetLods()[single.lod].indexCount,
+							// 		pipeline,
+							// 		instanceBuffer->GetNativeHandle(),
+							// 		instanceDataOffset * instanceBuffer->GetInstanceSize(),
+							// 		1,
+							// 		newUniformWriterNativeHandles,
+							// 		renderInfo.frame);
+							// }
 						}
 					}
 				}
@@ -2556,7 +2539,14 @@ void RenderPassManager::CreateSpotLightShadows()
 
 		const std::string lightsBufferName = "Lights";
 		const std::shared_ptr<UniformWriter> lightsUniformWriter = GetOrCreateRendererUniformWriter(renderInfo.renderView, deferredPipeline, lightsBufferName);
-		const std::shared_ptr<Buffer> lightsBuffer = GetOrCreateRenderBuffer(renderInfo.renderView, lightsUniformWriter, lightsBufferName);
+		const std::shared_ptr<Buffer> lightsBuffer = GetOrCreateRenderBuffer(
+			renderInfo.renderView,
+			lightsUniformWriter,
+			lightsBufferName,
+			{},
+			{ Buffer::Usage::UNIFORM_BUFFER },
+			MemoryType::CPU,
+			true);
 
 		const int isSpotLightShadowsEnabled = spotLightShadowsSettings.isEnabled;
 		deferredBaseMaterial->WriteToBuffer(lightsBuffer, lightsBufferName, "spotLightShadows.isEnabled", isSpotLightShadowsEnabled);
@@ -2759,25 +2749,25 @@ void RenderPassManager::CreateSpotLightShadows()
 					glm::length(transform.GetScale() * glm::max(glm::abs(r3d.mesh->GetBoundingBox().min), glm::abs(r3d.mesh->GetBoundingBox().max))),
 					r3d.mesh->GetLods());
 
-				if (r3d.mesh->GetType() == Mesh::Type::SKINNED)
-				{
-					if (const auto skeletalAnimatorEntity = scene->FindEntityByUUID(r3d.skeletalAnimatorEntityUUID))
-					{
-						SkeletalAnimator* skeletalAnimator = registry.try_get<SkeletalAnimator>(skeletalAnimatorEntity->GetHandle());
-						if (skeletalAnimator)
-						{
-							UpdateSkeletalAnimator(skeletalAnimator, r3d.material->GetBaseMaterial(), pipeline);
-						}
-					}
+				// if (r3d.mesh->GetType() == Mesh::Type::SKINNED)
+				// {
+				// 	if (const auto skeletalAnimatorEntity = scene->FindEntityByUUID(r3d.skeletalAnimatorEntityUUID))
+				// 	{
+				// 		SkeletalAnimator* skeletalAnimator = registry.try_get<SkeletalAnimator>(skeletalAnimatorEntity->GetHandle());
+				// 		if (skeletalAnimator)
+				// 		{
+				// 			UpdateSkeletalAnimator(skeletalAnimator, r3d.material->GetBaseMaterial(), pipeline);
+				// 		}
+				// 	}
 
-					EntitiesByMesh::Single single{};
-					single.entity = entity;
-					single.mesh = r3d.mesh;
-					single.lod = lod;
+				// 	EntitiesByMesh::Single single{};
+				// 	single.entity = entity;
+				// 	single.mesh = r3d.mesh;
+				// 	single.lod = lod;
 
-					lightInfo.renderableEntities[r3d.material->GetBaseMaterial()][r3d.material].single.emplace_back(single);
-				}
-				else if (r3d.mesh->GetType() == Mesh::Type::STATIC)
+				// 	lightInfo.renderableEntities[r3d.material->GetBaseMaterial()][r3d.material].single.emplace_back(single);
+				// }
+				// else if (r3d.mesh->GetType() == Mesh::Type::STATIC)
 				{
 					auto& entities = lightInfo.renderableEntities[r3d.material->GetBaseMaterial()][r3d.material].instanced[r3d.mesh];
 					entities.resize(r3d.mesh->GetLods().size());
@@ -2801,7 +2791,7 @@ void RenderPassManager::CreateSpotLightShadows()
 			instanceBuffer = Buffer::Create(
 				sizeof(InstanceData),
 				renderableCount * 2,
-				Buffer::Usage::VERTEX_BUFFER,
+				{ Buffer::Usage::VERTEX_BUFFER },
 				MemoryType::CPU,
 				true);
 
@@ -2951,28 +2941,28 @@ void RenderPassManager::CreateSpotLightShadows()
 							skeletalAnimator = registry.try_get<SkeletalAnimator>(skeletalAnimatorEntity->GetHandle());
 						}
 
-						if (skeletalAnimator)
-						{
-							std::vector<NativeHandle> newUniformWriterNativeHandles = uniformWriterNativeHandles;
-							uniformWriterNativeHandles.emplace_back(skeletalAnimator->GetUniformWriter()->GetNativeHandle());
+						// if (skeletalAnimator)
+						// {
+						// 	std::vector<NativeHandle> newUniformWriterNativeHandles = uniformWriterNativeHandles;
+						// 	uniformWriterNativeHandles.emplace_back(skeletalAnimator->GetUniformWriter()->GetNativeHandle());
 
-							std::vector<NativeHandle> vertexBuffers;
-							std::vector<size_t> vertexBufferOffsets;
-							GetVertexBuffers(pipeline, single.mesh, vertexBuffers, vertexBufferOffsets);
+						// 	std::vector<NativeHandle> vertexBuffers;
+						// 	std::vector<size_t> vertexBufferOffsets;
+						// 	GetVertexBuffers(pipeline, single.mesh, vertexBuffers, vertexBufferOffsets);
 
-							renderInfo.renderer->Render(
-								vertexBuffers,
-								vertexBufferOffsets,
-								single.mesh->GetIndexBuffer()->GetNativeHandle(),
-								single.mesh->GetLods()[single.lod].indexOffset * sizeof(uint32_t),
-								single.mesh->GetLods()[single.lod].indexCount,
-								pipeline,
-								instanceBuffer->GetNativeHandle(),
-								instanceDataOffset * instanceBuffer->GetInstanceSize(),
-								1,
-								newUniformWriterNativeHandles,
-								renderInfo.frame);
-						}
+						// 	renderInfo.renderer->Render(
+						// 		vertexBuffers,
+						// 		vertexBufferOffsets,
+						// 		single.mesh->GetIndexBuffer()->GetNativeHandle(),
+						// 		single.mesh->GetLods()[single.lod].indexOffset * sizeof(uint32_t),
+						// 		single.mesh->GetLods()[single.lod].indexCount,
+						// 		pipeline,
+						// 		instanceBuffer->GetNativeHandle(),
+						// 		instanceDataOffset * instanceBuffer->GetInstanceSize(),
+						// 		1,
+						// 		newUniformWriterNativeHandles,
+						// 		renderInfo.frame);
+						// }
 					}
 				}
 			}
@@ -3125,7 +3115,14 @@ void RenderPassManager::CreateBloom()
 
 					const std::shared_ptr<UniformWriter> renderUniformWriter = GetOrCreateRendererUniformWriter(
 						renderInfo.renderView, pipeline, renderPassName, "BloomDownUniformWriters[" + mipLevelString + "]");
-					GetOrCreateRenderBuffer(renderInfo.renderView, renderUniformWriter, "MipBuffer", "BloomBuffers[" + mipLevelString + "]");
+					GetOrCreateRenderBuffer(
+						renderInfo.renderView,
+						renderUniformWriter,
+						"MipBuffer",
+						"BloomBuffers[" + mipLevelString + "]",
+						{ Buffer::Usage::UNIFORM_BUFFER },
+						MemoryType::CPU,
+						true);
 				}
 			}
 
@@ -3334,7 +3331,15 @@ void RenderPassManager::CreateSSR()
 
 		const glm::vec2 viewportScale = glm::vec2(resolutionScales[ssrSettings.resolutionScale]);
 		const int useSkyBoxFallback = ssrSettings.useSkyBoxFallback;
-		const std::shared_ptr<Buffer> ssrBuffer = GetOrCreateRenderBuffer(renderInfo.renderView, renderUniformWriter, ssrBufferName);
+		const std::shared_ptr<Buffer> ssrBuffer = GetOrCreateRenderBuffer(
+			renderInfo.renderView,
+			renderUniformWriter,
+			ssrBufferName,
+			{},
+			{ Buffer::Usage::UNIFORM_BUFFER },
+			MemoryType::CPU,
+			true);
+
 		baseMaterial->WriteToBuffer(ssrBuffer, ssrBufferName, "viewportScale", viewportScale);
 		baseMaterial->WriteToBuffer(ssrBuffer, ssrBufferName, "maxDistance", ssrSettings.maxDistance);
 		baseMaterial->WriteToBuffer(ssrBuffer, ssrBufferName, "resolution", ssrSettings.resolution);
@@ -3429,7 +3434,15 @@ void RenderPassManager::CreateSSRBlur()
 
 		const int blur = (int)ssrSettings.blur;
 
-		const std::shared_ptr<Buffer> ssrBuffer = GetOrCreateRenderBuffer(renderInfo.renderView, renderUniformWriter, ssrBufferName);
+		const std::shared_ptr<Buffer> ssrBuffer = GetOrCreateRenderBuffer(
+			renderInfo.renderView,
+			renderUniformWriter,
+			ssrBufferName,
+			{},
+			{ Buffer::Usage::UNIFORM_BUFFER },
+			MemoryType::CPU,
+			true);
+
 		baseMaterial->WriteToBuffer(ssrBuffer, ssrBufferName, "blur", blur);
 		baseMaterial->WriteToBuffer(ssrBuffer, ssrBufferName, "blurRange", ssrSettings.blurRange);
 		baseMaterial->WriteToBuffer(ssrBuffer, ssrBufferName, "blurOffset", ssrSettings.blurOffset);
@@ -3539,7 +3552,14 @@ void RenderPassManager::CreateSSAO()
 		}
 
 		const std::shared_ptr<UniformWriter> renderUniformWriter = GetOrCreateRendererUniformWriter(renderInfo.renderView, pipeline, passName);
-		const std::shared_ptr<Buffer> ssaoBuffer = GetOrCreateRenderBuffer(renderInfo.renderView, renderUniformWriter, ssaoBufferName);
+		const std::shared_ptr<Buffer> ssaoBuffer = GetOrCreateRenderBuffer(
+			renderInfo.renderView,
+			renderUniformWriter,
+			ssaoBufferName,
+			{},
+			{ Buffer::Usage::UNIFORM_BUFFER },
+			MemoryType::CPU,
+			true);
 
 		WriteRenderViews(renderInfo.renderView, renderInfo.scene->GetRenderView(), pipeline, renderUniformWriter);
 		renderUniformWriter->WriteTexture("noiseTexture", ssaoRenderer->GetNoiseTexture());
@@ -3726,7 +3746,14 @@ void RenderPassManager::CreateSSS()
 
 		const std::string lightsBufferName = "Lights";
 		const std::shared_ptr<UniformWriter> lightsUniformWriter = GetOrCreateRendererUniformWriter(renderInfo.renderView, deferredPipeline, lightsBufferName);
-		const std::shared_ptr<Buffer> lightsBuffer = GetOrCreateRenderBuffer(renderInfo.renderView, lightsUniformWriter, lightsBufferName);
+		const std::shared_ptr<Buffer> lightsBuffer = GetOrCreateRenderBuffer(
+			renderInfo.renderView,
+			lightsUniformWriter,
+			lightsBufferName,
+			{},
+			{ Buffer::Usage::UNIFORM_BUFFER },
+			MemoryType::CPU,
+			true);
 
 		const glm::vec2 viewportScale = glm::vec2(resolutionScales[sssSettings.resolutionScale]);
 		deferredBaseMaterial->WriteToBuffer(lightsBuffer, lightsBufferName, "sss.maxSteps", sssSettings.maxSteps);
@@ -4035,7 +4062,7 @@ void RenderPassManager::CreateDecalPass()
 			instanceBuffer = Buffer::Create(
 				sizeof(DecalInstanceData),
 				renderableCount * 2,
-				Buffer::Usage::VERTEX_BUFFER,
+				{ Buffer::Usage::VERTEX_BUFFER },
 				MemoryType::CPU,
 				true);
 
@@ -4173,7 +4200,14 @@ void RenderPassManager::CreateToneMappingPass()
 
 		const std::shared_ptr<UniformWriter> renderUniformWriter = GetOrCreateRendererUniformWriter(renderInfo.renderView, pipeline, renderPassName);
 		const std::string toneMappingBufferBufferName = "ToneMappingBuffer";
-		const std::shared_ptr<Buffer> toneMappingBufferBuffer = GetOrCreateRenderBuffer(renderInfo.renderView, renderUniformWriter, toneMappingBufferBufferName);
+		const std::shared_ptr<Buffer> toneMappingBufferBuffer = GetOrCreateRenderBuffer(
+			renderInfo.renderView,
+			renderUniformWriter,
+			toneMappingBufferBufferName,
+			{},
+			{ Buffer::Usage::UNIFORM_BUFFER },
+			MemoryType::CPU,
+			true);
 
 		const int isSSREnabled = graphicsSettings.ssr.isEnabled;
 		const int SSRMipLevels = isSSREnabled ? renderInfo.renderView->GetStorageImage(SSRBlur)->GetMipLevels() * graphicsSettings.ssr.mipMultiplier : 0;
@@ -4267,7 +4301,14 @@ void RenderPassManager::CreateAntiAliasingAndComposePass()
 
 		const std::shared_ptr<UniformWriter> renderUniformWriter = GetOrCreateRendererUniformWriter(renderInfo.renderView, pipeline, renderPassName);
 		const std::string postProcessBufferName = "PostProcessBuffer";
-		const std::shared_ptr<Buffer> postProcessBuffer = GetOrCreateRenderBuffer(renderInfo.renderView, renderUniformWriter, postProcessBufferName);
+		const std::shared_ptr<Buffer> postProcessBuffer = GetOrCreateRenderBuffer(
+			renderInfo.renderView,
+			renderUniformWriter,
+			postProcessBufferName,
+			{},
+			{ Buffer::Usage::UNIFORM_BUFFER },
+			MemoryType::CPU,
+			true);
 
 		const glm::vec2 viewportSize = renderInfo.viewportSize;
 		const int fxaa = graphicsSettings.postProcess.fxaa;
@@ -4400,7 +4441,8 @@ std::shared_ptr<UniformWriter> RenderPassManager::GetOrCreateUniformWriter(
 	std::shared_ptr<Pipeline> pipeline,
 	Pipeline::DescriptorSetIndexType descriptorSetIndexType,
 	const std::string& uniformWriterName,
-	const std::string& uniformWriterIndexByName)
+	const std::string& uniformWriterIndexByName,
+	const bool isMultiBuffered)
 {
 	PROFILER_SCOPE(__FUNCTION__);
 
@@ -4409,7 +4451,7 @@ std::shared_ptr<UniformWriter> RenderPassManager::GetOrCreateUniformWriter(
 	{
 		const std::shared_ptr<UniformLayout> renderUniformLayout =
 			pipeline->GetUniformLayout(*pipeline->GetDescriptorSetIndexByType(descriptorSetIndexType, uniformWriterName));
-		renderUniformWriter = UniformWriter::Create(renderUniformLayout);
+		renderUniformWriter = UniformWriter::Create(renderUniformLayout, isMultiBuffered);
 		renderView->SetUniformWriter(uniformWriterIndexByName.empty() ? uniformWriterName : uniformWriterIndexByName, renderUniformWriter);
 	}
 
@@ -4420,16 +4462,20 @@ std::shared_ptr<UniformWriter> RenderPassManager::GetOrCreateRendererUniformWrit
 	std::shared_ptr<RenderView> renderView,
 	std::shared_ptr<Pipeline> pipeline,
 	const std::string& uniformWriterName,
-	const std::string& uniformWriterIndexByName)
+	const std::string& uniformWriterIndexByName,
+	const bool isMultiBuffered)
 {
-	return GetOrCreateUniformWriter(renderView, pipeline, Pipeline::DescriptorSetIndexType::RENDERER, uniformWriterName, uniformWriterIndexByName);
+	return GetOrCreateUniformWriter(renderView, pipeline, Pipeline::DescriptorSetIndexType::RENDERER, uniformWriterName, uniformWriterIndexByName, isMultiBuffered);
 }
 
 std::shared_ptr<Buffer> RenderPassManager::GetOrCreateRenderBuffer(
 	std::shared_ptr<RenderView> renderView,
 	std::shared_ptr<UniformWriter> uniformWriter,
 	const std::string& bufferName,
-	const std::string& setBufferName)
+	const std::string& setBufferName,
+	const std::vector<Buffer::Usage>& usages,
+	const MemoryType memoryType,
+	const bool isMultiBuffered)
 {
 	PROFILER_SCOPE(__FUNCTION__);
 
@@ -4445,8 +4491,9 @@ std::shared_ptr<Buffer> RenderPassManager::GetOrCreateRenderBuffer(
 		buffer = Buffer::Create(
 			binding->buffer->size,
 			1,
-			Buffer::Usage::UNIFORM_BUFFER,
-			MemoryType::CPU);
+			usages,
+			memoryType,
+			isMultiBuffered);
 
 		renderView->SetBuffer(setBufferName.empty() ? bufferName : setBufferName, buffer);
 		uniformWriter->WriteBuffer(binding->buffer->name, buffer);
@@ -4456,40 +4503,6 @@ std::shared_ptr<Buffer> RenderPassManager::GetOrCreateRenderBuffer(
 	}
 
 	FATAL_ERROR(bufferName + ":Failed to create buffer, no such binding was found!");
-}
-
-void RenderPassManager::UpdateSkeletalAnimator(
-	SkeletalAnimator* skeletalAnimator,
-	std::shared_ptr<BaseMaterial> baseMaterial,
-	std::shared_ptr<Pipeline> pipeline)
-{
-	PROFILER_SCOPE(__FUNCTION__);
-
-	if (!skeletalAnimator->GetUniformWriter())
-	{
-		const std::shared_ptr<UniformLayout> renderUniformLayout =
-			pipeline->GetUniformLayout(*pipeline->GetDescriptorSetIndexByType(Pipeline::DescriptorSetIndexType::OBJECT, GBuffer));
-		skeletalAnimator->SetUniformWriter(UniformWriter::Create(renderUniformLayout));
-	}
-
-	if (!skeletalAnimator->GetBuffer())
-	{
-		auto binding = skeletalAnimator->GetUniformWriter()->GetUniformLayout()->GetBindingByName("BoneMatrices");
-		if (binding && binding->buffer)
-		{
-			skeletalAnimator->SetBuffer(Buffer::Create(
-				binding->buffer->size,
-				1,
-				Buffer::Usage::UNIFORM_BUFFER,
-				MemoryType::CPU));
-
-			skeletalAnimator->GetUniformWriter()->WriteBuffer(binding->buffer->name, skeletalAnimator->GetBuffer());
-			skeletalAnimator->GetUniformWriter()->Flush();
-		}
-	}
-
-	baseMaterial->WriteToBuffer(skeletalAnimator->GetBuffer(), "BoneMatrices", "boneMatrices", *skeletalAnimator->GetFinalBoneMatrices().data());
-	skeletalAnimator->GetBuffer()->Flush();
 }
 
 size_t RenderPassManager::GetLod(

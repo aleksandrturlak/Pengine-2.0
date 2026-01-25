@@ -1,0 +1,120 @@
+#version 450
+
+#include "Shaders/Includes/Camera.h"
+layout(set = 0, binding = 0) uniform GlobalBuffer
+{
+	Camera camera;
+};
+
+#include "Shaders/Includes/BindlessMeshes.h"
+
+struct DrawIndirectCommand
+{
+    uint vertexCount;
+    uint instanceCount;
+    uint firstVertex;
+    uint firstInstance;
+};
+
+layout(set = 1, binding = 0, scalar) buffer IndirectDrawCommands
+{
+	DrawIndirectCommand drawCommands[100000];
+};
+
+#define MAX_PIPELINE_COUNT 128
+layout(set = 1, binding = 1) buffer IndirectDrawCommandCount
+{
+	uint count[MAX_PIPELINE_COUNT];
+};
+
+layout(set = 1, binding = 2) buffer PipelineInfoBuffer
+{
+  uint pipelineCommandOffset[MAX_PIPELINE_COUNT];
+};
+
+layout(set = 2, binding = 0) uniform sampler2D bindlessTextures[10000];
+
+#include "Shaders/Includes/DefaultMaterial.h"
+layout(set = 2, binding = 1) buffer readonly BindlessMaterials
+{
+	DefaultMaterial materials[1000];
+};
+
+layout(set = 3, binding = 0, scalar) buffer readonly BindlessEntities
+{
+	EntityInfo entities[20000];
+};
+
+bool IsAABBInsideFrustum(
+    in vec3 min,
+    in vec3 max)
+{
+    const vec3 center = (min + max) * 0.5f;
+    const vec3 extents = max - center;
+
+    for (int i = 0; i < 6; ++i)
+    {
+        const vec4 plane = camera.frustumPlanes[i];
+        const float distance = dot(center, vec3(plane)) + plane.w;
+        const float radius = dot(extents, abs(vec3(plane)));
+
+        if (distance + radius < 0.0f)
+        {
+            return false;
+        }
+    }
+
+    return true;
+}
+
+uint GetLod(
+	in vec3 cameraPosition,
+	in vec3 meshPosition,
+	in MeshInfo meshInfo)
+{
+	if (meshInfo.lodCount == 1)
+	{
+		return 0;
+	}
+
+	const float distance = length(cameraPosition - meshPosition);
+
+	for (uint i = 1; i < meshInfo.lodCount; ++i)
+	{
+		if (distance <= meshInfo.lods[i].distanceThreshold)
+		{
+			return i - 1;
+		}
+	}
+
+	return meshInfo.lodCount - 1;
+}
+
+layout (local_size_x = 16, local_size_y = 1, local_size_z = 1) in;
+void main()
+{
+    uint entityIndex = gl_GlobalInvocationID.x;
+    if (entityIndex >= 20000) return;
+
+    EntityInfo entityInfo = entities[entityIndex];
+    if (!bool(entityInfo.flags & ENTITY_VALID))
+    {
+        return;
+    }
+
+    if (!IsAABBInsideFrustum(entityInfo.aabb.min, entityInfo.aabb.max)) return;
+
+    MeshInfo meshInfo = entityInfo.meshInfoBuffer.meshInfo;
+
+    uint lod = GetLod(camera.positionWorldSpace, vec4(entityInfo.transform * vec4(0.0f, 0.0f, 0.0f, 1.0f)).xyz, meshInfo);
+    LodInfo lodInfo = meshInfo.lods[lod];
+
+    DrawIndirectCommand cmd;
+    cmd.vertexCount = lodInfo.indexCount;
+    cmd.instanceCount = 1;
+    cmd.firstVertex = lodInfo.indexOffset;
+    cmd.firstInstance = entityIndex;
+
+    uint drawIndex = atomicAdd(count[entityInfo.pipelineId], 1);
+    drawCommands[pipelineCommandOffset[entityInfo.pipelineId] + drawIndex] = cmd;
+}

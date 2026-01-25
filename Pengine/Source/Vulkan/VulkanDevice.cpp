@@ -226,6 +226,7 @@ void VulkanDevice::CreateLogicalDevice()
 	vulkan12Features.descriptorBindingStorageBufferUpdateAfterBind = VK_TRUE;
 	vulkan12Features.descriptorBindingSampledImageUpdateAfterBind = VK_TRUE;
 	vulkan12Features.descriptorBindingStorageImageUpdateAfterBind = VK_TRUE;
+	vulkan12Features.drawIndirectCount = VK_TRUE;
 	
 	VkDeviceCreateInfo createInfo{};
 	createInfo.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO;
@@ -318,6 +319,7 @@ void VulkanDevice::CreateVmaAllocator()
 	allocatorInfo.device = m_Device;
 	allocatorInfo.instance = m_Instance;
 	allocatorInfo.vulkanApiVersion = GetVulkanApiVersion();
+	allocatorInfo.flags = VMA_ALLOCATOR_CREATE_BUFFER_DEVICE_ADDRESS_BIT;
 
 	const VkResult result = vmaCreateAllocator(&allocatorInfo, &m_VmaAllocator);
 	if (result != VK_SUCCESS)

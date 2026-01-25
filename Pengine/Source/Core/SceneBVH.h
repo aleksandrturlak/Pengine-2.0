@@ -73,8 +73,6 @@ namespace Pengine
 		//BVHNode* FindLeaf(BVHNode* node, std::shared_ptr<Entity> entity) const;
 
 		//BVHNode* FindParent(BVHNode* root, BVHNode* target) const;
-
-		static AABB LocalToWorldAABB(const AABB& localAABB, const glm::mat4& transformMat4);
 	};
 
 }

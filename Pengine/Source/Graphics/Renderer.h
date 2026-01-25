@@ -96,11 +96,23 @@ namespace Pengine
 			const uint32_t instanceCount,
 			void* frame) = 0;
 
+		virtual void DrawIndirectCount(
+			const NativeHandle indirectBuffer,
+			const size_t offset,
+			const NativeHandle countBuffer,
+			const size_t countBufferOffset,
+			const uint32_t maxDrawCount,
+			void* frame) = 0;
+
 		virtual void Dispatch(
 			const glm::uvec3& groupCount,
 			void* frame) = 0;
 
 		virtual void MemoryBarrierFragmentReadWrite(void* frame) = 0;
+
+		virtual void MemoryBarrierVertexReadWrite(void* frame) = 0;
+
+		virtual void MemoryBufferBarrierVertexReadWrite(NativeHandle buffer, void* frame) = 0;
 
 		virtual void BeginCommandLabel(
 			const std::string& name,
@@ -112,6 +124,13 @@ namespace Pengine
 		virtual void ClearDepthStencilImage(
 			std::shared_ptr<Texture> texture,
 			const RenderPass::ClearDepth& clearDepth,
+			void* frame) = 0;
+
+		virtual void FillBuffer(
+			NativeHandle buffer,
+			const size_t size,
+			const size_t offset,
+			uint32_t value,
 			void* frame) = 0;
 	};
 

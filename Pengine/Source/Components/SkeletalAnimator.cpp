@@ -1,5 +1,6 @@
 #include "SkeletalAnimator.h"
 
+#include "../Graphics/Buffer.h"
 #include "../Graphics/SkeletalAnimation.h"
 #include "../Graphics/Skeleton.h"
 #include "../Components/Transform.h"
@@ -14,6 +15,13 @@ namespace Pengine
 	SkeletalAnimator::SkeletalAnimator()
 	{
 		m_FinalBoneMatrices.resize(100, glm::mat4(1.0f));
+
+		m_Buffer = Buffer::Create(
+			sizeof(glm::mat4),
+			100,
+			{ Buffer::Usage::STORAGE_BUFFER },
+			MemoryType::CPU,
+			true);
 	}
 
 	SkeletalAnimator::SkeletalAnimator(const SkeletalAnimator& skeletalAnimator)
@@ -24,12 +32,15 @@ namespace Pengine
 		m_Skeleton = skeletalAnimator.GetSkeleton();
 		m_FinalBoneMatrices.resize(100, glm::mat4(1.0f));
 
-		// For every new skeletal animator component need to create a unique uniform writer and buffer.
-		m_UniformWriter = nullptr;
-		m_Buffer = nullptr;
+		m_Buffer = Buffer::Create(
+			sizeof(glm::mat4),
+			100,
+			{ Buffer::Usage::STORAGE_BUFFER },
+			MemoryType::CPU,
+			true);
 	}
 
-	void SkeletalAnimator::UpdateAnimation(std::shared_ptr<Entity> entity, const float deltaTime, const glm::mat4& parentTransform)
+    void SkeletalAnimator::UpdateAnimation(std::shared_ptr<Entity> entity, const float deltaTime, const glm::mat4& parentTransform)
 	{
 		if (!m_SkeletalAnimation || !m_Skeleton)
 		{
@@ -67,6 +78,11 @@ namespace Pengine
 		{
 			CalculateBoneTransform(entity, rootBoneId, parentTransform);
 		}
+
+		m_Buffer->WriteToBuffer(
+			m_FinalBoneMatrices.data(),
+			sizeof(glm::mat4) * m_FinalBoneMatrices.size());
+		m_Buffer->Flush();
 	}
 
 	void SkeletalAnimator::SetNextSkeletalAnimation(std::shared_ptr<SkeletalAnimation> skeletalAnimation, float transitionTime)

@@ -174,6 +174,27 @@ void VulkanRenderer::DrawIndexed(
 	triangleCount += (indexCount / 3) * instanceCount;
 }
 
+void VulkanRenderer::DrawIndirectCount(
+	const NativeHandle indirectBuffer,
+	const size_t offset,
+	const NativeHandle countBuffer,
+	const size_t countBufferOffset,
+	const uint32_t maxDrawCount,
+	void* frame)
+{
+	PROFILER_SCOPE(__FUNCTION__);
+
+	const VulkanFrameInfo* vkFrame = static_cast<VulkanFrameInfo*>(frame);
+	vkCmdDrawIndirectCount(
+		vkFrame->CommandBuffer,
+		*(VkBuffer*)&indirectBuffer,
+		offset * sizeof(VkDrawIndirectCommand),
+		*(VkBuffer*)&countBuffer,
+		countBufferOffset * sizeof(uint32_t),
+		maxDrawCount,
+		sizeof(VkDrawIndirectCommand));
+}
+
 void VulkanRenderer::Dispatch(
 	const glm::uvec3& groupCount,
 	void* frame)
@@ -205,6 +226,52 @@ void VulkanRenderer::MemoryBarrierFragmentReadWrite(void* frame)
 		nullptr,
 		0,
 		nullptr);
+}
+
+void VulkanRenderer::MemoryBarrierVertexReadWrite(void *frame)
+{
+	PROFILER_SCOPE(__FUNCTION__);
+
+	const VulkanFrameInfo* vkFrame = static_cast<VulkanFrameInfo*>(frame);
+
+	VkMemoryBarrier memoryBarrier{};
+	memoryBarrier.sType = VK_STRUCTURE_TYPE_MEMORY_BARRIER;
+	memoryBarrier.srcAccessMask = VK_ACCESS_SHADER_WRITE_BIT;
+	memoryBarrier.dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
+	vkCmdPipelineBarrier(
+		vkFrame->CommandBuffer,
+		VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT,
+		VK_PIPELINE_STAGE_DRAW_INDIRECT_BIT,
+		0,
+		1,
+		&memoryBarrier,
+		0,
+		nullptr,
+		0,
+		nullptr);
+}
+
+void VulkanRenderer::MemoryBufferBarrierVertexReadWrite(NativeHandle buffer, void *frame)
+{
+	PROFILER_SCOPE(__FUNCTION__);
+
+	const VulkanFrameInfo* vkFrame = static_cast<VulkanFrameInfo*>(frame);
+
+	VkBufferMemoryBarrier memoryBarrier{};
+	memoryBarrier.sType = VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER;
+	memoryBarrier.srcAccessMask = VK_ACCESS_SHADER_WRITE_BIT;
+	memoryBarrier.dstAccessMask = VK_ACCESS_INDIRECT_COMMAND_READ_BIT;
+	memoryBarrier.buffer = *(VkBuffer*)&buffer;
+	memoryBarrier.offset = 0;
+	memoryBarrier.size = VK_WHOLE_SIZE;
+	vkCmdPipelineBarrier(
+		vkFrame->CommandBuffer,
+		VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT,
+		VK_PIPELINE_STAGE_DRAW_INDIRECT_BIT,
+		0,
+		0, nullptr,
+		1, &memoryBarrier,
+		0, nullptr);
 }
 
 void VulkanRenderer::BeginCommandLabel(
@@ -244,6 +311,19 @@ void VulkanRenderer::ClearDepthStencilImage(
 	range.layerCount = vkTexture->GetLayerCount();
 
 	GetVkDevice()->ClearDepthStencilImage(vkTexture->GetImage(), vkTexture->GetLayout(), &clearValue, 1, &range, vkFrame->CommandBuffer);
+}
+
+void VulkanRenderer::FillBuffer(
+	NativeHandle buffer,
+	const size_t size,
+	const size_t offset,
+	uint32_t value,
+	void *frame)
+{
+	PROFILER_SCOPE(__FUNCTION__);
+
+	const VulkanFrameInfo* vkFrame = static_cast<VulkanFrameInfo*>(frame);
+	vkCmdFillBuffer(vkFrame->CommandBuffer, *(VkBuffer*)&buffer, offset, size, value);
 }
 
 void VulkanRenderer::BeginRenderPass(

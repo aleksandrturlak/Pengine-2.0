@@ -14,7 +14,7 @@ namespace Pengine::Vk
 		static std::shared_ptr<VulkanBuffer> Create(
 			const size_t instanceSize,
 			const uint32_t instanceCount,
-			const Usage usage,
+			const std::vector<Usage>& usages,
 			const MemoryType memoryType,
 			const bool isMultiBuffered);
 
@@ -62,6 +62,8 @@ namespace Pengine::Vk
 
 		[[nodiscard]] virtual NativeHandle GetNativeHandle() const override;
 
+		[[nodiscard]] virtual NativeHandle GetDeviceAddress() const override;
+		
 		[[nodiscard]] VkDescriptorBufferInfo GetDescriptorInfo(
 			const uint32_t imageIndex,
 			VkDeviceSize size = VK_WHOLE_SIZE,

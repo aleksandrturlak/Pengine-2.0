@@ -169,14 +169,10 @@ void Viewport::Update(const std::shared_ptr<Texture>& viewportTexture, std::shar
 
 								if (mesh->GetType() == Mesh::Type::SKINNED)
 								{
-									r3d.material = MaterialManager::GetInstance().LoadMaterial(std::filesystem::path("Materials") / "MeshBaseSkinned.mat");
-
 									entity->AddComponent<SkeletalAnimator>();
 								}
-								else
-								{
-									r3d.material = MaterialManager::GetInstance().LoadMaterial(std::filesystem::path("Materials") / "MeshBaseDoubleSided.mat");
-								}
+								
+								r3d.material = MaterialManager::GetInstance().LoadMaterial(std::filesystem::path("Materials") / "MeshBaseDoubleSided.mat");
 							}
 						}
 					}

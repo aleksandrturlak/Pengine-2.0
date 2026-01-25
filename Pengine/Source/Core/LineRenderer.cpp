@@ -52,14 +52,14 @@ void LineRenderer::Render(const RenderPass::RenderCallbackInfo& renderInfo)
 				batch.vertexBuffer = Buffer::Create(
 					sizeof(glm::vec3) * 2,
 					MAX_BATCH_LINE_COUNT * 2,
-					Buffer::Usage::VERTEX_BUFFER,
+					{ Buffer::Usage::VERTEX_BUFFER },
 					MemoryType::CPU,
 					true);
 
 				batch.indexBuffer = Buffer::Create(
 					sizeof(uint32_t),
 					MAX_BATCH_LINE_COUNT * 2,
-					Buffer::Usage::INDEX_BUFFER,
+					{ Buffer::Usage::INDEX_BUFFER },
 					MemoryType::CPU,
 					true);
 

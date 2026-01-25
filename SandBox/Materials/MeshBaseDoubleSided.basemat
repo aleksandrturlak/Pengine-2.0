@@ -14,30 +14,9 @@ Basemat:
           Set: 0
         - Type: Bindless
           Set: 1
-      VertexInputBindingDescriptions:
-        - Binding: 0
-          InputRate: Vertex
-          Tag: Position
-          Names:
-            - positionA
-            - uvA
-        - Binding: 1
-          InputRate: Vertex
-          Tag: Normal
-          Names:
-            - normalA
-            - tangentA
-        - Binding: 2
-          InputRate: Vertex
-          Tag: Color
-          Names:
-            - colorA
-        - Binding: 3
-          InputRate: Instance
-          Names:
-            - materialIndexA
-            - transformA
-            - inverseTransformA
+        - Type: Scene
+          RenderPass: BindlessEntities
+          Set: 2
       ColorBlendStates:
         - BlendEnabled: false
         - BlendEnabled: false

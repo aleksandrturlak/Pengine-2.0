@@ -164,7 +164,6 @@ void TextureManager::CreateDefaultResources()
 		BindlessUniformWriter::GetInstance().BindTexture(m_Pink);
 		BindlessUniformWriter::GetInstance().BindTexture(m_White);
 		BindlessUniformWriter::GetInstance().BindTexture(m_Black);
-		BindlessUniformWriter::GetInstance().Flush();
 	}
 
 	Texture::CreateInfo whiteLayeredTextureCreateInfo;

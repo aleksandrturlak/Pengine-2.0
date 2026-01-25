@@ -1,7 +1,9 @@
 #include "BindlessUniformWriter.h"
 
 #include "MaterialManager.h"
+#include "MeshManager.h"
 
+#include "../Graphics/Device.h"
 #include "../Graphics/Texture.h"
 #include "../Graphics/UniformLayout.h"
 #include "../Graphics/UniformWriter.h"
@@ -39,15 +41,18 @@ void BindlessUniformWriter::Initialize()
 		m_BindlessMaterialBuffer = Buffer::Create(
 			materialSize,
 			materialCount,
-			Buffer::Usage::STORAGE_BUFFER,
-			MemoryType::CPU);
+			{ Buffer::Usage::STORAGE_BUFFER },
+			MemoryType::CPU,
+			true);
 
 		m_BaseMaterialSize = materialSize;
 		m_MaterialSlotManager.Initialize(materialCount);
+
+		Logger::Log(std::format("Bindless Material Buffer Size: {} MB", (materialSize * materialCount * Vk::swapChainImageCount) / 1024.0f / 1024.0f));
 	}
 	
 	const auto bindlessUniformLayout = UniformLayout::Create(bindings);
-	m_BindlessUniformWriter = UniformWriter::Create(bindlessUniformLayout, false);
+	m_BindlessUniformWriter = UniformWriter::Create(bindlessUniformLayout, true);
 	m_BindlessUniformWriter->WriteBuffer("BindlessMaterials", m_BindlessMaterialBuffer);
 	m_BindlessUniformWriter->Flush();
 }
@@ -55,6 +60,7 @@ void BindlessUniformWriter::Initialize()
 void BindlessUniformWriter::ShutDown()
 {
 	m_TexturesByIndex.clear();
+	m_MaterialsByIndex.clear();
 	m_BindlessMaterialBuffer = nullptr;
 	m_BindlessUniformWriter = nullptr;
 	m_BaseMaterial = nullptr;
@@ -146,7 +152,32 @@ std::shared_ptr<Material> BindlessUniformWriter::GetBindlessMaterial(const int i
 	return nullptr;
 }
 
-void BindlessUniformWriter::Flush()
+void BindlessUniformWriter::CreateBindlessEntitiesResources(
+	std::shared_ptr<UniformWriter>& uniformWriter,
+	std::shared_ptr<Buffer>& buffer)
 {
-	m_BindlessUniformWriter->Flush();
+	const auto& pipeline = m_BaseMaterial->GetPipeline(DefaultReflection);
+	const auto& uniformLayout = pipeline->GetUniformLayout(3);
+	const auto& binding = uniformLayout->GetBindingByLocation(0);
+
+	{
+		const size_t entityCount = binding->buffer->variables.begin()->count;
+		const size_t entitySize = binding->buffer->variables.begin()->size / entityCount;
+
+		assert(entitySize == sizeof(EntityInfo));
+
+		buffer = Buffer::Create(
+			entitySize,
+			entityCount,
+			{ Buffer::Usage::STORAGE_BUFFER },
+			MemoryType::CPU,
+			true);
+
+		Logger::Log(std::format("Bindless Entity Buffer Size: {} MB", (entitySize * entityCount * Vk::swapChainImageCount) / 1024.0f / 1024.0f));
+	}
+
+	const std::vector<ShaderReflection::ReflectDescriptorSetBinding> bindings = { *binding };
+	const auto entityUniformLayout = UniformLayout::Create(bindings);
+	uniformWriter = UniformWriter::Create(entityUniformLayout, true);
+	uniformWriter->WriteBuffer("BindlessEntities", buffer);
 }

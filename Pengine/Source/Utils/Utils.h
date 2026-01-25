@@ -2,6 +2,7 @@
 
 #include "../Core/Core.h"
 #include "../Core/Logger.h"
+#include "../Core/BoundingBox.h"
 
 #define GLM_ENABLE_EXPERIMENTAL
 #include "glm/gtx/matrix_decompose.hpp"
@@ -584,5 +585,38 @@ namespace Pengine::Utils
 		const float distance2 = glm::dot(diff, diff);
 
 		return distance2 <= (sphereRadius * sphereRadius);
+	}
+
+	inline AABB LocalToWorldAABB(const AABB& localAABB, const glm::mat4& transformMat4)
+	{
+		const glm::vec3& min = localAABB.min;
+		const glm::vec3& max = localAABB.max;
+
+		const std::array<glm::vec4, 8> corners =
+		{
+			{
+				{ min.x,  min.y,  min.z, 1.0f },
+				{ max.x,  min.y,  min.z, 1.0f },
+				{ min.x,  max.y,  min.z, 1.0f },
+				{ max.x,  max.y,  min.z, 1.0f },
+				{ min.x,  min.y,  max.z, 1.0f },
+				{ max.x,  min.y,  max.z, 1.0f },
+				{ min.x,  max.y,  max.z, 1.0f },
+				{ max.x,  max.y,  max.z, 1.0f } 
+			}
+		};
+
+		glm::vec3 transformed = transformMat4 * corners[0];
+		glm::vec3 worldMin = transformed;
+		glm::vec3 worldMax = transformed;
+
+		for (size_t i = 1; i < 8; ++i)
+		{
+			transformed = transformMat4 * corners[i];
+			worldMin = glm::min(worldMin, transformed);
+			worldMax = glm::max(worldMax, transformed);
+		}
+
+		return { worldMin, worldMax };
 	}
 }

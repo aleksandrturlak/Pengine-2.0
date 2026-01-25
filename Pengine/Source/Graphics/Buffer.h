@@ -13,13 +13,14 @@ namespace Pengine
 			UNIFORM_BUFFER,
 			VERTEX_BUFFER,
 			INDEX_BUFFER,
-			STORAGE_BUFFER
+			STORAGE_BUFFER,
+			INDIRECT_BUFFER,
 		};
 
 		static std::shared_ptr<Buffer> Create(
 			const size_t instanceSize,
 			const uint32_t instanceCount,
-			const Usage usage,
+			const std::vector<Usage>& usages,
 			const MemoryType memoryType,
 			const bool isMultiBuffered = false);
 
@@ -50,6 +51,8 @@ namespace Pengine
 		[[nodiscard]] virtual uint32_t GetInstanceCount() const = 0;
 
 		[[nodiscard]] virtual size_t GetInstanceSize() const = 0;
+
+		[[nodiscard]] virtual NativeHandle GetDeviceAddress() const = 0;
 
 		[[nodiscard]] MemoryType GetMemoryType() const { return m_MemoryType; }
 

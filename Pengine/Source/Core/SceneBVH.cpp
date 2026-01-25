@@ -56,7 +56,7 @@ std::vector<SceneBVH::BVHNode> SceneBVH::BuildNodes(const entt::registry& regist
 			continue;
 		}
 
-		AABB aabb = LocalToWorldAABB({ r3d.mesh->GetBoundingBox().min, r3d.mesh->GetBoundingBox().max }, transform.GetTransform());
+		AABB aabb = Utils::LocalToWorldAABB({ r3d.mesh->GetBoundingBox().min, r3d.mesh->GetBoundingBox().max }, transform.GetTransform());
 		const float distance2 = glm::distance2(aabb.max, aabb.min);
 		if (distance2 < 1e-6f)
 		{
@@ -399,36 +399,3 @@ uint32_t SceneBVH::BuildRecursive(int start, int end, std::atomic<int>& parallel
 //	if (BVHNode* left = FindParent(root->left, target)) return left;
 //	return FindParent(root->right, target);
 //}
-
-AABB SceneBVH::LocalToWorldAABB(const AABB& localAABB, const glm::mat4& transformMat4)
-{
-	const glm::vec3& min = localAABB.min;
-	const glm::vec3& max = localAABB.max;
-
-	const std::array<glm::vec4, 8> corners =
-	{
-		{
-			{ min.x,  min.y,  min.z, 1.0f },
-			{ max.x,  min.y,  min.z, 1.0f },
-			{ min.x,  max.y,  min.z, 1.0f },
-			{ max.x,  max.y,  min.z, 1.0f },
-			{ min.x,  min.y,  max.z, 1.0f },
-			{ max.x,  min.y,  max.z, 1.0f },
-			{ min.x,  max.y,  max.z, 1.0f },
-			{ max.x,  max.y,  max.z, 1.0f } 
-		}
-	};
-
-	glm::vec3 transformed = transformMat4 * corners[0];
-	glm::vec3 worldMin = transformed;
-	glm::vec3 worldMax = transformed;
-
-	for (size_t i = 1; i < 8; ++i)
-	{
-		transformed = transformMat4 * corners[i];
-		worldMin = glm::min(worldMin, transformed);
-		worldMax = glm::max(worldMax, transformed);
-	}
-
-	return { worldMin, worldMax };
-}

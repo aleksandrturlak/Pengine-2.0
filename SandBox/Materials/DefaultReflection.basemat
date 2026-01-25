@@ -15,6 +15,9 @@ Basemat:
         - Type: Bindless
           RenderPass: DefaultReflection
           Set: 1
+        - Type: Scene
+          RenderPass: DefaultReflection
+          Set: 2
       VertexInputBindingDescriptions:
         - Binding: 0
           InputRate: Vertex

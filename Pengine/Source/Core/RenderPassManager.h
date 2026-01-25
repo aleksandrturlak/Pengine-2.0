@@ -82,6 +82,20 @@ namespace Pengine
 			std::vector<entt::entity> visibleEntities;
 		};
 
+		struct ComputeIndirectGBufferData : public CustomData
+		{
+			size_t entityCount = 0;
+
+			struct PipelineInfo
+			{
+				uint32_t maxDrawCount = 0;
+				uint32_t id = -1;
+			};
+
+			std::unordered_map<std::shared_ptr<class Pipeline>, PipelineInfo> pipelineInfos;
+			std::map<int, std::shared_ptr<class Pipeline>> sortedPipelines;
+		};
+
 		struct InstanceData
 		{
 			int materialIndex;
@@ -99,6 +113,8 @@ namespace Pengine
 			std::vector<size_t>& vertexBufferOffsets);
 
 		void CreateZPrePass();
+
+		void CreateComputeInderectDrawGBuffer();
 
 		void CreateGBuffer();
 
@@ -151,24 +167,24 @@ namespace Pengine
 			std::shared_ptr<class Pipeline> pipeline,
 			Pipeline::DescriptorSetIndexType descriptorSetIndexType,
 			const std::string& uniformWriterName,
-			const std::string& uniformWriterIndexByName = {});
+			const std::string& uniformWriterIndexByName = {},
+			const bool isMultiBuffered = true);
 
 		static std::shared_ptr<class UniformWriter> GetOrCreateRendererUniformWriter(
 			std::shared_ptr<class RenderView> renderView,
 			std::shared_ptr<class Pipeline> pipeline,
 			const std::string& uniformWriterName,
-			const std::string& uniformWriterIndexByName = {});
+			const std::string& uniformWriterIndexByName = {},
+			const bool isMultiBuffered = true);
 
 		static std::shared_ptr<class Buffer> GetOrCreateRenderBuffer(
 			std::shared_ptr<class RenderView> renderView,
 			std::shared_ptr<class UniformWriter> uniformWriter,
 			const std::string& bufferName,
-			const std::string& setBufferName = {});
-
-		static void UpdateSkeletalAnimator(
-			class SkeletalAnimator* skeletalAnimator,
-			std::shared_ptr<class BaseMaterial> baseMaterial,
-			std::shared_ptr<class Pipeline> pipeline);
+			const std::string& setBufferName = {},
+			const std::vector<Buffer::Usage>& usages = { Buffer::Usage::UNIFORM_BUFFER },
+			const MemoryType memoryType = MemoryType::CPU,
+			const bool isMultiBuffered = false);
 
 		static size_t GetLod(
 			const glm::vec3& cameraPosition,

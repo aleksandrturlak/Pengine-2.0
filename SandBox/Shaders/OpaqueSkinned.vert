@@ -7,9 +7,10 @@ layout(location = 3) in vec4 tangentA;
 layout(location = 4) in uint colorA;
 layout(location = 5) in vec4 weightsA;
 layout(location = 6) in ivec4 boneIdsA;
-layout(location = 7) in int materialIndexA;
-layout(location = 8) in mat4 transformA;
-layout(location = 12) in mat3 inverseTransformA;
+layout(location = 7) in int meshIndexA;
+layout(location = 8) in int materialIndexA;
+layout(location = 9) in mat4 transformA;
+layout(location = 13) in mat3 inverseTransformA;
 
 layout(location = 0) out vec3 normalViewSpace;
 layout(location = 1) out vec3 tangentViewSpace;

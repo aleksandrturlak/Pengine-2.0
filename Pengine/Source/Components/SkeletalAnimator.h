@@ -29,10 +29,6 @@ namespace Pengine
 
 		[[nodiscard]] const std::vector<glm::mat4>& GetFinalBoneMatrices() const { return m_FinalBoneMatrices; }
 
-		[[nodiscard]] std::shared_ptr<UniformWriter> GetUniformWriter() const { return m_UniformWriter; }
-		
-		void SetUniformWriter(std::shared_ptr<UniformWriter> uniformWriter) { m_UniformWriter = uniformWriter; }
-
 		[[nodiscard]] std::shared_ptr<Buffer> GetBuffer() const { return m_Buffer; }
 
 		void SetBuffer(std::shared_ptr<Buffer> buffer) { m_Buffer = buffer; }
@@ -68,7 +64,6 @@ namespace Pengine
 		std::shared_ptr<SkeletalAnimation> m_SkeletalAnimation;
 		std::shared_ptr<SkeletalAnimation> m_NextSkeletalAnimation;
 
-		std::shared_ptr<UniformWriter> m_UniformWriter;
 		std::shared_ptr<Buffer> m_Buffer;
 
 		float m_TransitionTime = 0.0f;

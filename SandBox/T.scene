@@ -1,0 +1,42 @@
+Settings:
+  DrawBoundingBoxes: false
+  DrawPhysicsShapes: false
+  Wind:
+    Direction: [-1, 0, 0]
+    Frequency: 1
+    Strength: 1
+Scene:
+  - UUID: 0x63ae8381bec6d69a334b9dbd99736775
+    Name: Camera
+    IsEnabled: true
+    Transform:
+      Position: [0, 0, 0]
+      Rotation: [0, 0, 0]
+      Scale: [1, 1, 1]
+      FollowOwner: true
+    Camera:
+      Fov: 1.57079637
+      Type: 1
+      ZNear: 0.100000001
+      ZFar: 1000
+      PassName: AntiAliasingAndCompose
+      RenderTargetIndex: 0
+      ObjectVisibilityMask: 255
+      ShadowVisibilityMask: 255
+      Viewport: Main
+    Childs:
+      []
+  - UUID: 0x4c5017022ce59d4266c34ef168970c56
+    Name: DirectionalLight
+    IsEnabled: true
+    Transform:
+      Position: [0, 0, 0]
+      Rotation: [0, 0, 0]
+      Scale: [1, 1, 1]
+      FollowOwner: true
+    DirectionalLight:
+      Color: [1, 1, 1]
+      Intensity: 1
+      Ambient: 0.100000001
+    Childs:
+      []

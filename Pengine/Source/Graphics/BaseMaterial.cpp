@@ -379,8 +379,9 @@ void BaseMaterial::CreatePipelineResources(
 				const std::shared_ptr<Buffer> buffer = Buffer::Create(
 					binding.buffer->size,
 					1,
-					usage,
-					MemoryType::CPU);
+					{ usage },
+					MemoryType::CPU,
+					true);
 
 				m_BuffersByName[binding.buffer->name] = buffer;
 				uniformWriter->WriteBuffer(binding.buffer->name, buffer);

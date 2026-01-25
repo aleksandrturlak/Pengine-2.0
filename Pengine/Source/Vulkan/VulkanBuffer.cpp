@@ -46,11 +46,16 @@ void VulkanBuffer::WriteToVulkanBuffer(
 std::shared_ptr<VulkanBuffer> VulkanBuffer::Create(
 	const size_t instanceSize,
 	const uint32_t instanceCount,
-	const Usage usage,
+	const std::vector<Usage>& usages,
 	const MemoryType memoryType,
 	const bool isMultiBuffered)
 {
-	VkBufferUsageFlags bufferUsageFlags = ConvertUsage(usage) | VK_BUFFER_USAGE_TRANSFER_DST_BIT;
+	VkBufferUsageFlags bufferUsageFlags = VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT;
+	for (const Usage& usage : usages)
+	{
+		bufferUsageFlags |= ConvertUsage(usage);
+	}
+	
 	VmaMemoryUsage memoryUsage{};
 	VmaAllocationCreateFlags memoryFlags{};
 
@@ -71,7 +76,7 @@ std::shared_ptr<VulkanBuffer> VulkanBuffer::Create(
 		memoryUsage,
 		memoryFlags,
 		memoryType,
-		(usage == Usage::UNIFORM_BUFFER || usage == Usage::STORAGE_BUFFER) ? true : isMultiBuffered);
+		isMultiBuffered);
 }
 
 std::shared_ptr<VulkanBuffer> VulkanBuffer::CreateStagingBuffer(
@@ -100,6 +105,8 @@ VkBufferUsageFlagBits VulkanBuffer::ConvertUsage(const Usage usage)
 		return VK_BUFFER_USAGE_INDEX_BUFFER_BIT;
 	case Pengine::Buffer::Usage::STORAGE_BUFFER:
 		return VK_BUFFER_USAGE_STORAGE_BUFFER_BIT;
+	case Pengine::Buffer::Usage::INDIRECT_BUFFER:
+		return VK_BUFFER_USAGE_INDIRECT_BUFFER_BIT;
 	}
 
 	FATAL_ERROR("Failed to convert buffer usage!");
@@ -117,6 +124,8 @@ Buffer::Usage VulkanBuffer::ConvertUsage(const VkBufferUsageFlagBits usage)
 		return Pengine::Buffer::Usage::INDEX_BUFFER;
 	case VK_BUFFER_USAGE_STORAGE_BUFFER_BIT:
 		return Pengine::Buffer::Usage::STORAGE_BUFFER;
+	case VK_BUFFER_USAGE_INDIRECT_BUFFER_BIT:
+		return Pengine::Buffer::Usage::INDIRECT_BUFFER;
 	}
 
 	FATAL_ERROR("Failed to convert buffer usage!");
@@ -278,6 +287,16 @@ void VulkanBuffer::Flush()
 NativeHandle VulkanBuffer::GetNativeHandle() const
 {
 	return NativeHandle(size_t(GetBuffer()));
+}
+
+NativeHandle VulkanBuffer::GetDeviceAddress() const
+{
+	VkBufferDeviceAddressInfo addressInfo{};
+	addressInfo.sType = VK_STRUCTURE_TYPE_BUFFER_DEVICE_ADDRESS_INFO;
+	addressInfo.buffer = GetBuffer();
+
+	VkDeviceAddress deviceAddress = vkGetBufferDeviceAddress(GetVkDevice()->GetDevice(), &addressInfo);
+    return NativeHandle(size_t(deviceAddress));
 }
 
 VkDescriptorBufferInfo VulkanBuffer::GetDescriptorInfo(

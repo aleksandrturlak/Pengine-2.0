@@ -1,6 +1,7 @@
 #pragma once
 
 #include "Core.h"
+#include "BoundingBox.h"
 
 #include "../Graphics/BaseMaterial.h"
 
@@ -15,6 +16,7 @@ namespace Pengine
 	class UniformWriter;
 	class Material;
 	class BaseMaterial;
+	class Mesh;
 
 	class PENGINE_API BindlessUniformWriter
 	{
@@ -51,7 +53,9 @@ namespace Pengine
 
 		void* GetBindlessMaterialBufferData(const int index) const { return (void*)((uint8_t*)m_BindlessMaterialBuffer->GetData() + m_BaseMaterialSize * index); }
 
-		void Flush();
+		void CreateBindlessEntitiesResources(
+			std::shared_ptr<UniformWriter>& uniformWriter,
+			std::shared_ptr<Buffer>& buffer);
 
 		template<typename T>
 		inline void WriteToBuffer(
@@ -71,6 +75,23 @@ namespace Pengine
 				Logger::Warning("Failed to write to bindless buffer: " + valueName + "!");
 			}
 		}
+
+		enum class EntityFlagBits : uint32_t
+		{
+			VALID = 1 << 0,
+			SKINNED = 1 << 1
+		};
+
+		struct EntityInfo
+		{
+			glm::mat4 transform;
+			AABB aabb;
+			int materialIndex;
+			int pipelineId;
+			size_t meshInfoBuffer;
+			size_t boneBuffer;
+			uint flags; // valid, skinned, etc.
+		};
 
 	private:
 		class SlotManager

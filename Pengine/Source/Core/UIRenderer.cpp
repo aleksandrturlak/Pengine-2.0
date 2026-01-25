@@ -465,21 +465,21 @@ UIRenderer::Batch& UIRenderer::GetOrCreateBatch(const uint32_t batchIndex, std::
 		batch.vertexBuffer = Buffer::Create(
 			sizeof(QuadVertex) * QUAD_VERTEX_COUNT,
 			MAX_BATCH_QUAD_COUNT,
-			Buffer::Usage::VERTEX_BUFFER,
+			{ Buffer::Usage::VERTEX_BUFFER },
 			MemoryType::CPU,
 			true);
 
 		batch.indexBuffer = Buffer::Create(
 			sizeof(uint32_t) * QUAD_INDEX_COUNT,
 			MAX_BATCH_QUAD_COUNT,
-			Buffer::Usage::INDEX_BUFFER,
+			{ Buffer::Usage::INDEX_BUFFER },
 			MemoryType::CPU,
 			true);
 
 		batch.uniformBuffer = Buffer::Create(
 			sizeof(QuadInstance),
 			MAX_BATCH_QUAD_COUNT,
-			Buffer::Usage::STORAGE_BUFFER,
+			{ Buffer::Usage::STORAGE_BUFFER },
 			MemoryType::CPU,
 			true);
 

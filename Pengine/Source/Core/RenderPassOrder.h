@@ -15,6 +15,7 @@ namespace Pengine
 	{
 		UI,
 		ZPrePass,
+		ComputeIndirectDrawGBuffer,
 		GBuffer,
 		Decals,
 		CSM,

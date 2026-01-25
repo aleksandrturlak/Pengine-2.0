@@ -4284,14 +4284,10 @@ void Editor::Thumbnails::UpdateMatMeshThumbnail(const ThumbnailLoadInfo& thumbna
 	{
 		if (r3d.mesh && r3d.mesh->GetType() == Mesh::Type::SKINNED)
 		{
-			r3d.material = MaterialManager::GetInstance().LoadMaterial(std::filesystem::path("Materials") / "MeshBaseSkinned.mat");
-
 			entity->AddComponent<SkeletalAnimator>();
 		}
-		else
-		{
-			r3d.material = MaterialManager::GetInstance().LoadMaterial(std::filesystem::path("Materials") / "MeshBaseDoubleSided.mat");
-		}
+		
+		r3d.material = MaterialManager::GetInstance().LoadMaterial(std::filesystem::path("Materials") / "MeshBaseDoubleSided.mat");
 	}
 
 	// Update BVH just in case.

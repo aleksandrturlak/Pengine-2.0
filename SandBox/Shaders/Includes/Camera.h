@@ -12,6 +12,7 @@ struct Camera
 	mat4 viewMat4;
 	mat4 inverseViewMat4;
 	mat4 inverseRotationMat4;
+	vec4 frustumPlanes[6];
 	vec2 viewportSize;
 	float aspectRatio;
 	float tanHalfFOV;

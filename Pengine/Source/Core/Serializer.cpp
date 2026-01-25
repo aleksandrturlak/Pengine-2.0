@@ -4054,24 +4054,12 @@ std::shared_ptr<Entity> Serializer::GenerateEntity(
 			}
 			else
 			{
-				if (r3d.mesh->GetType() == Mesh::Type::STATIC)
-				{
-					r3d.material = AsyncAssetLoader::GetInstance().SyncLoadMaterial(
-						std::filesystem::path("Materials") / "MeshBase.mat");
-				}
-				else if (r3d.mesh->GetType() == Mesh::Type::SKINNED)
-				{
-					r3d.material = AsyncAssetLoader::GetInstance().SyncLoadMaterial(
-						std::filesystem::path("Materials") / "MeshBaseSkinned.mat");
-				}
+				r3d.material = AsyncAssetLoader::GetInstance().SyncLoadMaterial(
+					std::filesystem::path("Materials") / "MeshBase.mat");
 			}
 
 			if (r3d.mesh->GetType() == Mesh::Type::SKINNED)
 			{
-				r3d.material->SetBaseMaterial(MaterialManager::GetInstance().LoadBaseMaterial(
-					std::filesystem::path("Materials") / "MeshBaseSkinned.basemat"));
-				Material::Save(r3d.material, false);
-
 				if (gltfNode.skinIndex)
 				{
 					std::shared_ptr<Entity> topEntity = scene->GetEntities().front();
@@ -4500,7 +4488,6 @@ void Serializer::DeserializeRenderer3D(const YAML::Node& in, const std::shared_p
 
 					std::shared_ptr<NextFrameEvent> event = std::make_shared<NextFrameEvent>(callback, Event::Type::OnNextFrame, nullptr);
 					EventSystem::GetInstance().SendEvent(event);
-					
 				}
 			});
 		}

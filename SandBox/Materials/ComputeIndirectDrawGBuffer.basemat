@@ -1,0 +1,17 @@
+Basemat:
+  Pipelines:
+    - RenderPass: ComputeIndirectDrawGBuffer
+      Type: Compute
+      Compute: Shaders/ComputeIndirectDrawGBuffer.comp
+      DescriptorSets:
+        - Type: Renderer
+          RenderPass: DefaultReflection
+          Set: 0
+        - Type: Renderer
+          RenderPass: ComputeIndirectDrawGBuffer
+          Set: 1
+        - Type: Bindless
+          Set: 2
+        - Type: Scene
+          RenderPass: BindlessEntities
+          Set: 3

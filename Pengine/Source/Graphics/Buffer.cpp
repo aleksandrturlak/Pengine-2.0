@@ -8,13 +8,13 @@ using namespace Pengine;
 std::shared_ptr<Buffer> Buffer::Create(
 	const size_t instanceSize,
 	const uint32_t instanceCount,
-	const Usage usage,
+	const std::vector<Usage>& usages,
 	const MemoryType memoryType,
 	const bool isMultiBuffered)
 {
 	if (graphicsAPI == GraphicsAPI::Vk)
 	{
-		return Vk::VulkanBuffer::Create(instanceSize, instanceCount, usage, memoryType, isMultiBuffered);
+		return Vk::VulkanBuffer::Create(instanceSize, instanceCount, usages, memoryType, isMultiBuffered);
 	}
 
 	FATAL_ERROR("Failed to create the buffer, no graphics API implementation");

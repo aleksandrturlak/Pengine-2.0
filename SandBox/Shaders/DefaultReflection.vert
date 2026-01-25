@@ -23,6 +23,12 @@ layout(set = 2, binding = 0) buffer readonly Material
 	DefaultMaterial material;
 };
 
+#include "Shaders/Includes/BindlessMeshes.h"
+layout(set = 3, binding = 0, scalar) buffer readonly BindlessEntities
+{
+	EntityInfo entities[20000];
+};
+
 void main()
 {
 	gl_Position = vec4(positionA, 1.0f);
