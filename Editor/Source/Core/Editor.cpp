@@ -3566,19 +3566,31 @@ void Editor::MaterialMenu::Update(Editor& editor)
 		{
 			if (ImGui::CollapsingHeader(passName.c_str()))
 			{
-				for (const auto& [set, uniformLayout] : pipeline->GetUniformLayouts())
+				std::vector<std::shared_ptr<UniformLayout>> uniformLayouts;
+
 				{
-					const auto& descriptorSetIndex = pipeline->GetDescriptorSetIndexByType(Pipeline::DescriptorSetIndexType::MATERIAL, passName);
-					if (!descriptorSetIndex || descriptorSetIndex.value() != set)
+					std::optional<uint32_t> descriptorSetIndex = pipeline->GetDescriptorSetIndexByType(Pipeline::DescriptorSetIndexType::MATERIAL, passName);
+					if (descriptorSetIndex)
 					{
-						continue;
+						uniformLayouts.emplace_back(pipeline->GetUniformLayout(*descriptorSetIndex));
 					}
+				}
 
-					const std::shared_ptr<UniformWriter> uniformWriter = material->GetUniformWriter(passName);
+				{
+					std::optional<uint32_t> descriptorSetIndex = pipeline->GetDescriptorSetIndexByType(Pipeline::DescriptorSetIndexType::BUFFER_DEVICE_ADDRESS, passName);
+					if (descriptorSetIndex)
+					{
+						uniformLayouts.emplace_back(pipeline->GetUniformLayout(*descriptorSetIndex));
+					}
+				}
+				
+				const std::shared_ptr<UniformWriter> uniformWriter = material->GetUniformWriter(passName);
 
+				for (const auto& uniformLayout : uniformLayouts)
+				{
 					for (const auto& binding : uniformLayout->GetBindings())
 					{
-						if (binding.type == ShaderReflection::Type::COMBINED_IMAGE_SAMPLER)
+						if (uniformWriter && binding.type == ShaderReflection::Type::COMBINED_IMAGE_SAMPLER)
 						{
 							if (std::shared_ptr<Texture> texture = uniformWriter->GetTexture(binding.name).back())
 							{
@@ -3610,38 +3622,6 @@ void Editor::MaterialMenu::Update(Editor& editor)
 
 								isChangedToSerialize = true;
 							}
-						}
-					}
-				}
-			}
-		}
-
-		if (material->IsBindless())
-		{
-			if (ImGui::CollapsingHeader("Bindless"))
-			{
-				BindlessUniformWriter& bindlessUniformWriter = BindlessUniformWriter::GetInstance();
-				const auto bindings = bindlessUniformWriter.GetBaseMaterial()->GetPipeline(DefaultReflection)->GetUniformLayout(2)->GetBindings();
-				for (const auto& binding : bindings)
-				{
-					if (binding.type == ShaderReflection::Type::UNIFORM_BUFFER || binding.type == ShaderReflection::Type::STORAGE_BUFFER)
-					{
-						void* data = bindlessUniformWriter.GetBindlessMaterialBufferData(material->GetBindlessIndex());
-
-						ImGui::Text("%s", binding.name.c_str());
-
-						bool isChanged = false;
-						for (const auto& variable : binding.buffer->variables)
-						{
-							drawVariable(variable, isChanged, data, editor, material);
-						}
-
-						if (isChanged)
-						{
-							// Need to mark for flush that the buffer was changed.
-							bindlessUniformWriter.GetBindlessMaterialBuffer()->WriteToBuffer(data, 0, 0);
-
-							isChangedToSerialize = true;
 						}
 					}
 				}

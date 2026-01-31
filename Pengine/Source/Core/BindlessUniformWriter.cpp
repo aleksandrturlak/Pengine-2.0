@@ -30,38 +30,14 @@ void BindlessUniformWriter::Initialize()
 
 		m_TextureSlotManager.Initialize(binding->count);
 	}
-
-	{
-		const auto& binding = uniformLayout->GetBindingByLocation(1);
-		bindings.emplace_back(*binding);
-
-		const size_t materialCount = binding->buffer->variables.begin()->count;
-		const size_t materialSize = binding->buffer->variables.begin()->size / materialCount;
-
-		m_BindlessMaterialBuffer = Buffer::Create(
-			materialSize,
-			materialCount,
-			{ Buffer::Usage::STORAGE_BUFFER },
-			MemoryType::CPU,
-			true);
-
-		m_BaseMaterialSize = materialSize;
-		m_MaterialSlotManager.Initialize(materialCount);
-
-		Logger::Log(std::format("Bindless Material Buffer Size: {} MB", (materialSize * materialCount * Vk::swapChainImageCount) / 1024.0f / 1024.0f));
-	}
 	
 	const auto bindlessUniformLayout = UniformLayout::Create(bindings);
 	m_BindlessUniformWriter = UniformWriter::Create(bindlessUniformLayout, true);
-	m_BindlessUniformWriter->WriteBuffer("BindlessMaterials", m_BindlessMaterialBuffer);
-	m_BindlessUniformWriter->Flush();
 }
 
 void BindlessUniformWriter::ShutDown()
 {
 	m_TexturesByIndex.clear();
-	m_MaterialsByIndex.clear();
-	m_BindlessMaterialBuffer = nullptr;
 	m_BindlessUniformWriter = nullptr;
 	m_BaseMaterial = nullptr;
 }
@@ -107,46 +83,6 @@ std::shared_ptr<Texture> BindlessUniformWriter::GetBindlessTexture(const int ind
 	if (textureByIndex != m_TexturesByIndex.end())
 	{
 		return textureByIndex->second.lock();
-	}
-
-	return nullptr;
-}
-
-int BindlessUniformWriter::BindMaterial(const std::shared_ptr<Material>& material)
-{
-    if (material->GetBindlessIndex() != -1)
-	{
-		return material->GetBindlessIndex();
-	}
-
-	const int index = m_MaterialSlotManager.TakeSlot();
-	material->SetBindlessIndex(index);
-
-	m_MaterialsByIndex[index] = std::weak_ptr<Material>(material);
-
-	return index;
-}
-
-void BindlessUniformWriter::UnBindMaterial(const std::shared_ptr<Material>& material)
-{
-	const int index = material->GetBindlessIndex();
-	if (index == -1)
-	{
-		return;
-	}
-
-	m_MaterialSlotManager.FreeSlot(index);
-	material->SetBindlessIndex(-1);
-
-	m_MaterialsByIndex.erase(index);
-}
-
-std::shared_ptr<Material> BindlessUniformWriter::GetBindlessMaterial(const int index)
-{
-    auto materialsByIndex = m_MaterialsByIndex.find(index);
-	if (materialsByIndex != m_MaterialsByIndex.end())
-	{
-		return materialsByIndex->second.lock();
 	}
 
 	return nullptr;

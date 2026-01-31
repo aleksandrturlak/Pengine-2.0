@@ -97,7 +97,6 @@ void MaterialManager::DeleteMaterial(std::shared_ptr<Material>& material)
 	std::lock_guard<std::mutex> lock(m_MutexMaterial);
 	if (material.use_count() == 2)
 	{
-		BindlessUniformWriter::GetInstance().UnBindMaterial(material);
 		m_MaterialsByFilepath.erase(material->GetFilepath());
 	}
 

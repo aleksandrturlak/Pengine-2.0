@@ -6,8 +6,11 @@
 #include "../Core/MaterialManager.h"
 #include "../Core/AsyncAssetLoader.h"
 #include "../Core/BindlessUniformWriter.h"
+#include "../Core/RenderPassManager.h"
 #include "../EventSystem/EventSystem.h"
 #include "../EventSystem/NextFrameEvent.h"
+#include "../Graphics/Pass.h"
+#include "../Graphics/Device.h"
 
 using namespace Pengine;
 
@@ -16,14 +19,7 @@ std::shared_ptr<Material> Material::Create(const std::string& name, const std::f
 {
 	PROFILER_SCOPE(__FUNCTION__);
 
-	const std::shared_ptr<Material> material = std::make_shared<Material>(name, filepath, createInfo);
-
-	if (createInfo.bindlessMaterial)
-	{
-		CreateBindlessResources(createInfo, material);
-	}
-
-	return material;
+	return std::make_shared<Material>(name, filepath, createInfo);
 }
 
 std::shared_ptr<Material> Material::Load(const std::filesystem::path& filepath)
@@ -72,13 +68,7 @@ void Material::Reload(const std::shared_ptr<Material>& material, bool reloadBase
 
 		try
 		{
-			const CreateInfo createInfo = Serializer::LoadMaterial(material->GetFilepath());
-			material->CreateResources(createInfo);
-
-			if (createInfo.bindlessMaterial)
-			{
-				CreateBindlessResources(createInfo, material);
-			}
+			material->CreateResources(Serializer::LoadMaterial(material->GetFilepath()));
 		}
 		catch (const std::exception&)
 		{
@@ -103,10 +93,27 @@ std::shared_ptr<Material> Material::Clone(
 
 	for (const auto& [passName, pipeline] : material->GetBaseMaterial()->GetPipelinesByPass())
 	{
-		std::optional<uint32_t> descriptorSetIndex = pipeline->GetDescriptorSetIndexByType(Pipeline::DescriptorSetIndexType::MATERIAL, passName);
-		if (descriptorSetIndex)
+		std::vector<std::shared_ptr<UniformLayout>> uniformLayouts;
+
 		{
-			for (const auto& binding : pipeline->GetUniformLayout(*descriptorSetIndex)->GetBindings())
+			std::optional<uint32_t> descriptorSetIndex = pipeline->GetDescriptorSetIndexByType(Pipeline::DescriptorSetIndexType::MATERIAL, passName);
+			if (descriptorSetIndex)
+			{
+				uniformLayouts.emplace_back(pipeline->GetUniformLayout(*descriptorSetIndex));
+			}
+		}
+
+		{
+			std::optional<uint32_t> descriptorSetIndex = pipeline->GetDescriptorSetIndexByType(Pipeline::DescriptorSetIndexType::BUFFER_DEVICE_ADDRESS, passName);
+			if (descriptorSetIndex)
+			{
+				uniformLayouts.emplace_back(pipeline->GetUniformLayout(*descriptorSetIndex));
+			}
+		}
+
+		for (const auto& uniformLayout : uniformLayouts)
+		{
+			for (const auto& binding : uniformLayout->GetBindings())
 			{
 				if (binding.type == ShaderReflection::Type::COMBINED_IMAGE_SAMPLER)
 				{
@@ -170,66 +177,6 @@ std::shared_ptr<Material> Material::Clone(
 			}
 		}
 	}
-
-	if (material->IsBindless())
-	{
-		BindlessUniformWriter& bindlessUniformWriter = BindlessUniformWriter::GetInstance();
-		const auto bindings = bindlessUniformWriter.GetBaseMaterial()->GetPipeline(DefaultReflection)->GetUniformLayout(2)->GetBindings();
-		for (const auto& binding : bindings)
-		{
-			if (binding.type == ShaderReflection::Type::UNIFORM_BUFFER || binding.type == ShaderReflection::Type::STORAGE_BUFFER)
-			{
-				void* data = bindlessUniformWriter.GetBindlessMaterialBufferData(material->GetBindlessIndex());
-
-				auto& uniformBufferInfo = createInfo.bindlessMaterial.emplace();
-
-				std::function<void(const ShaderReflection::ReflectVariable&, std::string)> copyValue = [
-					data,
-					&material,
-					&copyValue,
-					&uniformBufferInfo]
-				(const ShaderReflection::ReflectVariable& value, std::string parentName)
-				{
-					parentName += value.name;
-
-					if (value.type == ShaderReflection::ReflectVariable::Type::VEC2)
-					{
-						uniformBufferInfo.vec2ValuesByName.emplace(parentName, Utils::GetValue<glm::vec2>(data, value.offset));
-					}
-					else if (value.type == ShaderReflection::ReflectVariable::Type::VEC3)
-					{
-						uniformBufferInfo.vec3ValuesByName.emplace(parentName, Utils::GetValue<glm::vec3>(data, value.offset));
-					}
-					else if (value.type == ShaderReflection::ReflectVariable::Type::VEC4)
-					{
-						uniformBufferInfo.vec4ValuesByName.emplace(parentName, Utils::GetValue<glm::vec4>(data, value.offset));
-					}
-					else if (value.type == ShaderReflection::ReflectVariable::Type::FLOAT)
-					{
-						uniformBufferInfo.floatValuesByName.emplace(parentName, Utils::GetValue<float>(data, value.offset));
-					}
-					else if (value.type == ShaderReflection::ReflectVariable::Type::INT)
-					{
-						uniformBufferInfo.intValuesByName.emplace(parentName, Utils::GetValue<int>(data, value.offset));
-					}
-					else if (value.type == ShaderReflection::ReflectVariable::Type::STRUCT)
-					{
-						for (const auto& memberValue : value.variables)
-						{
-							copyValue(memberValue, parentName + ".");
-						}
-					}
-				};
-
-				for (const auto& value : binding.buffer->variables)
-				{
-					copyValue(value, "");
-				}
-			}
-		}
-	}
-
-	// TODO: Add cloning bindless as well!
 
 	return Create(name, filepath, createInfo);
 }
@@ -302,9 +249,11 @@ void Material::SetOption(const std::string& name, bool isEnabled)
 	{
 		m_PipelineStates[inactive] = !isEnabled;
 	}
+
+	m_DirtyOption = true;
 }
 
-std::shared_ptr<Texture> Pengine::Material::GetBindlessTexture(const int index) const
+std::shared_ptr<Texture> Material::GetBindlessTexture(const int index) const
 {
 	auto bindlessTextureByIndex = m_BindlessTexturesByIndex.find(index);
 	if (bindlessTextureByIndex != m_BindlessTexturesByIndex.end())
@@ -315,17 +264,24 @@ std::shared_ptr<Texture> Pengine::Material::GetBindlessTexture(const int index) 
 	return nullptr;
 }
 
-int Pengine::Material::BindBindlessTexture(const std::shared_ptr<Texture>& texture)
+int Material::BindBindlessTexture(const std::shared_ptr<Texture>& texture)
 {
     const int index = BindlessUniformWriter::GetInstance().BindTexture(texture);
 	m_BindlessTexturesByIndex[index] = texture;
 	return index;
 }
 
-void Pengine::Material::UnBindBindlessTexture(const std::shared_ptr<Texture>& texture)
+void Material::UnBindBindlessTexture(const std::shared_ptr<Texture>& texture)
 {
 	m_BindlessTexturesByIndex.erase(texture->GetBindlessIndex());
 	BindlessUniformWriter::GetInstance().UnBindTexture(texture);
+}
+
+std::shared_ptr<Buffer> Material::GetMaterialInfoBuffer()
+{
+    ReloadMaterialInfoBuffer();
+	FlushMaterialInfoBuffer();
+	return m_MaterialInfoBuffer;
 }
 
 void Material::CreateResources(const CreateInfo &createInfo)
@@ -339,47 +295,9 @@ void Material::CreateResources(const CreateInfo &createInfo)
 
 	for (const auto& [passName, pipeline] : m_BaseMaterial->GetPipelinesByPass())
 	{
-		for (const auto& [set, uniformLayout] : pipeline->GetUniformLayouts())
+		if (auto materialIndex = pipeline->GetDescriptorSetIndexByType(Pipeline::DescriptorSetIndexType::MATERIAL, passName))
 		{
-			bool useAsDescriptorSet = false;
-			for (const auto& descriptorSet : pipeline->GetSortedDescriptorSets())
-			{
-				if (descriptorSet.first == set)
-				{
-					useAsDescriptorSet = true;
-					break;
-				}
-			}
-
-			if (useAsDescriptorSet)
-			{
-				continue;
-			}
-
-			for (const auto& binding : uniformLayout->GetBindings())
-			{
-				if (binding.buffer)
-				{
-					Logger::Log(std::format("Found Buffer in pass: {} in material: {}", passName, GetName()));
-
-					const std::shared_ptr<Buffer> buffer = Buffer::Create(
-						binding.buffer->size,
-						1,
-						{ Buffer::Usage::STORAGE_BUFFER },
-						MemoryType::CPU,
-						true);
-					m_BuffersByName[binding.buffer->name] = buffer;
-				}
-			}
-		}
-	}
-
-	for (const auto& [passName, pipeline] : m_BaseMaterial->GetPipelinesByPass())
-	{
-		auto baseMaterialIndex = pipeline->GetDescriptorSetIndexByType(Pipeline::DescriptorSetIndexType::MATERIAL, passName);
-		if (baseMaterialIndex)
-		{
-			const std::shared_ptr<UniformLayout> uniformLayout = pipeline->GetUniformLayout(*baseMaterialIndex);
+			const std::shared_ptr<UniformLayout> uniformLayout = pipeline->GetUniformLayout(*materialIndex);
 			const std::shared_ptr<UniformWriter> uniformWriter = UniformWriter::Create(uniformLayout);
 			m_UniformWriterByPass[passName] = uniformWriter;
 
@@ -406,6 +324,28 @@ void Material::CreateResources(const CreateInfo &createInfo)
 					m_BuffersByName[binding.buffer->name] = buffer;
 					uniformWriter->WriteBuffer(binding.buffer->name, buffer);
 					uniformWriter->Flush();
+				}
+			}
+		}
+
+		if (auto materialIndex = pipeline->GetDescriptorSetIndexByType(Pipeline::DescriptorSetIndexType::BUFFER_DEVICE_ADDRESS, passName))
+		{
+			std::shared_ptr<Pass> pass = RenderPassManager::GetInstance().GetPass(passName);
+
+			const std::shared_ptr<UniformLayout> uniformLayout = pipeline->GetUniformLayout(*materialIndex);
+			for (const auto& binding : uniformLayout->GetBindings())
+			{
+				if (binding.buffer)
+				{
+					const std::shared_ptr<Buffer> buffer = Buffer::Create(
+						binding.buffer->size,
+						1,
+						{ Buffer::Usage::STORAGE_BUFFER },
+						MemoryType::CPU,
+						true);
+					m_BuffersByName[binding.buffer->name] = buffer;
+
+					m_MaterialInfoIntermediate.materialBuffer[pass->GetId()] = buffer;
 				}
 			}
 		}
@@ -462,53 +402,76 @@ void Material::CreateResources(const CreateInfo &createInfo)
 				const int index = BindBindlessTexture(texture);
 				WriteToBuffer(uniformBufferName, name, index);
 			}
+
+			device->ForEachFrame([this, uniformBufferName]()
+			{
+				GetBuffer(uniformBufferName)->Flush();
+			});
 		}
 	}
+
+	ReloadMaterialInfoBuffer();
 }
 
-void Material::CreateBindlessResources(
-	const CreateInfo& createInfo,
-	const std::shared_ptr<Material>& material)
+void Material::ReloadMaterialInfoBuffer()
 {
-	BindlessUniformWriter& bindlessUniformWriter = BindlessUniformWriter::GetInstance();
-	const int index = bindlessUniformWriter.BindMaterial(material);
-
-	for (auto const& [loadedValueName, loadedValue] : createInfo.bindlessMaterial->floatValuesByName)
+	if (!m_DirtyOption && m_MaterialInfoBuffer)
 	{
-		bindlessUniformWriter.WriteToBuffer(index, loadedValueName, loadedValue);
+		return;
 	}
 
-	for (auto const& [loadedValueName, loadedValue] : createInfo.bindlessMaterial->intValuesByName)
+	m_DirtyOption = false;
+
+	if (!m_MaterialInfoBuffer)
 	{
-		bindlessUniformWriter.WriteToBuffer(index, loadedValueName, loadedValue);
+		m_MaterialInfoBuffer = Buffer::Create(
+			sizeof(MaterialInfo),
+			1,
+			{ Buffer::Usage::STORAGE_BUFFER },
+			MemoryType::GPU,
+			true);
 	}
 
-	for (auto const& [loadedValueName, loadedValue] : createInfo.bindlessMaterial->vec4ValuesByName)
+	device->ForEachFrame([this]()
 	{
-		bindlessUniformWriter.WriteToBuffer(index, loadedValueName, loadedValue);
-	}
+		MaterialInfo materialInfo{};
+		materialInfo.pipelineFlags = 0;
+		materialInfo.baseMaterialInfoBuffer = m_BaseMaterial->GetBaseMaterialInfoBuffer()->GetDeviceAddress().Get();
 
-	for (auto const& [loadedValueName, loadedValue] : createInfo.bindlessMaterial->vec3ValuesByName)
-	{
-		bindlessUniformWriter.WriteToBuffer(index, loadedValueName, loadedValue);
-	}
+		for (const auto& [passName, pipeline] : m_BaseMaterial->GetPipelinesByPass())
+		{
+			std::shared_ptr<Pass> pass = RenderPassManager::GetInstance().GetPass(passName);
+			if (IsPipelineEnabled(passName))
+			{
+				materialInfo.pipelineFlags |= 1 << pass->GetId();
+			}
+		}
 
-	for (auto const& [loadedValueName, loadedValue] : createInfo.bindlessMaterial->vec2ValuesByName)
-	{
-		bindlessUniformWriter.WriteToBuffer(index, loadedValueName, loadedValue);
-	}
+		for (size_t i = 0; i < MAX_PIPELINE_COUNT_PER_MATERIAL; i++)
+		{
+			materialInfo.materialBuffer[i] = m_MaterialInfoIntermediate.materialBuffer[i] ?
+				m_MaterialInfoIntermediate.materialBuffer[i]->GetDeviceAddress().Get() : 0;
+		}
 
-	for (const auto& [name, filepath] : createInfo.bindlessMaterial->texturesByName)
-	{
-		std::shared_ptr<Texture> texture = TextureManager::GetInstance().Load(filepath);
-		const int textureIndex = material->BindBindlessTexture(texture);
-		bindlessUniformWriter.WriteToBuffer(index, name, textureIndex);
-	}
+		m_MaterialInfoBuffer->WriteToBuffer((void*)&materialInfo, sizeof(MaterialInfo), 0);
+		m_MaterialInfoBuffer->Flush();
+	});
+
+	m_MaterialInfoBuffer->ClearWrites();
 }
 
-void Material::WriteToBindlessBuffer(const std::string& valueName, void* value)
+void Material::FlushMaterialInfoBuffer()
 {
-	uint8_t& refValue = *(uint8_t*)value;
-	BindlessUniformWriter& bindlessUniformWriter = BindlessUniformWriter::GetInstance();
-	bindlessUniformWriter.WriteToBuffer(GetBindlessIndex(), valueName, refValue);
+	for (size_t i = 0; i < MAX_PIPELINE_COUNT_PER_MATERIAL; i++)
+	{
+		if (m_MaterialInfoIntermediate.materialBuffer[i])
+		{
+			m_MaterialInfoIntermediate.materialBuffer[i]->Flush();
+		}
+	}
+
+	if (m_MaterialInfoBuffer)
+	{
+		m_MaterialInfoBuffer->Flush();
+	}
 }

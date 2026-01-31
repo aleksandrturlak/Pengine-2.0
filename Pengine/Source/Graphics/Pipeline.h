@@ -27,6 +27,7 @@ namespace Pengine
 			BASE_MATERIAL,
 			MATERIAL,
 			OBJECT,
+			BUFFER_DEVICE_ADDRESS,
 			TOTAL
 		};
 

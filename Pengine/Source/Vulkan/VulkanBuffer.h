@@ -54,6 +54,8 @@ namespace Pengine::Vk
 
 		virtual void Flush() override;
 
+		virtual void ClearWrites() override;
+
 		[[nodiscard]] virtual size_t GetSize() const override { return m_BufferSize; }
 
 		[[nodiscard]] virtual uint32_t GetInstanceCount() const override { return m_InstanceCount; }

@@ -44,6 +44,8 @@ namespace Pengine
 
 		virtual void Flush() = 0;
 
+		virtual void ClearWrites() = 0;
+
 		[[nodiscard]] virtual NativeHandle GetNativeHandle() const = 0;
 
 		[[nodiscard]] virtual size_t GetSize() const = 0;

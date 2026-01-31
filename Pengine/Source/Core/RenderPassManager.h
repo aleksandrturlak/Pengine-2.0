@@ -55,6 +55,8 @@ namespace Pengine
 
 		static void PrepareUniformsPerViewportBeforeDraw(const RenderPass::RenderCallbackInfo& renderInfo);
 
+		static void ProcessEntities(const RenderPass::RenderCallbackInfo& renderInfo);
+
 		std::shared_ptr<Texture> ScaleTexture(
 			std::shared_ptr<Texture> sourceTexture,
 			const glm::ivec2& dstSize);
@@ -77,28 +79,33 @@ namespace Pengine
 		using MeshesByMaterial = std::unordered_map<std::shared_ptr<class Material>, EntitiesByMesh>;
 		using RenderableEntities = std::unordered_map<std::shared_ptr<class BaseMaterial>, MeshesByMaterial>;
 
-		struct VisibleData : public CustomData
+		// Multi-pass entity data - shared across all render passes
+		struct MultiPassEntityData : public CustomData
 		{
-			std::vector<entt::entity> visibleEntities;
-		};
-
-		struct ComputeIndirectGBufferData : public CustomData
-		{
-			size_t entityCount = 0;
-
-			struct PipelineInfo
+			// Shared entity buffer for all passes
+			std::shared_ptr<Buffer> entityBuffer;
+			std::shared_ptr<UniformWriter> entityUniformWriter;
+			
+			// Per-pass pipeline grouping
+			struct PassData
 			{
-				uint32_t maxDrawCount = 0;
-				uint32_t id = -1;
+				struct PipelineInfo
+				{
+					uint32_t maxDrawCount = 0;
+					int id = -1;
+				};
+				
+				std::unordered_map<std::shared_ptr<Pipeline>, PipelineInfo> pipelineInfos;
+				std::map<int, std::shared_ptr<Pipeline>> sortedPipelines;
+				uint32_t entityCount = 0;
 			};
-
-			std::unordered_map<std::shared_ptr<class Pipeline>, PipelineInfo> pipelineInfos;
-			std::map<int, std::shared_ptr<class Pipeline>> sortedPipelines;
+			
+			std::unordered_map<std::string, PassData> passesByName;
 		};
 
 		struct InstanceData
 		{
-			int materialIndex;
+			size_t materialBuffer;
 			glm::mat4 transform;
 			glm::mat3 inverseTransform;
 		};
@@ -112,9 +119,7 @@ namespace Pengine
 			std::vector<NativeHandle>& vertexBuffers,
 			std::vector<size_t>& vertexBufferOffsets);
 
-		void CreateZPrePass();
-
-		void CreateComputeInderectDrawGBuffer();
+		void CreateComputeIndirectDrawGBuffer();
 
 		void CreateGBuffer();
 

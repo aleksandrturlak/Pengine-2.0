@@ -42,16 +42,24 @@ RenderPassManager& RenderPassManager::GetInstance()
 
 std::shared_ptr<RenderPass> RenderPassManager::CreateRenderPass(const RenderPass::CreateInfo& createInfo)
 {
+	assert(createInfo.type == Pass::Type::GRAPHICS);
+
 	std::shared_ptr<RenderPass> renderPass = RenderPass::Create(createInfo);
 	m_PassesByName.emplace(createInfo.name, renderPass);
+
+	Logger::Log(std::format("Created Render Pass: {} {}", renderPass->GetName(), renderPass->GetId()), BOLDGREEN);
 
 	return renderPass;
 }
 
 std::shared_ptr<ComputePass> RenderPassManager::CreateComputePass(const ComputePass::CreateInfo& createInfo)
 {
+	assert(createInfo.type == Pass::Type::COMPUTE);
+
 	std::shared_ptr<ComputePass> computePass = std::make_shared<ComputePass>(createInfo);
 	m_PassesByName.emplace(createInfo.name, computePass);
+
+	Logger::Log(std::format("Created Compute Pass: {} {}", computePass->GetName(), computePass->GetId()), BOLDGREEN);
 
 	return computePass;
 }
@@ -400,10 +408,11 @@ std::shared_ptr<Texture> RenderPassManager::ScaleTexture(
 
 void RenderPassManager::Initialize()
 {
-	CreateDefaultReflection();
-	CreateZPrePass();
-	CreateComputeInderectDrawGBuffer();
 	CreateGBuffer();
+	CreateCSM();
+	CreatePointLightShadows();
+	CreateSpotLightShadows();
+	CreateComputeIndirectDrawGBuffer();
 	CreateDeferred();
 	CreateAtmosphere();
 	CreateTransparent();
@@ -412,15 +421,13 @@ void RenderPassManager::Initialize()
 	CreateSSAOBlur();
 	CreateSSS();
 	CreateSSSBlur();
-	CreateCSM();
-	CreatePointLightShadows();
-	CreateSpotLightShadows();
 	CreateBloom();
 	CreateSSR();
 	CreateSSRBlur();
 	CreateAntiAliasingAndComposePass();
 	CreateUI();
 	CreateDecalPass();
+	CreateDefaultReflection();
 }
 
 void RenderPassManager::GetVertexBuffers(
@@ -467,185 +474,170 @@ void RenderPassManager::GetVertexBuffers(
 	}
 }
 
-void RenderPassManager::CreateZPrePass()
+void RenderPassManager::ProcessEntities(const RenderPass::RenderCallbackInfo& renderInfo)
 {
-	RenderPass::ClearDepth clearDepth{};
-	clearDepth.clearDepth = 0.0f;
-	clearDepth.clearStencil = 0;
+	const std::shared_ptr<Scene>& scene = renderInfo.scene;
 
-	RenderPass::AttachmentDescription depth{};
-	depth.textureCreateInfo.format = Format::D32_SFLOAT;
-	depth.textureCreateInfo.aspectMask = Texture::AspectMask::DEPTH;
-	depth.textureCreateInfo.instanceSize = sizeof(float);
-	depth.textureCreateInfo.isMultiBuffered = true;
-	depth.textureCreateInfo.usage = { Texture::Usage::SAMPLED, Texture::Usage::TRANSFER_SRC, Texture::Usage::DEPTH_STENCIL_ATTACHMENT };
-	depth.textureCreateInfo.name = "ZPrePassDepth";
-	depth.textureCreateInfo.filepath = depth.textureCreateInfo.name;
-	depth.layout = Texture::Layout::DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
-
-	Texture::SamplerCreateInfo depthSamplerCreateInfo{};
-	depthSamplerCreateInfo.addressMode = Texture::SamplerCreateInfo::AddressMode::CLAMP_TO_BORDER;
-	depthSamplerCreateInfo.borderColor = Texture::SamplerCreateInfo::BorderColor::FLOAT_OPAQUE_BLACK;
-
-	depth.textureCreateInfo.samplerCreateInfo = depthSamplerCreateInfo;
-
-	RenderPass::CreateInfo createInfo{};
-	createInfo.type = Pass::Type::GRAPHICS;
-	createInfo.name = ZPrePass;
-	createInfo.clearColors = {};
-	createInfo.clearDepths = { clearDepth };
-	createInfo.attachmentDescriptions = { depth };
-	createInfo.resizeWithViewport = true;
-	createInfo.resizeViewportScale = { 1.0f, 1.0f };
-
-	createInfo.executeCallback = [this](const RenderPass::RenderCallbackInfo& renderInfo)
+	// Get or create multi-pass entity data
+	MultiPassEntityData* multiPassData = (MultiPassEntityData*)renderInfo.scene->GetRenderView()->GetCustomData("MultiPassEntityData");
+	if (!multiPassData)
 	{
-		PROFILER_SCOPE(ZPrePass);
+		multiPassData = new MultiPassEntityData();
+		renderInfo.scene->GetRenderView()->SetCustomData("MultiPassEntityData", multiPassData);
+	}
 
-		const std::string& renderPassName = renderInfo.renderPass->GetName();
+	// Get or create shared entity buffer
+	if (!multiPassData->entityUniformWriter)
+	{
+		BindlessUniformWriter::GetInstance().CreateBindlessEntitiesResources(
+			multiPassData->entityUniformWriter,
+			multiPassData->entityBuffer);
+		renderInfo.scene->GetRenderView()->SetUniformWriter("BindlessEntities", multiPassData->entityUniformWriter);
+	}
 
-		const std::shared_ptr<Scene> scene = renderInfo.scene;
-		const Camera& camera = renderInfo.camera->GetComponent<Camera>();
-		const glm::mat4 viewProjectionMat4 = renderInfo.projection * camera.GetViewMat4();
+	void* data = multiPassData->entityBuffer->GetData();
+	memset(data, 0, multiPassData->entityBuffer->GetSize());
+	multiPassData->entityBuffer->WriteToBuffer(0, 0);
 
-		const std::vector<entt::entity> visibleEntities = scene->GetBVH()->CullAgainstFrustum(Utils::GetFrustumPlanes(viewProjectionMat4));
+	// List of passes we want to support
+	const std::vector<std::string> renderPasses = {
+		GBuffer,
+		// Add more passes here: CSM, PointLightShadows, SpotLightShadows, Transparent, etc.
+	};
 
-		VisibleData* visibleData = (VisibleData*)renderInfo.renderView->GetCustomData("VisibleData");
-		if (!visibleData)
+	// Clear previous frame data
+	for (const auto& passName : renderPasses)
+	{
+		multiPassData->passesByName[passName] = MultiPassEntityData::PassData{};
+	}
+
+	// Track which BaseMaterials we've already updated this frame
+	std::unordered_set<BaseMaterial*> updatedBaseMaterials;
+
+	uint32_t entityIndex = 0;
+
+	// Single iteration over all entities - prepare for all passes
+	scene->GetRegistry().view<Renderer3D>().each([&](auto entity, Renderer3D& r3d)
+	{
+		// TODO: Put on GPU!
+		// if ((r3d.objectVisibilityMask & camera.GetObjectVisibilityMask()) == 0)
+		// 	return;
+
+		if (!r3d.material || !r3d.mesh || !r3d.isEnabled)
+			return;
+
+		const Transform& transform = scene->GetRegistry().get<Transform>(entity);
+		if (!transform.GetEntity()->IsEnabled())
+			return;
+
+		// Prepare shared entity data (computed once)
+		BindlessUniformWriter::EntityInfo entityInfo{};
+		entityInfo.flags = (uint32_t)BindlessUniformWriter::EntityFlagBits::VALID;
+		entityInfo.transform = transform.GetTransform();
+		entityInfo.aabb = Utils::LocalToWorldAABB(
+			{r3d.mesh->GetBoundingBox().min, r3d.mesh->GetBoundingBox().max},
+			entityInfo.transform);
+		entityInfo.meshInfoBuffer = r3d.mesh->GetMeshInfoBuffer()->GetDeviceAddress().Get();
+
+		// Material info buffer contains per-pass material buffers and pipeline flags
+		entityInfo.materialInfoBuffer = r3d.material->GetMaterialInfoBuffer()->GetDeviceAddress().Get();
+
+		// Handle skinning
+		if (const auto skeletalAnimatorEntity = scene->FindEntityByUUID(r3d.skeletalAnimatorEntityUUID))
 		{
-			visibleData = new VisibleData();
-			renderInfo.renderView->SetCustomData("VisibleData", visibleData);
-		}
-
-		visibleData->visibleEntities.clear();
-		visibleData->visibleEntities.reserve(visibleEntities.size());
-
-		// NOTE: All other checks are made in scene BVH during building.
-		for (const entt::entity entity : visibleEntities)
-		{
-			Renderer3D& r3d = scene->GetRegistry().get<Renderer3D>(entity);
-
-			if ((r3d.objectVisibilityMask & camera.GetObjectVisibilityMask()) == 0)
+			if (auto* skeletalAnimator = scene->GetRegistry().try_get<SkeletalAnimator>(skeletalAnimatorEntity->GetHandle()))
 			{
-				continue;
+				entityInfo.boneBuffer = skeletalAnimator->GetBuffer()->GetDeviceAddress().Get();
+				if (r3d.mesh->GetType() == Mesh::Type::SKINNED)
+					entityInfo.flags |= (uint32_t)BindlessUniformWriter::EntityFlagBits::SKINNED;
 			}
+		}
 
-			if (!r3d.material)
+		// Group by pipeline for each pass this entity supports
+		BaseMaterial* baseMaterial = r3d.material->GetBaseMaterial().get();
+		bool needsBaseMaterialUpdate = updatedBaseMaterials.find(baseMaterial) == updatedBaseMaterials.end();
+		
+		if (needsBaseMaterialUpdate)
+		{
+			// Initialize BaseMaterialInfoBuffer for this material
+			BaseMaterial::BaseMaterialInfoBuffer baseMaterialInfo{};
+			for (size_t i = 0; i < MAX_PIPELINE_COUNT_PER_MATERIAL; i++)
 			{
-				continue;
+				baseMaterialInfo.pipelineIds[i] = 0;
 			}
+			
+			// Populate pipelineIds for each pass
+			for (size_t passIndex = 0; passIndex < renderPasses.size(); ++passIndex)
+			{
+				const auto& passName = renderPasses[passIndex];
+				auto pipeline = baseMaterial->GetPipeline(passName);
 
-			visibleData->visibleEntities.emplace_back(entity);
-		}
+				if (!pipeline)
+					continue;
 
-		// TODO: It should be a scene pass!
-		ComputeIndirectGBufferData* computeIndirectGBufferData = (ComputeIndirectGBufferData*)renderInfo.scene->GetRenderView()->GetCustomData("ComputeIndirectGBufferData");
-		if (!computeIndirectGBufferData)
-		{
-			computeIndirectGBufferData = new ComputeIndirectGBufferData();
-			renderInfo.scene->GetRenderView()->SetCustomData("ComputeIndirectGBufferData", computeIndirectGBufferData);
-		}
+				auto& passData = multiPassData->passesByName[passName];
+				auto& pipelineInfo = passData.pipelineInfos[pipeline];
 
-		std::shared_ptr<Buffer> entityBuffer;
-		std::shared_ptr<UniformWriter> entityUniformWriter = renderInfo.scene->GetRenderView()->GetUniformWriter("BindlessEntities");
-		if (!entityUniformWriter)
-		{
-			BindlessUniformWriter::GetInstance().CreateBindlessEntitiesResources(
-				entityUniformWriter,
-				entityBuffer);
-			renderInfo.scene->GetRenderView()->SetUniformWriter("BindlessEntities", entityUniformWriter);
+				if (pipelineInfo.id == -1)
+				{
+					pipelineInfo.id = static_cast<int>(passData.sortedPipelines.size());
+					passData.sortedPipelines[pipelineInfo.id] = pipeline;
+				}
+
+				// Store pipeline ID for this pass
+				std::shared_ptr<Pass> pass = RenderPassManager::GetInstance().GetPass(passName);
+				if (pass)
+				{
+					baseMaterialInfo.pipelineIds[pass->GetId()] = pipelineInfo.id;
+				}
+
+				pipelineInfo.maxDrawCount++;
+				passData.entityCount++;
+			}
+			
+			// Write to BaseMaterial buffer
+			baseMaterial->GetBaseMaterialInfoBuffer()->WriteToBuffer(
+				&baseMaterialInfo,
+				sizeof(BaseMaterial::BaseMaterialInfoBuffer),
+				0);
+			
+			updatedBaseMaterials.insert(baseMaterial);
 		}
 		else
 		{
-			entityBuffer = entityUniformWriter->GetBuffer("BindlessEntities").front();
+			// BaseMaterial already processed, just update counts
+			for (size_t passIndex = 0; passIndex < renderPasses.size(); ++passIndex)
+			{
+				const auto& passName = renderPasses[passIndex];
+				auto pipeline = baseMaterial->GetPipeline(passName);
+
+				if (!pipeline)
+					continue;
+
+				auto& passData = multiPassData->passesByName[passName];
+				auto& pipelineInfo = passData.pipelineInfos[pipeline];
+
+				pipelineInfo.maxDrawCount++;
+				passData.entityCount++;
+			}
 		}
 
-		void* data = entityBuffer->GetData();
-		memset(data, 0, entityBuffer->GetSize());
-		entityBuffer->WriteToBuffer(0, 0);
+		multiPassData->entityBuffer->WriteToBuffer(
+			&entityInfo,
+			sizeof(BindlessUniformWriter::EntityInfo),
+			sizeof(BindlessUniformWriter::EntityInfo) * entityIndex++);
+	});
 
-		uint32_t pipelineId = 0;
-		computeIndirectGBufferData->entityCount = 0;
-		computeIndirectGBufferData->pipelineInfos.clear();
-		scene->GetRegistry().view<Renderer3D>().each([&](auto entity, Renderer3D& r3d)
-		{
-			if ((r3d.objectVisibilityMask & camera.GetObjectVisibilityMask()) == 0)
-			{
-				return;
-			}
+	// Flush all updated BaseMaterial buffers
+	for (BaseMaterial* baseMaterial : updatedBaseMaterials)
+	{
+		baseMaterial->GetBaseMaterialInfoBuffer()->Flush();
+	}
 
-			if (!r3d.material || !r3d.mesh || !r3d.isEnabled)
-			{
-				return;
-			}
-
-			// TODO: Remove later when bda materials are supported.
-			if (!r3d.material->IsBindless())
-			{
-				return;
-			}
-
-			const std::shared_ptr<Pipeline> pipeline = r3d.material->GetBaseMaterial()->GetPipeline(GBuffer);
-			if (!pipeline)
-			{
-				return;
-			}
-
-			const Transform& transform = scene->GetRegistry().get<Transform>(entity);
-			if (!transform.GetEntity()->IsEnabled())
-			{
-				return;
-			}
-
-			auto& pipelineInfo = computeIndirectGBufferData->pipelineInfos[pipeline];
-
-			if (pipelineInfo.id == -1)
-			{
-				pipelineInfo.id = pipelineId++;
-			}
-
-			BindlessUniformWriter::EntityInfo entityInfo{};
-
-			entityInfo.pipelineId = pipelineInfo.id;
-			entityInfo.flags = (uint32_t)BindlessUniformWriter::EntityFlagBits::VALID;
-			entityInfo.transform = transform.GetTransform();
-			entityInfo.aabb = Utils::LocalToWorldAABB({ r3d.mesh->GetBoundingBox().min, r3d.mesh->GetBoundingBox().max }, entityInfo.transform);
-			entityInfo.materialIndex = r3d.material->GetBindlessIndex();
-			entityInfo.meshInfoBuffer = r3d.mesh->GetMeshInfoBuffer()->GetDeviceAddress().Get();
-
-			if (const auto skeletalAnimatorEntity = scene->FindEntityByUUID(r3d.skeletalAnimatorEntityUUID))
-			{
-				SkeletalAnimator* skeletalAnimator = scene->GetRegistry().try_get<SkeletalAnimator>(skeletalAnimatorEntity->GetHandle());
-				if (skeletalAnimator)
-				{
-					entityInfo.boneBuffer = skeletalAnimator->GetBuffer()->GetDeviceAddress().Get();
-					if (r3d.mesh->GetType() == Mesh::Type::SKINNED)
-					{
-						entityInfo.flags |= (uint32_t)BindlessUniformWriter::EntityFlagBits::SKINNED;
-					}
-				}
-			}
-
-			entityBuffer->WriteToBuffer(
-				&entityInfo,
-				sizeof(BindlessUniformWriter::EntityInfo),
-				sizeof(BindlessUniformWriter::EntityInfo) * computeIndirectGBufferData->entityCount++);
-
-			pipelineInfo.maxDrawCount++;
-		});
-
-		for (const auto& [pipeline, info] : computeIndirectGBufferData->pipelineInfos)
-		{
-			computeIndirectGBufferData->sortedPipelines[info.id] = pipeline;
-		}
-
-		entityBuffer->Flush();
-	};
-
-	CreateRenderPass(createInfo);
+	multiPassData->entityBuffer->Flush();
 }
 
-void RenderPassManager::CreateComputeInderectDrawGBuffer()
+void RenderPassManager::CreateComputeIndirectDrawGBuffer()
 {
 	ComputePass::CreateInfo createInfo{};
 	createInfo.type = Pass::Type::COMPUTE;
@@ -663,7 +655,13 @@ void RenderPassManager::CreateComputeInderectDrawGBuffer()
 			return;
 		}
 
-		ComputeIndirectGBufferData* computeIndirectGBufferData = (ComputeIndirectGBufferData*)renderInfo.scene->GetRenderView()->GetCustomData("ComputeIndirectGBufferData");
+		MultiPassEntityData* multiPassData = (MultiPassEntityData*)renderInfo.scene->GetRenderView()->GetCustomData("MultiPassEntityData");
+		if (!multiPassData || multiPassData->passesByName.find(GBuffer) == multiPassData->passesByName.end())
+		{
+			return;
+		}
+
+		const auto& gbufferData = multiPassData->passesByName[GBuffer];
 
 		const std::shared_ptr<UniformWriter>& renderUniformWriter = GetOrCreateRendererUniformWriter(renderInfo.renderView, pipeline, ComputeIndirectDrawGBuffer, {}, true);
 		const std::shared_ptr<Buffer>& indirectDrawCommandsBuffer = GetOrCreateRenderBuffer(
@@ -674,13 +672,13 @@ void RenderPassManager::CreateComputeInderectDrawGBuffer()
 			renderInfo.renderView, renderUniformWriter, "PipelineInfoBuffer", {}, { Buffer::Usage::STORAGE_BUFFER, Buffer::Usage::INDIRECT_BUFFER }, MemoryType::CPU, true);
 
 		uint32_t offset = 0;
-		for (const auto& [id, pipeline] : computeIndirectGBufferData->sortedPipelines)
+		for (const auto& [id, pipeline] : gbufferData.sortedPipelines)
 		{
 			pipelineInfoBuffer->WriteToBuffer(
 				(void*)&offset,
-				sizeof(ComputeIndirectGBufferData::PipelineInfo::maxDrawCount),
-				sizeof(ComputeIndirectGBufferData::PipelineInfo::maxDrawCount) * id);
-			offset += computeIndirectGBufferData->pipelineInfos[pipeline].maxDrawCount;
+				sizeof(uint32_t),
+				sizeof(uint32_t) * id);
+			offset += gbufferData.pipelineInfos.at(pipeline).maxDrawCount;
 		}
 		pipelineInfoBuffer->Flush();
 
@@ -698,8 +696,7 @@ void RenderPassManager::CreateComputeInderectDrawGBuffer()
 				0,
 				renderInfo.frame);
 
-			uint32_t groupCount = computeIndirectGBufferData->entityCount / 16;
-			groupCount += 1;
+			uint32_t groupCount = (gbufferData.entityCount + 15) / 16;
 			renderInfo.renderer->Compute(pipeline, { groupCount, 1, 1 }, uniformWriterNativeHandles, renderInfo.frame);
 			
 			renderInfo.renderer->MemoryBufferBarrierVertexReadWrite(indirectDrawCommandsBuffer->GetNativeHandle(), renderInfo.frame);
@@ -780,14 +777,23 @@ void RenderPassManager::CreateGBuffer()
 	emissive.store = RenderPass::Store::STORE;
 	emissive.textureCreateInfo.samplerCreateInfo = samplerCreateInfo;
 
-	RenderPass::AttachmentDescription depth = GetRenderPass(ZPrePass)->GetAttachmentDescriptions()[0];
-	// TODO: Revert Changes to LOAD, NONE when ZPrePass is used!
+	RenderPass::AttachmentDescription depth{};
+	depth.textureCreateInfo.format = Format::D32_SFLOAT;
+	depth.textureCreateInfo.aspectMask = Texture::AspectMask::DEPTH;
+	depth.textureCreateInfo.instanceSize = sizeof(float);
+	depth.textureCreateInfo.isMultiBuffered = true;
+	depth.textureCreateInfo.usage = { Texture::Usage::SAMPLED, Texture::Usage::TRANSFER_SRC, Texture::Usage::DEPTH_STENCIL_ATTACHMENT };
+	depth.textureCreateInfo.name = "ZPrePassDepth";
+	depth.textureCreateInfo.filepath = depth.textureCreateInfo.name;
+	depth.layout = Texture::Layout::DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
 	depth.load = RenderPass::Load::CLEAR;
 	depth.store = RenderPass::Store::STORE;
-	depth.getFrameBufferCallback = [](RenderView* renderView)
-	{
-		return renderView->GetFrameBuffer(ZPrePass)->GetAttachment(0);
-	};
+
+	Texture::SamplerCreateInfo depthSamplerCreateInfo{};
+	depthSamplerCreateInfo.addressMode = Texture::SamplerCreateInfo::AddressMode::CLAMP_TO_BORDER;
+	depthSamplerCreateInfo.borderColor = Texture::SamplerCreateInfo::BorderColor::FLOAT_OPAQUE_BLACK;
+
+	depth.textureCreateInfo.samplerCreateInfo = depthSamplerCreateInfo;
 
 	RenderPass::CreateInfo createInfo{};
 	createInfo.type = Pass::Type::GRAPHICS;
@@ -801,10 +807,7 @@ void RenderPassManager::CreateGBuffer()
 	createInfo.executeCallback = [this](const RenderPass::RenderCallbackInfo& renderInfo)
 	{
 		PROFILER_SCOPE(GBuffer);
-		
 		const std::string& renderPassName = renderInfo.renderPass->GetName();
-
-		VisibleData* visibleData = (VisibleData*)renderInfo.renderView->GetCustomData("VisibleData");
 
 		LineRenderer* lineRenderer = (LineRenderer*)renderInfo.scene->GetRenderView()->GetCustomData("LineRenderer");
 		if (!lineRenderer)
@@ -814,7 +817,7 @@ void RenderPassManager::CreateGBuffer()
 			renderInfo.scene->GetRenderView()->SetCustomData("LineRenderer", lineRenderer);
 		}
 
-		ComputeIndirectGBufferData* computeIndirectGBufferData = (ComputeIndirectGBufferData*)renderInfo.scene->GetRenderView()->GetCustomData("ComputeIndirectGBufferData");
+		MultiPassEntityData* multiPassData = (MultiPassEntityData*)renderInfo.scene->GetRenderView()->GetCustomData("MultiPassEntityData");
 
 		const std::shared_ptr<Scene> scene = renderInfo.scene;
 		entt::registry& registry = scene->GetRegistry();
@@ -844,41 +847,46 @@ void RenderPassManager::CreateGBuffer()
 		submitInfo.frameBuffer = frameBuffer;
 		renderInfo.renderer->BeginRenderPass(submitInfo);
 
-		size_t offset = 0;
-		size_t counterBufferOffset = 0;
-		for (const auto& [id, pipeline] : computeIndirectGBufferData->sortedPipelines)
+		if (multiPassData && multiPassData->passesByName.find(GBuffer) != multiPassData->passesByName.end())
 		{
-			renderInfo.renderer->BindPipeline(pipeline, renderInfo.frame);
+			const auto& gbufferData = multiPassData->passesByName[GBuffer];
 
-			if (BindAndFlushUniformWriters(
-				pipeline,
-				nullptr,
-				nullptr,
-				renderInfo,
-				{
-					Pipeline::DescriptorSetIndexType::BINDLESS,
-					Pipeline::DescriptorSetIndexType::SCENE,
-					Pipeline::DescriptorSetIndexType::BASE_MATERIAL,
-					Pipeline::DescriptorSetIndexType::RENDERER,
-					Pipeline::DescriptorSetIndexType::RENDERPASS
-				}
-			))
+			size_t offset = 0;
+			size_t counterBufferOffset = 0;
+			for (const auto& [id, pipeline] : gbufferData.sortedPipelines)
 			{
-				const std::shared_ptr<Buffer>& indirectDrawCommandsBuffer = GetOrCreateRenderBuffer(
-					renderInfo.renderView, nullptr, "IndirectDrawCommands");
-				const std::shared_ptr<Buffer>& indirectDrawCommandCountBuffer = GetOrCreateRenderBuffer(
-					renderInfo.renderView, nullptr, "IndirectDrawCommandCount");
+				renderInfo.renderer->BindPipeline(pipeline, renderInfo.frame);
 
-				renderInfo.renderer->DrawIndirectCount(
-					indirectDrawCommandsBuffer->GetNativeHandle(),
-					offset,
-					indirectDrawCommandCountBuffer->GetNativeHandle(),
-					counterBufferOffset,
-					computeIndirectGBufferData->pipelineInfos[pipeline].maxDrawCount,
-					renderInfo.frame);
+				if (BindAndFlushUniformWriters(
+					pipeline,
+					nullptr,
+					nullptr,
+					renderInfo,
+					{
+						Pipeline::DescriptorSetIndexType::BINDLESS,
+						Pipeline::DescriptorSetIndexType::SCENE,
+						Pipeline::DescriptorSetIndexType::BASE_MATERIAL,
+						Pipeline::DescriptorSetIndexType::RENDERER,
+						Pipeline::DescriptorSetIndexType::RENDERPASS
+					}
+				))
+				{
+					const std::shared_ptr<Buffer>& indirectDrawCommandsBuffer = GetOrCreateRenderBuffer(
+						renderInfo.renderView, nullptr, "IndirectDrawCommands");
+					const std::shared_ptr<Buffer>& indirectDrawCommandCountBuffer = GetOrCreateRenderBuffer(
+						renderInfo.renderView, nullptr, "IndirectDrawCommandCount");
 
-				offset += computeIndirectGBufferData->pipelineInfos[pipeline].maxDrawCount;
-				counterBufferOffset++;
+					renderInfo.renderer->DrawIndirectCount(
+						indirectDrawCommandsBuffer->GetNativeHandle(),
+						offset,
+						indirectDrawCommandCountBuffer->GetNativeHandle(),
+						counterBufferOffset,
+						gbufferData.pipelineInfos.at(pipeline).maxDrawCount,
+						renderInfo.frame);
+
+					offset += gbufferData.pipelineInfos.at(pipeline).maxDrawCount;
+					counterBufferOffset++;
+				}
 			}
 		}
 
@@ -1283,13 +1291,13 @@ void RenderPassManager::CreateTransparent()
 		return renderView->GetFrameBuffer(GBuffer)->GetAttachment(3);
 	};
 
-	RenderPass::AttachmentDescription depth = GetRenderPass(ZPrePass)->GetAttachmentDescriptions()[0];
+	RenderPass::AttachmentDescription depth = GetRenderPass(GBuffer)->GetAttachmentDescriptions()[4];
 	depth.layout = Texture::Layout::DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
 	depth.load = RenderPass::Load::LOAD;
 	depth.store = RenderPass::Store::STORE;
 	depth.getFrameBufferCallback = [](RenderView* renderView)
 	{
-		return renderView->GetFrameBuffer(ZPrePass)->GetAttachment(0);
+		return renderView->GetFrameBuffer(GBuffer)->GetAttachment(4);
 	};
 
 	RenderPass::CreateInfo createInfo{};
@@ -1306,8 +1314,9 @@ void RenderPassManager::CreateTransparent()
 
 		const std::string& renderPassName = renderInfo.renderPass->GetName();
 
-		VisibleData* visibleData = (VisibleData*)renderInfo.renderView->GetCustomData("VisibleData");
-
+		//VisibleData* visibleData = (VisibleData*)renderInfo.renderView->GetCustomData("VisibleData");
+		const std::vector<entt::entity> visibleEntities;
+		
 		struct RenderData
 		{
 			Renderer3D r3d;
@@ -1327,7 +1336,7 @@ void RenderPassManager::CreateTransparent()
 		const Camera& camera = renderInfo.camera->GetComponent<Camera>();
 		const std::shared_ptr<Scene> scene = renderInfo.scene;
 		entt::registry& registry = scene->GetRegistry();
-		for (const entt::entity& entity : visibleData->visibleEntities)
+		for (const entt::entity& entity : visibleEntities)
 		{
 			Renderer3D& r3d = registry.get<Renderer3D>(entity);
 			Transform& transform = registry.get<Transform>(entity);
@@ -1439,7 +1448,7 @@ void RenderPassManager::CreateTransparent()
 				const size_t instanceDataOffset = instanceDatas.size();
 
 				InstanceData data{};
-				data.materialIndex = renderData.r3d.material->GetBindlessIndex();
+				data.materialBuffer = renderData.r3d.material->GetBuffer("MaterialBuffer")->GetDeviceAddress().Get();
 				data.transform = renderData.transformMat4;
 				data.inverseTransform = glm::transpose(renderData.inversetransformMat3);
 				instanceDatas.emplace_back(data);
@@ -3262,7 +3271,7 @@ void RenderPassManager::CreateBloom()
 
 void RenderPassManager::CreateSSR()
 {
-	RenderPass::CreateInfo createInfo{};
+	ComputePass::CreateInfo createInfo{};
 	createInfo.type = Pass::Type::COMPUTE;
 	createInfo.name = SSR;
 
@@ -3364,12 +3373,12 @@ void RenderPassManager::CreateSSR()
 		}
 	};
 
-	CreateRenderPass(createInfo);
+	CreateComputePass(createInfo);
 }
 
 void RenderPassManager::CreateSSRBlur()
 {
-	RenderPass::CreateInfo createInfo{};
+	ComputePass::CreateInfo createInfo{};
 	createInfo.type = Pass::Type::COMPUTE;
 	createInfo.name = SSRBlur;
 
@@ -3470,7 +3479,7 @@ void RenderPassManager::CreateSSRBlur()
 		}
 	};
 
-	CreateRenderPass(createInfo);
+	CreateComputePass(createInfo);
 }
 
 void RenderPassManager::CreateSSAO()

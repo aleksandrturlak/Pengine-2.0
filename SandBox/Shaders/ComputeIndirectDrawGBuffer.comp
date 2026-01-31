@@ -34,12 +34,6 @@ layout(set = 1, binding = 2) buffer PipelineInfoBuffer
 
 layout(set = 2, binding = 0) uniform sampler2D bindlessTextures[10000];
 
-#include "Shaders/Includes/DefaultMaterial.h"
-layout(set = 2, binding = 1) buffer readonly BindlessMaterials
-{
-	DefaultMaterial materials[1000];
-};
-
 layout(set = 3, binding = 0, scalar) buffer readonly BindlessEntities
 {
 	EntityInfo entities[20000];
@@ -70,24 +64,24 @@ bool IsAABBInsideFrustum(
 uint GetLod(
 	in vec3 cameraPosition,
 	in vec3 meshPosition,
-	in MeshInfo meshInfo)
+	in MeshInfoBuffer meshInfoBuffer)
 {
-	if (meshInfo.lodCount == 1)
+	if (meshInfoBuffer.lodCount == 1)
 	{
 		return 0;
 	}
 
 	const float distance = length(cameraPosition - meshPosition);
 
-	for (uint i = 1; i < meshInfo.lodCount; ++i)
+	for (uint i = 1; i < meshInfoBuffer.lodCount; ++i)
 	{
-		if (distance <= meshInfo.lods[i].distanceThreshold)
+		if (distance <= meshInfoBuffer.lods[i].distanceThreshold)
 		{
 			return i - 1;
 		}
 	}
 
-	return meshInfo.lodCount - 1;
+	return meshInfoBuffer.lodCount - 1;
 }
 
 layout (local_size_x = 16, local_size_y = 1, local_size_z = 1) in;
@@ -97,17 +91,16 @@ void main()
     if (entityIndex >= 20000) return;
 
     EntityInfo entityInfo = entities[entityIndex];
-    if (!bool(entityInfo.flags & ENTITY_VALID))
-    {
-        return;
-    }
+    if (!bool(entityInfo.flags & ENTITY_VALID)) return;
+    
+    if (!bool((entityInfo.materialInfoBuffer.pipelineFlags >> GBUFFER_PASS) & uint64_t(1))) return;
 
     if (!IsAABBInsideFrustum(entityInfo.aabb.min, entityInfo.aabb.max)) return;
 
-    MeshInfo meshInfo = entityInfo.meshInfoBuffer.meshInfo;
+    MeshInfoBuffer meshInfoBuffer = entityInfo.meshInfoBuffer;
 
-    uint lod = GetLod(camera.positionWorldSpace, vec4(entityInfo.transform * vec4(0.0f, 0.0f, 0.0f, 1.0f)).xyz, meshInfo);
-    LodInfo lodInfo = meshInfo.lods[lod];
+    uint lod = GetLod(camera.positionWorldSpace, vec4(entityInfo.transform * vec4(0.0f, 0.0f, 0.0f, 1.0f)).xyz, meshInfoBuffer);
+    LodInfo lodInfo = meshInfoBuffer.lods[lod];
 
     DrawIndirectCommand cmd;
     cmd.vertexCount = lodInfo.indexCount;
@@ -115,6 +108,7 @@ void main()
     cmd.firstVertex = lodInfo.indexOffset;
     cmd.firstInstance = entityIndex;
 
-    uint drawIndex = atomicAdd(count[entityInfo.pipelineId], 1);
-    drawCommands[pipelineCommandOffset[entityInfo.pipelineId] + drawIndex] = cmd;
+    uint pipelineId = entityInfo.materialInfoBuffer.baseMaterialInfoBuffer.pipelineIds[GBUFFER_PASS];
+    uint drawIndex = atomicAdd(count[pipelineId], 1);
+    drawCommands[pipelineCommandOffset[pipelineId] + drawIndex] = cmd;
 }

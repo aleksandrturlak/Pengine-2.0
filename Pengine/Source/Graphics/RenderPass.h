@@ -8,7 +8,6 @@
 
 namespace Pengine
 {
-	const std::string ZPrePass = "ZPrePass";
 	const std::string ComputeIndirectDrawGBuffer = "ComputeIndirectDrawGBuffer";
 	const std::string GBuffer = "GBuffer";
 	const std::string Decals = "Decals";

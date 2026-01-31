@@ -236,7 +236,8 @@ void VulkanDevice::CreateLogicalDevice()
 	deviceFeatures.depthClamp = VK_TRUE;
 	deviceFeatures.independentBlend = VK_TRUE;
 	deviceFeatures.fragmentStoresAndAtomics = VK_TRUE;
-
+	deviceFeatures.shaderInt64 = VK_TRUE;
+	
 	VkPhysicalDeviceVulkan12Features vulkan12Features{};
 	vulkan12Features.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_2_FEATURES;
 

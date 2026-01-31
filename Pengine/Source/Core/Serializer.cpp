@@ -635,6 +635,10 @@ void Serializer::DeserializeDescriptorSets(
 			{
 				type = Pipeline::DescriptorSetIndexType::MATERIAL;
 			}
+			else if (typeName == "BufferDeviceAddress")
+			{
+				type = Pipeline::DescriptorSetIndexType::BUFFER_DEVICE_ADDRESS;
+			}
 			else if (typeName == "Object")
 			{
 				type = Pipeline::DescriptorSetIndexType::OBJECT;
@@ -1236,20 +1240,6 @@ Material::CreateInfo Serializer::LoadMaterial(const std::filesystem::path& filep
 		createInfo.uniformInfos.emplace(renderPass, uniformInfo);
 	}
 
-	for (const auto& bindlessData : materialData["Bindless"])
-	{
-		Pipeline::UniformInfo uniformInfo{};
-		ParseUniformValues(bindlessData, uniformInfo);
-		if (uniformInfo.uniformBuffersByName.empty())
-		{
-			Logger::Error(std::format("{}: Material is bindless, but no bindless uniforms were found!", filepath.string()));
-		}
-		else
-		{
-			createInfo.bindlessMaterial = uniformInfo.uniformBuffersByName.begin()->second;
-		}
-	}
-
 	Logger::Log("Material:" + filepath.string() + " has been loaded!", BOLDGREEN);
 
 	return createInfo;
@@ -1319,229 +1309,134 @@ void Serializer::SerializeMaterial(const std::shared_ptr<Material>& material, bo
 
 		out << YAML::BeginSeq;
 
-		std::optional<uint32_t> descriptorSetIndex = pipeline->GetDescriptorSetIndexByType(Pipeline::DescriptorSetIndexType::MATERIAL, passName);
-		if (!descriptorSetIndex)
+		std::vector<std::shared_ptr<UniformLayout>> uniformLayouts;
+
 		{
-			out << YAML::EndSeq;
-
-			out << YAML::EndMap;
-
-			continue;
-		}
-		for (const auto& binding : pipeline->GetUniformLayout(*descriptorSetIndex)->GetBindings())
-		{
-			out << YAML::BeginMap;
-
-			out << YAML::Key << "Name" << YAML::Value << binding.name;
-
-			if (binding.type == ShaderReflection::Type::COMBINED_IMAGE_SAMPLER)
+			std::optional<uint32_t> descriptorSetIndex = pipeline->GetDescriptorSetIndexByType(Pipeline::DescriptorSetIndexType::MATERIAL, passName);
+			if (descriptorSetIndex)
 			{
-				const std::shared_ptr<Texture> texture = material->GetUniformWriter(passName)->GetTexture(binding.name).back();
-				if (texture)
-				{
-					const auto uuid = Utils::FindUuid(texture->GetFilepath());
-					if (uuid.IsValid())
-					{
-						out << YAML::Key << "Value" << YAML::Value << uuid;
-					}
-					else
-					{
-						out << YAML::Key << "Value" << YAML::Value << texture->GetFilepath();
-					}
-				}
+				uniformLayouts.emplace_back(pipeline->GetUniformLayout(*descriptorSetIndex));
 			}
-			else if (binding.type == ShaderReflection::Type::UNIFORM_BUFFER || binding.type == ShaderReflection::Type::STORAGE_BUFFER)
-			{
-				std::shared_ptr<Buffer> buffer = material->GetBuffer(binding.name);
-				void* data = buffer->GetData();
-
-				out << YAML::Key << "Values";
-
-				out << YAML::BeginSeq;
-
-				std::function<void(const ShaderReflection::ReflectVariable&, std::string)> saveValue = [&saveValue, &out, &data, &material]
-				(const ShaderReflection::ReflectVariable& value, std::string parentName)
-				{
-					parentName += value.name;
-
-					if (value.type == ShaderReflection::ReflectVariable::Type::STRUCT)
-					{
-						for (const auto& memberValue : value.variables)
-						{
-							saveValue(memberValue, parentName + ".");
-						}
-						return;
-					}
-
-					out << YAML::BeginMap;
-
-					out << YAML::Key << "Name" << YAML::Value << parentName;
-
-					if (value.type == ShaderReflection::ReflectVariable::Type::VEC2)
-					{
-						out << YAML::Key << "Value" << YAML::Value << Utils::GetValue<glm::vec2>(data, value.offset);
-					}
-					else if (value.type == ShaderReflection::ReflectVariable::Type::VEC3)
-					{
-						out << YAML::Key << "Value" << YAML::Value << Utils::GetValue<glm::vec3>(data, value.offset);
-					}
-					else if (value.type == ShaderReflection::ReflectVariable::Type::VEC4)
-					{
-						out << YAML::Key << "Value" << YAML::Value << Utils::GetValue<glm::vec4>(data, value.offset);
-					}
-					else if (value.type == ShaderReflection::ReflectVariable::Type::FLOAT)
-					{
-						out << YAML::Key << "Value" << YAML::Value << Utils::GetValue<float>(data, value.offset);
-					}
-					else if (value.type == ShaderReflection::ReflectVariable::Type::INT)
-					{
-						out << YAML::Key << "Value" << YAML::Value << Utils::GetValue<int>(data, value.offset);
-					}
-					else if (value.type == ShaderReflection::ReflectVariable::Type::TEXTURE)
-					{
-						const int bindlessTextureIndex = Utils::GetValue<int>(data, value.offset);
-						const std::shared_ptr<Texture> texture = material->GetBindlessTexture(bindlessTextureIndex);
-						if (texture)
-						{
-							const auto uuid = Utils::FindUuid(texture->GetFilepath());
-							if (uuid.IsValid())
-							{
-								out << YAML::Key << "Value" << YAML::Value << uuid;
-							}
-							else
-							{
-								out << YAML::Key << "Value" << YAML::Value << texture->GetFilepath();
-							}
-						}
-					}
-
-					out << YAML::Key << "Type" << ShaderReflection::ConvertTypeToString(value.type);
-
-					out << YAML::EndMap;
-				};
-				for (const auto& value : binding.buffer->variables)
-				{
-					saveValue(value, "");
-				}
-
-				out << YAML::EndSeq;
-			}
-
-			out << YAML::EndMap;
 		}
 
+		{
+			std::optional<uint32_t> descriptorSetIndex = pipeline->GetDescriptorSetIndexByType(Pipeline::DescriptorSetIndexType::BUFFER_DEVICE_ADDRESS, passName);
+			if (descriptorSetIndex)
+			{
+				uniformLayouts.emplace_back(pipeline->GetUniformLayout(*descriptorSetIndex));
+			}
+		}
+		
+		for (const auto& uniformLayout : uniformLayouts)
+		{
+			for (const auto& binding : uniformLayout->GetBindings())
+			{
+				out << YAML::BeginMap;
+
+				out << YAML::Key << "Name" << YAML::Value << binding.name;
+
+				if (binding.type == ShaderReflection::Type::COMBINED_IMAGE_SAMPLER)
+				{
+					const std::shared_ptr<Texture> texture = material->GetUniformWriter(passName)->GetTexture(binding.name).back();
+					if (texture)
+					{
+						const auto uuid = Utils::FindUuid(texture->GetFilepath());
+						if (uuid.IsValid())
+						{
+							out << YAML::Key << "Value" << YAML::Value << uuid;
+						}
+						else
+						{
+							out << YAML::Key << "Value" << YAML::Value << texture->GetFilepath();
+						}
+					}
+				}
+				else if (binding.type == ShaderReflection::Type::UNIFORM_BUFFER || binding.type == ShaderReflection::Type::STORAGE_BUFFER)
+				{
+					std::shared_ptr<Buffer> buffer = material->GetBuffer(binding.name);
+					void* data = buffer->GetData();
+
+					out << YAML::Key << "Values";
+
+					out << YAML::BeginSeq;
+
+					std::function<void(const ShaderReflection::ReflectVariable&, std::string)> saveValue = [&saveValue, &out, &data, &material]
+					(const ShaderReflection::ReflectVariable& value, std::string parentName)
+					{
+						parentName += value.name;
+
+						if (value.type == ShaderReflection::ReflectVariable::Type::STRUCT)
+						{
+							for (const auto& memberValue : value.variables)
+							{
+								saveValue(memberValue, parentName + ".");
+							}
+							return;
+						}
+
+						out << YAML::BeginMap;
+
+						out << YAML::Key << "Name" << YAML::Value << parentName;
+
+						if (value.type == ShaderReflection::ReflectVariable::Type::VEC2)
+						{
+							out << YAML::Key << "Value" << YAML::Value << Utils::GetValue<glm::vec2>(data, value.offset);
+						}
+						else if (value.type == ShaderReflection::ReflectVariable::Type::VEC3)
+						{
+							out << YAML::Key << "Value" << YAML::Value << Utils::GetValue<glm::vec3>(data, value.offset);
+						}
+						else if (value.type == ShaderReflection::ReflectVariable::Type::VEC4)
+						{
+							out << YAML::Key << "Value" << YAML::Value << Utils::GetValue<glm::vec4>(data, value.offset);
+						}
+						else if (value.type == ShaderReflection::ReflectVariable::Type::FLOAT)
+						{
+							out << YAML::Key << "Value" << YAML::Value << Utils::GetValue<float>(data, value.offset);
+						}
+						else if (value.type == ShaderReflection::ReflectVariable::Type::INT)
+						{
+							out << YAML::Key << "Value" << YAML::Value << Utils::GetValue<int>(data, value.offset);
+						}
+						else if (value.type == ShaderReflection::ReflectVariable::Type::TEXTURE)
+						{
+							const int bindlessTextureIndex = Utils::GetValue<int>(data, value.offset);
+							const std::shared_ptr<Texture> texture = material->GetBindlessTexture(bindlessTextureIndex);
+							if (texture)
+							{
+								const auto uuid = Utils::FindUuid(texture->GetFilepath());
+								if (uuid.IsValid())
+								{
+									out << YAML::Key << "Value" << YAML::Value << uuid;
+								}
+								else
+								{
+									out << YAML::Key << "Value" << YAML::Value << texture->GetFilepath();
+								}
+							}
+						}
+
+						out << YAML::Key << "Type" << ShaderReflection::ConvertTypeToString(value.type);
+
+						out << YAML::EndMap;
+					};
+					for (const auto& value : binding.buffer->variables)
+					{
+						saveValue(value, "");
+					}
+
+					out << YAML::EndSeq;
+				}
+
+				out << YAML::EndMap;
+			}
+		}
 		out << YAML::EndSeq;
 
 		out << YAML::EndMap;
 	}
 
 	out << YAML::EndSeq;
-
-	if (material->IsBindless())
-	{
-		out << YAML::Key << "Bindless";
-
-		out << YAML::BeginSeq;
-
-		out << YAML::BeginMap;
-
-		out << YAML::Key << "Uniforms";
-
-		out << YAML::BeginSeq;
-
-		BindlessUniformWriter& bindlessUniformWriter = BindlessUniformWriter::GetInstance();
-		const auto bindings = bindlessUniformWriter.GetBaseMaterial()->GetPipeline(DefaultReflection)->GetUniformLayout(2)->GetBindings();
-		for (const auto& binding : bindings)
-		{
-			out << YAML::BeginMap;
-
-			out << YAML::Key << "Name" << YAML::Value << binding.name;
-
-			if (binding.type == ShaderReflection::Type::UNIFORM_BUFFER || binding.type == ShaderReflection::Type::STORAGE_BUFFER)
-			{
-				void* data = bindlessUniformWriter.GetBindlessMaterialBufferData(material->GetBindlessIndex());
-
-				out << YAML::Key << "Values";
-
-				out << YAML::BeginSeq;
-
-				std::function<void(const ShaderReflection::ReflectVariable&, std::string)> saveValue = [&saveValue, &out, &data, &material]
-				(const ShaderReflection::ReflectVariable& value, std::string parentName)
-				{
-					parentName += value.name;
-
-					if (value.type == ShaderReflection::ReflectVariable::Type::STRUCT)
-					{
-						for (const auto& memberValue : value.variables)
-						{
-							saveValue(memberValue, parentName + ".");
-						}
-						return;
-					}
-
-					out << YAML::BeginMap;
-
-					out << YAML::Key << "Name" << YAML::Value << parentName;
-
-					if (value.type == ShaderReflection::ReflectVariable::Type::VEC2)
-					{
-						out << YAML::Key << "Value" << YAML::Value << Utils::GetValue<glm::vec2>(data, value.offset);
-					}
-					else if (value.type == ShaderReflection::ReflectVariable::Type::VEC3)
-					{
-						out << YAML::Key << "Value" << YAML::Value << Utils::GetValue<glm::vec3>(data, value.offset);
-					}
-					else if (value.type == ShaderReflection::ReflectVariable::Type::VEC4)
-					{
-						out << YAML::Key << "Value" << YAML::Value << Utils::GetValue<glm::vec4>(data, value.offset);
-					}
-					else if (value.type == ShaderReflection::ReflectVariable::Type::FLOAT)
-					{
-						out << YAML::Key << "Value" << YAML::Value << Utils::GetValue<float>(data, value.offset);
-					}
-					else if (value.type == ShaderReflection::ReflectVariable::Type::INT)
-					{
-						out << YAML::Key << "Value" << YAML::Value << Utils::GetValue<int>(data, value.offset);
-					}
-					else if (value.type == ShaderReflection::ReflectVariable::Type::TEXTURE)
-					{
-						const int bindlessTextureIndex = Utils::GetValue<int>(data, value.offset);
-						const std::shared_ptr<Texture> texture = material->GetBindlessTexture(bindlessTextureIndex);
-						if (texture)
-						{
-							const auto uuid = Utils::FindUuid(texture->GetFilepath());
-							if (uuid.IsValid())
-							{
-								out << YAML::Key << "Value" << YAML::Value << uuid;
-							}
-							else
-							{
-								out << YAML::Key << "Value" << YAML::Value << texture->GetFilepath();
-							}
-						}
-					}
-
-					out << YAML::Key << "Type" << ShaderReflection::ConvertTypeToString(value.type);
-
-					out << YAML::EndMap;
-				};
-				for (const auto& value : binding.buffer->variables)
-				{
-					saveValue(value, "");
-				}
-
-				out << YAML::EndSeq;
-			}
-
-			out << YAML::EndMap;
-		}
-
-		out << YAML::EndSeq;
-
-		out << YAML::EndMap;
-
-		out << YAML::EndSeq;
-	}
 
 	out << YAML::EndMap;
 
@@ -3852,22 +3747,21 @@ std::shared_ptr<Material> Serializer::GenerateMaterial(
 		materialFilepath,
 		doubleSided ? meshBaseDoubleSidedMaterial : meshBaseMaterial);
 
-	BindlessUniformWriter::GetInstance().BindMaterial(material);
-
-	material->WriteToBuffer("Bindless", "material.alphaCutoff", gltfMaterial.alphaCutoff);
+	const std::string materialBufferName = "MaterialBuffer";
+	material->WriteToBuffer(materialBufferName, "material.alphaCutoff", gltfMaterial.alphaCutoff);
 
 	switch (gltfMaterial.alphaMode)
 	{
 	case fastgltf::AlphaMode::Opaque:
 	{
 		constexpr int useAlphaCutoff = false;
-		material->WriteToBuffer("Bindless", "material.useAlphaCutoff", useAlphaCutoff);
+		material->WriteToBuffer(materialBufferName, "material.useAlphaCutoff", useAlphaCutoff);
 		break;
 	}
 	case fastgltf::AlphaMode::Mask:
 	{
 		constexpr int useAlphaCutoff = true;
-		material->WriteToBuffer("Bindless", "material.useAlphaCutoff", useAlphaCutoff);
+		material->WriteToBuffer(materialBufferName, "material.useAlphaCutoff", useAlphaCutoff);
 		break;
 	}
 	case fastgltf::AlphaMode::Blend:
@@ -3884,7 +3778,7 @@ std::shared_ptr<Material> Serializer::GenerateMaterial(
 		gltfMaterial.pbrData.baseColorFactor.z(),
 		gltfMaterial.pbrData.baseColorFactor.w(),
 	};
-	material->WriteToBuffer("Bindless", "material.albedoColor", baseColor);
+	material->WriteToBuffer(materialBufferName, "material.albedoColor", baseColor);
 	
 	const glm::vec4 emissiveColor =
 	{
@@ -3893,29 +3787,27 @@ std::shared_ptr<Material> Serializer::GenerateMaterial(
 		gltfMaterial.emissiveFactor.z(),
 		1.0f,
 	};
-	material->WriteToBuffer("Bindless", "material.emissiveColor", emissiveColor);
+	material->WriteToBuffer(materialBufferName, "material.emissiveColor", emissiveColor);
 
-	material->WriteToBuffer("Bindless", "material.metallicFactor", gltfMaterial.pbrData.metallicFactor);
-	material->WriteToBuffer("Bindless", "material.roughnessFactor", gltfMaterial.pbrData.roughnessFactor);
-	material->WriteToBuffer("Bindless", "material.emissiveFactor", gltfMaterial.emissiveStrength);
-
+	material->WriteToBuffer(materialBufferName, "material.metallicFactor", gltfMaterial.pbrData.metallicFactor);
+	material->WriteToBuffer(materialBufferName, "material.roughnessFactor", gltfMaterial.pbrData.roughnessFactor);
+	material->WriteToBuffer(materialBufferName, "material.emissiveFactor", gltfMaterial.emissiveStrength);
 	{
 		const int useParallaxOcclusion = 0;
 		const int minParallaxLayers = 0;
 		const int maxParallaxLayers = 0;
 		const float parallaxHeightScale = 0.0f;
-		material->WriteToBuffer("Bindless", "material.useParallaxOcclusion", useParallaxOcclusion);
-		material->WriteToBuffer("Bindless", "material.minParallaxLayers", minParallaxLayers);
-		material->WriteToBuffer("Bindless", "material.maxParallaxLayers", maxParallaxLayers);
-		material->WriteToBuffer("Bindless", "material.parallaxHeightScale", parallaxHeightScale);
+		material->WriteToBuffer(materialBufferName, "material.useParallaxOcclusion", useParallaxOcclusion);
+		material->WriteToBuffer(materialBufferName, "material.minParallaxLayers", minParallaxLayers);
+		material->WriteToBuffer(materialBufferName, "material.maxParallaxLayers", maxParallaxLayers);
+		material->WriteToBuffer(materialBufferName, "material.parallaxHeightScale", parallaxHeightScale);
 
 		const int heightTextureIndex = material->BindBindlessTexture(TextureManager::GetInstance().GetWhite());
-		material->WriteToBuffer("Bindless", "material.heightTexture", heightTextureIndex);
+		material->WriteToBuffer(materialBufferName, "material.heightTexture", heightTextureIndex);
 	}
 
 	float ao = 1.0f;
-	material->WriteToBuffer("Bindless", "material.aoFactor", ao);
-
+	material->WriteToBuffer(materialBufferName, "material.aoFactor", ao);
 	if (gltfMaterial.pbrData.baseColorTexture.has_value())
 	{
 		Texture::Meta meta{};
@@ -3930,13 +3822,13 @@ std::shared_ptr<Material> Serializer::GenerateMaterial(
 			meta))
 		{
 			const int albedoTextureIndex = material->BindBindlessTexture(albedoTexture);
-			material->WriteToBuffer("Bindless", "material.albedoTexture", albedoTextureIndex);
+			material->WriteToBuffer(materialBufferName, "material.albedoTexture", albedoTextureIndex);
 		}
 	}
 	else
 	{
 		const int albedoTextureIndex = material->BindBindlessTexture(TextureManager::GetInstance().GetWhite());
-		material->WriteToBuffer("Bindless", "material.albedoTexture", albedoTextureIndex);
+		material->WriteToBuffer(materialBufferName, "material.albedoTexture", albedoTextureIndex);
 	}
 
 	if (gltfMaterial.normalTexture.has_value())
@@ -3949,16 +3841,16 @@ std::shared_ptr<Material> Serializer::GenerateMaterial(
 			materialName + "_Normal" + FileFormats::Png()))
 		{
 			const int normalTextureIndex = material->BindBindlessTexture(normalTexture);
-			material->WriteToBuffer("Bindless", "material.normalTexture", normalTextureIndex);
+			material->WriteToBuffer(materialBufferName, "material.normalTexture", normalTextureIndex);
 
 			constexpr int useNormalMap = 1;
-			material->WriteToBuffer("Bindless", "material.useNormalMap", useNormalMap);
+			material->WriteToBuffer(materialBufferName, "material.useNormalMap", useNormalMap);
 		}
 	}
 	else
 	{
 		const int normalTextureIndex = material->BindBindlessTexture(TextureManager::GetInstance().GetWhite());
-		material->WriteToBuffer("Bindless", "material.normalTexture", normalTextureIndex);
+		material->WriteToBuffer(materialBufferName, "material.normalTexture", normalTextureIndex);
 	}
 
 	if (gltfMaterial.pbrData.metallicRoughnessTexture.has_value())
@@ -3971,13 +3863,13 @@ std::shared_ptr<Material> Serializer::GenerateMaterial(
 			materialName + "_MetallicRoughness" + FileFormats::Png()))
 		{
 			const int metallicRoughnessTextureIndex = material->BindBindlessTexture(metallicRoughnessTexture);
-			material->WriteToBuffer("Bindless", "material.metallicRoughnessTexture", metallicRoughnessTextureIndex);
+			material->WriteToBuffer(materialBufferName, "material.metallicRoughnessTexture", metallicRoughnessTextureIndex);
 		}
 	}
 	else
 	{
 		const int metallicRoughnessTextureIndex = material->BindBindlessTexture(TextureManager::GetInstance().GetWhite());
-		material->WriteToBuffer("Bindless", "material.metallicRoughnessTexture", metallicRoughnessTextureIndex);
+		material->WriteToBuffer(materialBufferName, "material.metallicRoughnessTexture", metallicRoughnessTextureIndex);
 	}
 
 	if (gltfMaterial.occlusionTexture.has_value())
@@ -3990,13 +3882,13 @@ std::shared_ptr<Material> Serializer::GenerateMaterial(
 			materialName + "_Occlusion" + FileFormats::Png()))
 		{
 			const int aoTextureIndex = material->BindBindlessTexture(aoTexture);
-			material->WriteToBuffer("Bindless", "material.aoTexture", aoTextureIndex);
+			material->WriteToBuffer(materialBufferName, "material.aoTexture", aoTextureIndex);
 		}
 	}
 	else
 	{
 		const int aoTextureIndex = material->BindBindlessTexture(TextureManager::GetInstance().GetWhite());
-		material->WriteToBuffer("Bindless", "material.aoTexture", aoTextureIndex);
+		material->WriteToBuffer(materialBufferName, "material.aoTexture", aoTextureIndex);
 	}
 
 	if (gltfMaterial.emissiveTexture.has_value())
@@ -4009,13 +3901,13 @@ std::shared_ptr<Material> Serializer::GenerateMaterial(
 			materialName + "_Emissive" + FileFormats::Png()))
 		{
 			const int emissiveTextureIndex = material->BindBindlessTexture(emissiveTexture);
-			material->WriteToBuffer("Bindless", "material.emissiveTexture", emissiveTextureIndex);
+			material->WriteToBuffer(materialBufferName, "material.emissiveTexture", emissiveTextureIndex);
 		}
 	}
 	else
 	{
 		const int emissiveTextureIndex =  material->BindBindlessTexture(TextureManager::GetInstance().GetWhite());
-		material->WriteToBuffer("Bindless", "material.emissiveTexture", emissiveTextureIndex);
+		material->WriteToBuffer(materialBufferName, "material.emissiveTexture", emissiveTextureIndex);
 	}
 
 	Material::Save(material);

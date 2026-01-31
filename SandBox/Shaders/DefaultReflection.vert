@@ -13,11 +13,6 @@ layout(set = 0, binding = 0) uniform GlobalBuffer
 layout(set = 1, binding = 0) uniform sampler2D bindlessTextures[10000];
 
 #include "Shaders/Includes/DefaultMaterial.h"
-layout(set = 1, binding = 1) buffer readonly BindlessMaterials
-{
-	DefaultMaterial materials[1000];
-};
-
 layout(set = 2, binding = 0) buffer readonly Material
 {
 	DefaultMaterial material;

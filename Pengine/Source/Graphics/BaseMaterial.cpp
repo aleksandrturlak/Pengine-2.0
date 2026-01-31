@@ -348,6 +348,15 @@ void BaseMaterial::CreateResources(const CreateInfo& createInfo)
 			m_PipelinesByPass[passName] = nullptr;
 		}
 	}
+
+	{
+		m_BaseMaterialInfoBuffer = Buffer::Create(
+			sizeof(BaseMaterialInfoBuffer),
+			1,
+			{ Buffer::Usage::STORAGE_BUFFER },
+			MemoryType::CPU,
+			true);
+	}
 }
 
 void BaseMaterial::CreatePipelineResources(
@@ -436,5 +445,7 @@ void BaseMaterial::CreatePipelineResources(
 			const int index = BindBindlessTexture(texture);
 			WriteToBuffer(uniformBufferName, name, index);
 		}
+
+		GetBuffer(uniformBufferName)->Flush();
 	}
 }

@@ -25,10 +25,7 @@ Mat:
         []
     - RenderPass: GBuffer
       Uniforms:
-        []
-  Bindless:
-    - Uniforms:
-        - Name: Material
+        - Name: MaterialBuffer
           Values:
             - Name: material.albedoColor
               Value: [0.400379658, 0.131596014, 0.707190514, 1]

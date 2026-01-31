@@ -7,12 +7,25 @@ Mat:
         - Transparent
       Inactive:
         - GBuffer
-  Bindless:
-    - Uniforms:
-        - Name: Material
+  Pipelines:
+    - RenderPass: SpotLightShadows
+      Uniforms:
+        []
+    - RenderPass: PointLightShadows
+      Uniforms:
+        []
+    - RenderPass: CSM
+      Uniforms:
+        []
+    - RenderPass: Transparent
+      Uniforms:
+        []
+    - RenderPass: GBuffer
+      Uniforms:
+        - Name: MaterialBuffer
           Values:
             - Name: material.albedoColor
-              Value: [0.337254912, 0.337254912, 0.337254912, 1]
+              Value: [0.337254912, 0.337254912, 0.337254912, 0.337254912]
               Type: vec4
             - Name: material.emissiveColor
               Value: [1, 1, 1, 1]

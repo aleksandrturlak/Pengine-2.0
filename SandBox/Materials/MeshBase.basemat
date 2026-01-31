@@ -17,6 +17,8 @@ Basemat:
         - Type: Scene
           RenderPass: BindlessEntities
           Set: 2
+        - Type: BufferDeviceAddress
+          Set: 3
       ColorBlendStates:
         - BlendEnabled: false
         - BlendEnabled: false
@@ -167,35 +169,5 @@ Basemat:
           Names:
             - transformA
             - lightIndexA
-      ColorBlendStates:
-        []
-    - RenderPass: ZPrePass
-      DepthTest: true
-      DepthWrite: true
-      CullMode: Back
-      PolygonMode: Fill
-      TopologyMode: TriangleList
-      Vertex: Shaders/ZPrePass.vert
-      Fragment: Shaders/ZPrePass.frag
-      DescriptorSets:
-        - Type: Renderer
-          RenderPass: DefaultReflection
-          Set: 0
-        - Type: Material
-          RenderPass: GBuffer
-          Set: 1
-        - Type: Bindless
-          Set: 2
-      VertexInputBindingDescriptions:
-        - Binding: 0
-          InputRate: Vertex
-          Tag: Position
-          Names:
-            - positionA
-            - uvA
-        - Binding: 1
-          InputRate: Instance
-          Names:
-            - transformA
       ColorBlendStates:
         []

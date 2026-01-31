@@ -1,5 +1,7 @@
 #extension GL_EXT_buffer_reference : require
 #extension GL_EXT_scalar_block_layout : require
+#extension GL_EXT_debug_printf : enable
+#extension GL_ARB_gpu_shader_int64 : enable
 
 struct VertexPosition
 {
@@ -69,7 +71,7 @@ struct LodInfo
 	float distanceThreshold;
 };
 
-struct MeshBufferInfo
+layout(buffer_reference, scalar) buffer MeshBufferInfoBuffer
 {
 	VertexBufferPosition vertexBufferPosition;
 	VertexBufferNormal vertexBufferNormal;
@@ -78,22 +80,12 @@ struct MeshBufferInfo
 	VertexBufferIndex indexBuffer;
 };
 
-layout(buffer_reference, scalar) buffer MeshBufferInfoBuffer
-{
-	MeshBufferInfo meshBufferInfo;
-};
-
-struct MeshInfo
+layout(buffer_reference, scalar) buffer MeshInfoBuffer
 {
 	MeshBufferInfoBuffer meshBufferInfoBuffer;
 	uint lodCount;
 	uint flags;
 	LodInfo lods[MAX_LODS];
-};
-
-layout(buffer_reference, scalar) buffer MeshInfoBuffer
-{
-	MeshInfo meshInfo;
 };
 
 struct AABB
@@ -105,12 +97,31 @@ struct AABB
 #define ENTITY_VALID 1 << 0
 #define ENTITY_SKINNED 1 << 1
 
+// Render pass indices
+#define MAX_PIPELINE_COUNT_PER_MATERIAL 8
+#define GBUFFER_PASS 0
+#define CSM_PASS 1
+#define POINT_SHADOW_PASS 2
+#define SPOT_SHADOW_PASS 3
+#define TRANSPARENT_PASS 4
+
+layout(buffer_reference, scalar) buffer BaseMaterialInfoBuffer
+{
+	uint pipelineIds[MAX_PIPELINE_COUNT_PER_MATERIAL];
+};
+
+layout(buffer_reference, scalar) buffer MaterialInfoBuffer
+{
+	uint64_t materialBuffers[MAX_PIPELINE_COUNT_PER_MATERIAL];
+	BaseMaterialInfoBuffer baseMaterialInfoBuffer;
+	uint64_t pipelineFlags;
+};
+
 struct EntityInfo
 {
 	mat4 transform;
 	AABB aabb;
-	int materialIndex;
-	int pipelineId;
+	MaterialInfoBuffer materialInfoBuffer;
 	MeshInfoBuffer meshInfoBuffer;
 	BoneBuffer boneBuffer;
 	uint flags; // valid, skinned, etc.

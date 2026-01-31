@@ -12,34 +12,13 @@ Basemat:
         - Type: Renderer
           RenderPass: DefaultReflection
           Set: 0
-        - Type: Material
-          RenderPass: GBuffer
-          Set: 1
         - Type: Bindless
+          Set: 1
+        - Type: Scene
+          RenderPass: BindlessEntities
           Set: 2
-      VertexInputBindingDescriptions:
-        - Binding: 0
-          InputRate: Vertex
-          Tag: Position
-          Names:
-            - positionA
-            - uvA
-        - Binding: 1
-          InputRate: Vertex
-          Tag: Normal
-          Names:
-            - normalA
-            - tangentA
-        - Binding: 2
-          InputRate: Vertex
-          Tag: Color
-          Names:
-            - colorA
-        - Binding: 3
-          InputRate: Instance
-          Names:
-            - transformA
-            - inverseTransformA
+        - Type: BufferDeviceAddress
+          Set: 3
       ColorBlendStates:
         - BlendEnabled: false
         - BlendEnabled: false
@@ -98,7 +77,7 @@ Basemat:
       DepthWrite: true
       DepthClamp: true
       DepthCompare: LessOrEqual
-      CullMode: Front
+      CullMode: None
       PolygonMode: Fill
       TopologyMode: TriangleList
       Vertex: Shaders/CSM.vert
@@ -108,11 +87,8 @@ Basemat:
         - Type: Renderer
           RenderPass: CSM
           Set: 0
-        - Type: Material
-          RenderPass: GBuffer
-          Set: 1
         - Type: Bindless
-          Set: 2
+          Set: 1
       VertexInputBindingDescriptions:
         - Binding: 0
           InputRate: Vertex
@@ -125,24 +101,27 @@ Basemat:
           Names:
             - transformA
             - layersA
+            - materialIndexA
       ColorBlendStates:
         []
-    - RenderPass: ZPrePass
+    - RenderPass: PointLightShadows
       DepthTest: true
       DepthWrite: true
-      CullMode: Back
+      DepthClamp: true
+      DepthCompare: LessOrEqual
+      CullMode: None
       PolygonMode: Fill
       TopologyMode: TriangleList
-      Vertex: Shaders/ZPrePass.vert
-      Fragment: Shaders/ZPrePass.frag
+      Vertex: Shaders/PointLightShadows.vert
+      Fragment: Shaders/PointLightShadows.frag
       DescriptorSets:
-        - Type: Renderer
-          RenderPass: DefaultReflection
-          Set: 0
         - Type: Material
           RenderPass: GBuffer
-          Set: 1
+          Set: 0
         - Type: Bindless
+          Set: 1
+        - Type: Renderer
+          RenderPass: Lights
           Set: 2
       VertexInputBindingDescriptions:
         - Binding: 0
@@ -155,5 +134,40 @@ Basemat:
           InputRate: Instance
           Names:
             - transformA
+            - lightIndexA
+            - faceIndexA
+      ColorBlendStates:
+        []
+    - RenderPass: SpotLightShadows
+      DepthTest: true
+      DepthWrite: true
+      DepthClamp: true
+      DepthCompare: LessOrEqual
+      CullMode: None
+      PolygonMode: Fill
+      TopologyMode: TriangleList
+      Vertex: Shaders/SpotLightShadows.vert
+      Fragment: Shaders/SpotLightShadows.frag
+      DescriptorSets:
+        - Type: Material
+          RenderPass: GBuffer
+          Set: 0
+        - Type: Bindless
+          Set: 1
+        - Type: Renderer
+          RenderPass: Lights
+          Set: 2
+      VertexInputBindingDescriptions:
+        - Binding: 0
+          InputRate: Vertex
+          Tag: Position
+          Names:
+            - positionA
+            - uvA
+        - Binding: 1
+          InputRate: Instance
+          Names:
+            - transformA
+            - lightIndexA
       ColorBlendStates:
         []

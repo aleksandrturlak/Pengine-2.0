@@ -55,6 +55,8 @@ void Renderer::Update(
 
 		renderer->BeginCommandLabel("Scene: " + scene->GetName(), glm::vec3(1.0f, 0.75f, 0.0f), frame);
 
+		RenderPassManager::ProcessEntities(renderInfo);
+
 		for (const auto& type : passPerSceneOrder)
 		{
 			const std::shared_ptr<Pass> pass = RenderPassManager::GetInstance().GetPass(type);

@@ -1,4 +1,6 @@
-#version 450
+#version 460
+
+#include "Shaders/Includes/BindlessMeshes.h"
 
 layout(location = 0) in vec3 normalViewSpace;
 layout(location = 1) in vec3 tangentViewSpace;
@@ -7,7 +9,7 @@ layout(location = 3) in vec2 uv;
 layout(location = 4) in vec4 color;
 layout(location = 5) in vec3 positionTangentSpace;
 layout(location = 6) in vec3 cameraPositionTangentSpace;
-layout(location = 7) flat in int materialIndex;
+layout(location = 7) flat in uint64_t materialBuffer;
 
 layout(location = 0) out vec4 outAlbedo;
 layout(location = 1) out vec2 outNormal;
@@ -23,16 +25,16 @@ layout(set = 0, binding = 0) uniform GlobalBuffer
 layout(set = 1, binding = 0) uniform sampler2D bindlessTextures[10000];
 
 #include "Shaders/Includes/DefaultMaterial.h"
-layout(set = 1, binding = 1) buffer readonly BindlessMaterials
+layout(buffer_reference, scalar) buffer MaterialBufferReference
 {
-	DefaultMaterial materials[1000];
+	DefaultMaterial material;
 };
 
 #include "Shaders/Includes/ParallaxOcclusionMapping.h"
 
 void main()
 {
-	DefaultMaterial material = materials[materialIndex];
+	DefaultMaterial material = MaterialBufferReference(materialBuffer).material;
 
 	vec2 finalUV = uv;
 	if (material.useParallaxOcclusion > 0)

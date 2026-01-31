@@ -41,40 +41,9 @@ namespace Pengine
 
 		std::shared_ptr<Texture> GetBindlessTexture(const int index);
 
-		int BindMaterial(const std::shared_ptr<Material>& material);
-
-		void UnBindMaterial(const std::shared_ptr<Material>& material);
-
-		std::shared_ptr<Material> GetBindlessMaterial(const int index);
-
-		std::shared_ptr<BaseMaterial> GetBaseMaterial() const { return m_BaseMaterial; }
-
-		std::shared_ptr<Buffer> GetBindlessMaterialBuffer() const { return m_BindlessMaterialBuffer; }
-
-		void* GetBindlessMaterialBufferData(const int index) const { return (void*)((uint8_t*)m_BindlessMaterialBuffer->GetData() + m_BaseMaterialSize * index); }
-
 		void CreateBindlessEntitiesResources(
 			std::shared_ptr<UniformWriter>& uniformWriter,
 			std::shared_ptr<Buffer>& buffer);
-
-		template<typename T>
-		inline void WriteToBuffer(
-			const int index,
-			const std::string& valueName,
-			T& value)
-		{
-			assert(m_BindlessMaterialBuffer);
-
-			uint32_t size, offset;
-			if (m_BaseMaterial->GetUniformDetails("Material", valueName, size, offset))
-			{
-				m_BindlessMaterialBuffer->WriteToBuffer((void*)&value, size, index * m_BaseMaterialSize + offset);
-			}
-			else
-			{
-				Logger::Warning("Failed to write to bindless buffer: " + valueName + "!");
-			}
-		}
 
 		enum class EntityFlagBits : uint32_t
 		{
@@ -86,11 +55,10 @@ namespace Pengine
 		{
 			glm::mat4 transform;
 			AABB aabb;
-			int materialIndex;
-			int pipelineId;
-			size_t meshInfoBuffer;
-			size_t boneBuffer;
-			uint flags; // valid, skinned, etc.
+			uint64_t materialInfoBuffer;
+			uint64_t meshInfoBuffer;
+			uint64_t boneBuffer;
+			uint32_t flags; // valid, skinned, etc.
 		};
 
 	private:
@@ -99,7 +67,6 @@ namespace Pengine
 		private:
 			std::stack<int> m_FreeSlots;
 			std::vector<bool> m_InUse;
-			
 		public:
 			void Initialize(int slotCount)
 			{
@@ -109,7 +76,7 @@ namespace Pengine
 					m_FreeSlots.push(i);
 				}
 			}
-			
+				
 			int TakeSlot()
 			{
 				if (m_FreeSlots.empty()) return 0;
@@ -141,14 +108,11 @@ namespace Pengine
 		};
 
 		SlotManager m_TextureSlotManager;
-		SlotManager m_MaterialSlotManager;
 
 		std::unordered_map<int, std::weak_ptr<Texture>> m_TexturesByIndex;
-		std::unordered_map<int, std::weak_ptr<Material>> m_MaterialsByIndex;
 
 		std::shared_ptr<UniformWriter> m_BindlessUniformWriter;
 		std::shared_ptr<BaseMaterial> m_BaseMaterial;
-		std::shared_ptr<Buffer> m_BindlessMaterialBuffer;
 
 		size_t m_BaseMaterialSize = 0;
 	};

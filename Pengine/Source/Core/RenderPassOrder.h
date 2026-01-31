@@ -14,10 +14,9 @@ namespace Pengine
 	const std::vector<std::string> passPerViewportOrder =
 	{
 		UI,
-		ZPrePass,
 		ComputeIndirectDrawGBuffer,
 		GBuffer,
-		Decals,
+		//Decals,
 		CSM,
 		PointLightShadows,
 		SpotLightShadows,

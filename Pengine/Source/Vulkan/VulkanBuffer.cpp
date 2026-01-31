@@ -284,6 +284,11 @@ void VulkanBuffer::Flush()
 	m_IsChanged[imageIndex] = false;
 }
 
+void VulkanBuffer::ClearWrites()
+{
+	m_IsChanged.assign(m_IsChanged.size(), false);
+}
+
 NativeHandle VulkanBuffer::GetNativeHandle() const
 {
 	return NativeHandle(size_t(GetBuffer()));

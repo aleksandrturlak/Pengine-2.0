@@ -1,4 +1,6 @@
-#version 450
+#version 460
+
+#include "Shaders/Includes/BindlessMeshes.h"
 
 layout(location = 0) out vec3 normalViewSpace;
 layout(location = 1) out vec3 tangentViewSpace;
@@ -7,7 +9,7 @@ layout(location = 3) out vec2 uv;
 layout(location = 4) out vec4 color;
 layout(location = 5) out vec3 positionTangentSpace;
 layout(location = 6) out vec3 cameraPositionTangentSpace;
-layout(location = 7) flat out int materialIndex;
+layout(location = 7) flat out uint64_t materialBuffer;
 
 #include "Shaders/Includes/Camera.h"
 layout(set = 0, binding = 0) uniform GlobalBuffer
@@ -17,21 +19,20 @@ layout(set = 0, binding = 0) uniform GlobalBuffer
 
 layout(set = 1, binding = 0) uniform sampler2D bindlessTextures[10000];
 
-#include "Shaders/Includes/DefaultMaterial.h"
-layout(set = 1, binding = 1) buffer readonly BindlessMaterials
-{
-	DefaultMaterial materials[1000];
-};
-
-#include "Shaders/Includes/BindlessMeshes.h"
 layout(set = 2, binding = 0, scalar) buffer readonly BindlessEntities
 {
 	EntityInfo entities[20000];
 };
 
+#include "Shaders/Includes/DefaultMaterial.h"
 layout(set = 3, binding = 0, scalar) uniform MaterialBuffer
 {
-	DefaultMaterial materialTest;
+	DefaultMaterial material;
+};
+
+layout(buffer_reference, scalar) buffer MaterialBufferReference
+{
+	DefaultMaterial material;
 };
 
 void CalculateSkinning(
@@ -84,25 +85,26 @@ void CalculateSkinning(
 void main()
 {
 	EntityInfo entityInfo = entities[gl_InstanceIndex];
-	materialIndex = entityInfo.materialIndex;
 	
 	mat4 transform = entityInfo.transform;
 
-	DefaultMaterial material = materials[materialIndex];
-	MeshInfo meshInfo = entityInfo.meshInfoBuffer.meshInfo;
-	MeshBufferInfo meshBufferInfo = meshInfo.meshBufferInfoBuffer.meshBufferInfo;
+	materialBuffer = entityInfo.materialInfoBuffer.materialBuffers[GBUFFER_PASS];
+	DefaultMaterial material = MaterialBufferReference(materialBuffer).material;
 
-	uint index = meshBufferInfo.indexBuffer.indices[gl_VertexIndex].index;
+	MeshInfoBuffer meshInfoBuffer = entityInfo.meshInfoBuffer;
+	MeshBufferInfoBuffer meshBufferInfoBuffer = meshInfoBuffer.meshBufferInfoBuffer;
 
-	vec3 position = meshBufferInfo.vertexBufferPosition.vertices[index].position;
-	vec3 normal = meshBufferInfo.vertexBufferNormal.normals[index].normal;
-	vec4 fullTangent = meshBufferInfo.vertexBufferNormal.normals[index].tangent;
+	uint index = meshBufferInfoBuffer.indexBuffer.indices[gl_VertexIndex].index;
+
+	vec3 position = meshBufferInfoBuffer.vertexBufferPosition.vertices[index].position;
+	vec3 normal = meshBufferInfoBuffer.vertexBufferNormal.normals[index].normal;
+	vec4 fullTangent = meshBufferInfoBuffer.vertexBufferNormal.normals[index].tangent;
 	vec3 tangent = fullTangent.xyz;
 	vec3 bitangent = cross(normal, tangent) * fullTangent.w;
 
 	if (bool(entityInfo.flags & ENTITY_SKINNED))
 	{
-		VertexSkinned vertexSkinned = meshBufferInfo.vertexBufferSkinned.skinned[index];
+		VertexSkinned vertexSkinned = meshBufferInfoBuffer.vertexBufferSkinned.skinned[index];
 		CalculateSkinning(
 			vertexSkinned.weights,
 			vertexSkinned.boneIds,
@@ -137,7 +139,7 @@ void main()
 	tangentViewSpace = normalize(mat3(camera.viewMat4) * tangentWorldSpace);
 	bitangentViewSpace = normalize(mat3(camera.viewMat4) * bitangentWorldSpace);
 
-	uv = meshBufferInfo.vertexBufferPosition.vertices[index].uv * material.uvTransform.xy + material.uvTransform.zw;
+	uv = meshBufferInfoBuffer.vertexBufferPosition.vertices[index].uv * material.uvTransform.xy + material.uvTransform.zw;
 
-	color = unpackUnorm4x8(meshBufferInfo.vertexBufferColor.colors[index].color);
+	color = unpackUnorm4x8(meshBufferInfoBuffer.vertexBufferColor.colors[index].color);
 }

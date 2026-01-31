@@ -53,6 +53,8 @@
 #include "UUID.h"
 #include "NativeHandle.h"
 
+#define MAX_PIPELINE_COUNT_PER_MATERIAL 8
+
 #define RTTR_CAT_IMPL(a, b) a##b
 #define RTTR_CAT(a, b) RTTR_CAT_IMPL(a, b)
 
