@@ -185,6 +185,8 @@ namespace Pengine::Vk
 
 		virtual void FlushDeletionQueue(bool immediate = false) override;
 
+		virtual void ForEachFrame(const std::function<void()>& callback) override;
+
 		VkCommandBuffer GetCommandBufferFromFrame(void* frame);
 
 		VkSurfaceKHR CreateSurface(GLFWwindow* window);

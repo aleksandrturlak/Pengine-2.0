@@ -1264,6 +1264,17 @@ void VulkanDevice::FlushDeletionQueue(bool immediate)
 	}
 }
 
+void VulkanDevice::ForEachFrame(const std::function<void()>& callback)
+{
+	Lock lock;
+	const uint32_t swapChainImageIndexCopy = Vk::swapChainImageIndex;
+	for (Vk::swapChainImageIndex = 0; Vk::swapChainImageIndex < Vk::swapChainImageCount; Vk::swapChainImageIndex++)
+	{
+		callback();
+	}
+	Vk::swapChainImageIndex = swapChainImageIndexCopy;
+}
+
 VkCommandBuffer VulkanDevice::GetCommandBufferFromFrame(void* frame)
 {
 	if (frame)
