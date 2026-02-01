@@ -116,4 +116,5 @@ void BindlessUniformWriter::CreateBindlessEntitiesResources(
 	const auto entityUniformLayout = UniformLayout::Create(bindings);
 	uniformWriter = UniformWriter::Create(entityUniformLayout, true);
 	uniformWriter->WriteBuffer("BindlessEntities", buffer);
+	uniformWriter->Flush();
 }

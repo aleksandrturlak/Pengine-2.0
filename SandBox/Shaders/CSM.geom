@@ -6,7 +6,7 @@
 layout(triangles) in;
 layout(triangle_strip, max_vertices = 3 * MAX_CASCADE_COUNT) out;
 
-layout(set = 0, binding = 0) uniform LightSpaceMatrices
+layout(set = 2, binding = 0) uniform LightSpaceMatrices
 {
     mat4 lightSpaceMatrices[MAX_CASCADE_COUNT];
     int cascadeCount;

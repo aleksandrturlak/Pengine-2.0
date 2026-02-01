@@ -12,7 +12,7 @@ CSM:
   Quality: 0
   CascadeCount: 2
   SplitFactor: 0.899999976
-  MaxDistance: 100
+  MaxDistance: 15
   FogFactor: 0.200000003
   Filter: 2
   PcfRange: 1

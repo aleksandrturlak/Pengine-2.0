@@ -1,0 +1,213 @@
+#version 450
+
+#include "Shaders/Includes/Camera.h"
+#include "Shaders/Includes/CSM.h"
+
+// Set 0: Camera data from DefaultReflection
+layout(set = 0, binding = 0) uniform GlobalBuffer
+{
+	Camera camera;
+};
+
+// Set 1: CSM-specific light space matrices
+layout(set = 1, binding = 0) uniform LightSpaceMatrices
+{
+	mat4 lightSpaceMatrices[MAX_CASCADE_COUNT];
+	int cascadeCount;
+};
+
+#include "Shaders/Includes/BindlessMeshes.h"
+
+struct DrawIndirectCommand
+{
+	uint vertexCount;
+	uint instanceCount;
+	uint firstVertex;
+	uint firstInstance;
+};
+
+struct CSMInstanceData
+{
+	uint entityIndex;
+	int cascadeIndex;
+};
+
+// Set 2: Indirect draw buffers
+layout(set = 2, binding = 0, scalar) buffer IndirectDrawCommands
+{
+	DrawIndirectCommand drawCommands[MAX_INDIRECT_DRAW_COMMANDS];
+};
+
+layout(set = 2, binding = 1) buffer IndirectDrawCommandCount
+{
+	uint count[MAX_CASCADE_COUNT * MAX_PIPELINE_COUNT];
+};
+
+layout(set = 2, binding = 2) buffer PipelineInfoBuffer
+{
+	uint pipelineCommandOffset[MAX_CASCADE_COUNT * MAX_PIPELINE_COUNT];
+};
+
+layout(set = 2, binding = 3, scalar) buffer CSMInstanceDataBuffer
+{
+	CSMInstanceData instanceData[MAX_INDIRECT_DRAW_COMMANDS];
+};
+
+// Set 3: Bindless textures
+layout(set = 3, binding = 0) uniform sampler2D bindlessTextures[MAX_BINDLESS_TEXTURES];
+
+// Set 4: Entity data
+layout(set = 4, binding = 0, scalar) buffer readonly BindlessEntities
+{
+	EntityInfo entities[MAX_BINDLESS_ENTITIES];
+};
+
+bool IsAABBInsideFrustum(
+	in vec3 min,
+	in vec3 max,
+	in vec4 frustumPlanes[6])
+{
+	const vec3 center = (min + max) * 0.5f;
+	const vec3 extents = max - center;
+
+	for (int i = 0; i < 6; ++i)
+	{
+		const vec4 plane = frustumPlanes[i];
+		const float distance = dot(center, vec3(plane)) + plane.w;
+		const float radius = dot(extents, abs(vec3(plane)));
+
+		if (distance + radius < 0.0f)
+		{
+			return false;
+		}
+	}
+
+	return true;
+}
+
+vec4[6] ExtractFrustumPlanes(mat4 viewProj)
+{
+	vec4 planes[6];
+	
+	// Left plane
+	planes[0] = vec4(
+		viewProj[0][3] + viewProj[0][0],
+		viewProj[1][3] + viewProj[1][0],
+		viewProj[2][3] + viewProj[2][0],
+		viewProj[3][3] + viewProj[3][0]);
+	
+	// Right plane
+	planes[1] = vec4(
+		viewProj[0][3] - viewProj[0][0],
+		viewProj[1][3] - viewProj[1][0],
+		viewProj[2][3] - viewProj[2][0],
+		viewProj[3][3] - viewProj[3][0]);
+	
+	// Bottom plane
+	planes[2] = vec4(
+		viewProj[0][3] + viewProj[0][1],
+		viewProj[1][3] + viewProj[1][1],
+		viewProj[2][3] + viewProj[2][1],
+		viewProj[3][3] + viewProj[3][1]);
+	
+	// Top plane
+	planes[3] = vec4(
+		viewProj[0][3] - viewProj[0][1],
+		viewProj[1][3] - viewProj[1][1],
+		viewProj[2][3] - viewProj[2][1],
+		viewProj[3][3] - viewProj[3][1]);
+	
+	// Near plane
+	planes[4] = vec4(
+		viewProj[0][3] + viewProj[0][2],
+		viewProj[1][3] + viewProj[1][2],
+		viewProj[2][3] + viewProj[2][2],
+		viewProj[3][3] + viewProj[3][2]);
+	
+	// Far plane
+	planes[5] = vec4(
+		viewProj[0][3] - viewProj[0][2],
+		viewProj[1][3] - viewProj[1][2],
+		viewProj[2][3] - viewProj[2][2],
+		viewProj[3][3] - viewProj[3][2]);
+	
+	// Normalize planes
+	for (int i = 0; i < 6; ++i)
+	{
+		float len = length(planes[i].xyz);
+		planes[i] /= len;
+	}
+	
+	return planes;
+}
+
+uint GetLod(
+	in vec3 cameraPosition,
+	in vec3 meshPosition,
+	in MeshInfoBuffer meshInfoBuffer)
+{
+	if (meshInfoBuffer.lodCount == 1)
+	{
+		return 0;
+	}
+
+	const float distance = length(cameraPosition - meshPosition);
+
+	for (uint i = 1; i < meshInfoBuffer.lodCount; ++i)
+	{
+		if (distance <= meshInfoBuffer.lods[i].distanceThreshold)
+		{
+			return i - 1;
+		}
+	}
+
+	return meshInfoBuffer.lodCount - 1;
+}
+
+layout (local_size_x = 16, local_size_y = 1, local_size_z = 1) in;
+void main()
+{
+	uint entityIndex = gl_GlobalInvocationID.x;
+	if (entityIndex >= 20000) return;
+
+	EntityInfo entityInfo = entities[entityIndex];
+	if (!bool(entityInfo.flags & ENTITY_VALID)) return;
+
+	// Check if CSM pass is enabled for this material
+	if (!bool((entityInfo.materialInfoBuffer.pipelineFlags >> CSM_PASS) & uint64_t(1))) return;
+
+	MeshInfoBuffer meshInfoBuffer = entityInfo.meshInfoBuffer;
+	uint lod = GetLod(camera.positionWorldSpace, vec4(entityInfo.transform * vec4(0.0f, 0.0f, 0.0f, 1.0f)).xyz, meshInfoBuffer);
+	LodInfo lodInfo = meshInfoBuffer.lods[lod];
+
+	uint pipelineId = entityInfo.materialInfoBuffer.baseMaterialInfoBuffer.pipelineIds[CSM_PASS];
+
+	// For each cascade, check frustum and emit a separate draw command
+	for (int cascadeIndex = 0; cascadeIndex < cascadeCount; ++cascadeIndex)
+	{
+		vec4 cascadeFrustumPlanes[6] = ExtractFrustumPlanes(lightSpaceMatrices[cascadeIndex]);
+		
+		if (!IsAABBInsideFrustum(entityInfo.aabb.min, entityInfo.aabb.max, cascadeFrustumPlanes))
+		{
+			continue;
+		}
+
+		// Each cascade has its own set of pipeline command offsets
+		uint cascadePipelineIndex = cascadeIndex * MAX_PIPELINE_COUNT + pipelineId;
+		uint drawIndex = atomicAdd(count[cascadePipelineIndex], 1);
+		uint commandIndex = pipelineCommandOffset[cascadePipelineIndex] + drawIndex;
+
+		DrawIndirectCommand cmd;
+		cmd.vertexCount = lodInfo.indexCount;
+		cmd.instanceCount = 1;
+		cmd.firstVertex = lodInfo.indexOffset;
+		cmd.firstInstance = commandIndex; // Use command index to look up instance data
+
+		drawCommands[commandIndex] = cmd;
+		
+		CSMInstanceData instData;
+		instData.entityIndex = entityIndex;
+		instData.cascadeIndex = cascadeIndex;
+		instanceData[commandIndex] = instData;
+	}
+}

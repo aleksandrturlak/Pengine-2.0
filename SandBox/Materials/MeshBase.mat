@@ -8,9 +8,6 @@ Mat:
       Inactive:
         - GBuffer
   Pipelines:
-    - RenderPass: ZPrePass
-      Uniforms:
-        []
     - RenderPass: SpotLightShadows
       Uniforms:
         []
@@ -49,7 +46,7 @@ Mat:
               Value: 0
               Type: float
             - Name: material.alphaCutoff
-              Value: 0.00999999978
+              Value: 0.150000006
               Type: float
             - Name: material.maxParallaxLayers
               Value: 0
@@ -64,13 +61,13 @@ Mat:
               Value: 0
               Type: int
             - Name: material.useAlphaCutoff
-              Value: 0
+              Value: 1
               Type: int
             - Name: material.useParallaxOcclusion
               Value: 0
               Type: int
             - Name: material.albedoTexture
-              Value: White
+              Value: 0x1ad5b93a36a91ba7b72df134d942d69a
               Type: texture
             - Name: material.normalTexture
               Value: Black

@@ -9,6 +9,7 @@
 namespace Pengine
 {
 	const std::string ComputeIndirectDrawGBuffer = "ComputeIndirectDrawGBuffer";
+	const std::string ComputeIndirectDrawCSM = "ComputeIndirectDrawCSM";
 	const std::string GBuffer = "GBuffer";
 	const std::string Decals = "Decals";
 	const std::string Deferred = "Deferred";

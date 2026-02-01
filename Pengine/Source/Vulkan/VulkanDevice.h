@@ -246,7 +246,11 @@ namespace Pengine::Vk
 		PFN_vkCmdEndDebugUtilsLabelEXT m_VkCmdEndDebugUtilsLabelEXT;
 
 		const std::vector<const char*> validationLayers = { "VK_LAYER_KHRONOS_validation" };
-		const std::vector<const char*> deviceExtensions = { VK_KHR_SWAPCHAIN_EXTENSION_NAME, VK_KHR_SHADER_NON_SEMANTIC_INFO_EXTENSION_NAME };
+		const std::vector<const char*> deviceExtensions = { 
+			VK_KHR_SWAPCHAIN_EXTENSION_NAME, 
+			VK_KHR_SHADER_NON_SEMANTIC_INFO_EXTENSION_NAME,
+			VK_EXT_SHADER_VIEWPORT_INDEX_LAYER_EXTENSION_NAME
+		};
 
 		mutable std::recursive_mutex m_Mutex;
 

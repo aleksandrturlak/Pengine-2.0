@@ -238,8 +238,13 @@ void VulkanDevice::CreateLogicalDevice()
 	deviceFeatures.fragmentStoresAndAtomics = VK_TRUE;
 	deviceFeatures.shaderInt64 = VK_TRUE;
 	
+	VkPhysicalDeviceVulkan11Features vulkan11Features{};
+	vulkan11Features.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_1_FEATURES;
+	vulkan11Features.shaderDrawParameters = VK_TRUE;
+
 	VkPhysicalDeviceVulkan12Features vulkan12Features{};
 	vulkan12Features.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_2_FEATURES;
+	vulkan12Features.pNext = &vulkan11Features;
 
 	vulkan12Features.scalarBlockLayout = VK_TRUE;
 	vulkan12Features.bufferDeviceAddress = VK_TRUE;
@@ -252,6 +257,8 @@ void VulkanDevice::CreateLogicalDevice()
 	vulkan12Features.descriptorBindingSampledImageUpdateAfterBind = VK_TRUE;
 	vulkan12Features.descriptorBindingStorageImageUpdateAfterBind = VK_TRUE;
 	vulkan12Features.drawIndirectCount = VK_TRUE;
+	vulkan12Features.shaderOutputViewportIndex = VK_TRUE;
+	vulkan12Features.shaderOutputLayer = VK_TRUE;
 	
 	VkDeviceCreateInfo createInfo{};
 	createInfo.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO;

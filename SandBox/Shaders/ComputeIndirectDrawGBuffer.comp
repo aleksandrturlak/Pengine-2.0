@@ -18,10 +18,9 @@ struct DrawIndirectCommand
 
 layout(set = 1, binding = 0, scalar) buffer IndirectDrawCommands
 {
-	DrawIndirectCommand drawCommands[100000];
+	DrawIndirectCommand drawCommands[MAX_INDIRECT_DRAW_COMMANDS];
 };
 
-#define MAX_PIPELINE_COUNT 128
 layout(set = 1, binding = 1) buffer IndirectDrawCommandCount
 {
 	uint count[MAX_PIPELINE_COUNT];
@@ -32,11 +31,11 @@ layout(set = 1, binding = 2) buffer PipelineInfoBuffer
   uint pipelineCommandOffset[MAX_PIPELINE_COUNT];
 };
 
-layout(set = 2, binding = 0) uniform sampler2D bindlessTextures[10000];
+layout(set = 2, binding = 0) uniform sampler2D bindlessTextures[MAX_BINDLESS_TEXTURES];
 
 layout(set = 3, binding = 0, scalar) buffer readonly BindlessEntities
 {
-	EntityInfo entities[20000];
+	EntityInfo entities[MAX_BINDLESS_ENTITIES];
 };
 
 bool IsAABBInsideFrustum(

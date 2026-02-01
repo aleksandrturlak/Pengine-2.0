@@ -81,27 +81,16 @@ Basemat:
       PolygonMode: Fill
       TopologyMode: TriangleList
       Vertex: Shaders/CSM.vert
-      Geometry: Shaders/CSM.geom
       Fragment: Shaders/CSM.frag
       DescriptorSets:
+        - Type: Scene
+          RenderPass: BindlessEntities
+          Set: 0
         - Type: Renderer
           RenderPass: CSM
-          Set: 0
-        - Type: Bindless
           Set: 1
-      VertexInputBindingDescriptions:
-        - Binding: 0
-          InputRate: Vertex
-          Tag: Position
-          Names:
-            - positionA
-            - uvA
-        - Binding: 1
-          InputRate: Instance
-          Names:
-            - transformA
-            - layersA
-            - materialIndexA
+        - Type: Bindless
+          Set: 2
       ColorBlendStates:
         []
     - RenderPass: PointLightShadows

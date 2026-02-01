@@ -5,14 +5,14 @@ Settings:
     Direction: [-1, 0, 0]
     Frequency: 1
     Strength: 1
-GraphicsSettings: 0xa8bcf158e0bd7c2d324c14c4575b1957
+GraphicsSettings: 0x84beaa5529d21a0d243484fff0af8349
 Scene:
   - UUID: 0xc12d3bcc6981515ea023e27bbe9da15c
     Name: Camera
     IsEnabled: true
     Transform:
-      Position: [-4.51527309, 2.53745365, 3.50239801]
-      Rotation: [-0.37673229, -0.350194961, 0]
+      Position: [-7.76397181, -0.0538567789, 5.74975824]
+      Rotation: [-0.523159325, -1.04095209, 0]
       Scale: [1, 1, 1]
       FollowOwner: true
     Camera:
@@ -69,9 +69,9 @@ Scene:
   - PrefabFilepath: 0x1e460b9c3f7ac077ee6d5fa88d7e14f8
     UUID: 0x718211cff93929571028728b7e5c1eaa
     Transform:
-      Position: [-5.04480076, 0, 0.273344696]
-      Rotation: [0, -0, 0]
-      Scale: [1, 1, 1]
+      Position: [0.30488196, -0.167553246, -2.25338626]
+      Rotation: [0.0293915663, -0, 0]
+      Scale: [1, 0.999995351, 0.999995351]
       FollowOwner: true
   - PrefabFilepath: 0x1e460b9c3f7ac077ee6d5fa88d7e14f8
     UUID: 0x26bcd1deae7b6114fc06c68cc7e65192
@@ -80,3 +80,75 @@ Scene:
       Rotation: [0, -0, 0]
       Scale: [1, 1, 1]
       FollowOwner: true
+  - UUID: 0x87e47b2cff6ce16f73536b42227bc0ee
+    Name: Torus
+    IsEnabled: true
+    Transform:
+      Position: [-0.399500936, 2.11718392, -1.23085856]
+      Rotation: [0, -0, 0]
+      Scale: [1, 1, 1]
+      FollowOwner: true
+    Renderer3D:
+      Mesh: 0x207595cddc3a54062080d81cc4f8f05d
+      Material: 0x891230fc1d097ce7ccd10cbf7fb1ea10
+      RenderingOrder: 5
+      IsEnabled: true
+      CastShadows: true
+      ObjectVisibilityMask: 255
+      ShadowVisibilityMask: 255
+    Childs:
+      []
+  - UUID: 0x6f0b39337d3dfd96a28d8c3a3bacda77
+    Name: Plane
+    IsEnabled: true
+    Transform:
+      Position: [0, -3.0596633, 0]
+      Rotation: [0, -0, 0]
+      Scale: [25, 1, 25]
+      FollowOwner: true
+    Renderer3D:
+      Mesh: 0x3f83219ad29d9c27728dd755119284cd
+      Material: 0x891230fc1d097ce7ccd10cbf7fb1ea10
+      RenderingOrder: 5
+      IsEnabled: true
+      CastShadows: true
+      ObjectVisibilityMask: 255
+      ShadowVisibilityMask: 255
+    Childs:
+      []
+  - UUID: 0x510276c5f91ee84bcd33b6755b077644
+    Name: Sphere
+    IsEnabled: true
+    Transform:
+      Position: [-5.03137684, -1.50267744, 4.08000135]
+      Rotation: [0, -0, 0]
+      Scale: [1, 1, 1]
+      FollowOwner: true
+    Renderer3D:
+      Mesh: 0x9542e08eb0733885db5f792d5038d44b
+      Material: 0x07e46f38e3511b4d8e61e74f9b89516a
+      RenderingOrder: 5
+      IsEnabled: true
+      CastShadows: true
+      ObjectVisibilityMask: 255
+      ShadowVisibilityMask: 255
+    Childs:
+      []
+  - UUID: 0x76e9340afac07f8336afcbefddbbfae9
+    Name: Sphere
+    IsEnabled: true
+    Transform:
+      Position: [-6.19848537, -1.21668196, 1.89443254]
+      Rotation: [0, -0, 0]
+      Scale: [1, 1, 1]
+      FollowOwner: true
+    Renderer3D:
+      Mesh: 0x9542e08eb0733885db5f792d5038d44b
+      Material: 0xf2f5b71fa89eeb7f390c5933c9682563
+      RenderingOrder: 5
+      IsEnabled: true
+      CastShadows: true
+      ObjectVisibilityMask: 255
+      ShadowVisibilityMask: 255
+    Childs:
+      []

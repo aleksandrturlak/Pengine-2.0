@@ -17,11 +17,11 @@ layout(set = 0, binding = 0) uniform GlobalBuffer
 	Camera camera;
 };
 
-layout(set = 1, binding = 0) uniform sampler2D bindlessTextures[10000];
+layout(set = 1, binding = 0) uniform sampler2D bindlessTextures[MAX_BINDLESS_TEXTURES];
 
 layout(set = 2, binding = 0, scalar) buffer readonly BindlessEntities
 {
-	EntityInfo entities[20000];
+	EntityInfo entities[MAX_BINDLESS_ENTITIES];
 };
 
 #include "Shaders/Includes/DefaultMaterial.h"

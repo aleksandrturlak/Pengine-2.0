@@ -12,7 +12,7 @@ CSM:
   Quality: 1
   CascadeCount: 4
   SplitFactor: 0.899999976
-  MaxDistance: 100
+  MaxDistance: 500
   FogFactor: 0.200000003
   Filter: 2
   PcfRange: 2
@@ -20,7 +20,7 @@ CSM:
     - 0.0189999994
     - 0.0970000029
     - 0.224999994
-    - 1
+    - 0.699999988
   StabilizeCascades: true
 SSS:
   IsEnabled: true
@@ -28,7 +28,7 @@ SSS:
   ResolutionBlurScale: 2
   MaxRayDistance: 0.100000001
   MaxDistance: 50
-  MaxSteps: 128
+  MaxSteps: 16
   MinThickness: -0.0125000002
   MaxThickness: 0
 PointLightShadows:
@@ -46,13 +46,13 @@ Bloom:
   Intensity: 1
   ResolutionScale: 3
 SSR:
-  IsEnabled: true
+  IsEnabled: false
   MaxDistance: 100
-  Resolution: 0.5
+  Resolution: 1
   ResolutionBlurScale: 2
   ResolutionScale: 1
   StepCount: 20
-  Thickness: 5
+  Thickness: 500
   BlurRange: 1
   BlurOffset: 1
   MipMultiplier: 0

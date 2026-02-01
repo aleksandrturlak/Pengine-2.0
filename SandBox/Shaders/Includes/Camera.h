@@ -61,6 +61,8 @@ vec3 OctDecode(vec2 f)
 	return normalize(n);
 }
 
+#ifndef POISSON_DISK_DEFINED
+#define POISSON_DISK_DEFINED
 const vec2 poissonDisk[16] = vec2[](
    vec2(-0.94201624, -0.39906216),
    vec2(0.94558609, -0.76890725),
@@ -79,3 +81,4 @@ const vec2 poissonDisk[16] = vec2[](
    vec2(0.19984126, 0.78641367),
    vec2(0.14383161, -0.14100790)
 );
+#endif

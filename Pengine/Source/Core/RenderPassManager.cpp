@@ -413,6 +413,7 @@ void RenderPassManager::Initialize()
 	CreatePointLightShadows();
 	CreateSpotLightShadows();
 	CreateComputeIndirectDrawGBuffer();
+	CreateComputeIndirectDrawCSM();
 	CreateDeferred();
 	CreateAtmosphere();
 	CreateTransparent();
@@ -478,7 +479,6 @@ void RenderPassManager::ProcessEntities(const RenderPass::RenderCallbackInfo& re
 {
 	const std::shared_ptr<Scene>& scene = renderInfo.scene;
 
-	// Get or create multi-pass entity data
 	MultiPassEntityData* multiPassData = (MultiPassEntityData*)renderInfo.scene->GetRenderView()->GetCustomData("MultiPassEntityData");
 	if (!multiPassData)
 	{
@@ -486,7 +486,6 @@ void RenderPassManager::ProcessEntities(const RenderPass::RenderCallbackInfo& re
 		renderInfo.scene->GetRenderView()->SetCustomData("MultiPassEntityData", multiPassData);
 	}
 
-	// Get or create shared entity buffer
 	if (!multiPassData->entityUniformWriter)
 	{
 		BindlessUniformWriter::GetInstance().CreateBindlessEntitiesResources(
@@ -499,24 +498,22 @@ void RenderPassManager::ProcessEntities(const RenderPass::RenderCallbackInfo& re
 	memset(data, 0, multiPassData->entityBuffer->GetSize());
 	multiPassData->entityBuffer->WriteToBuffer(0, 0);
 
-	// List of passes we want to support
-	const std::vector<std::string> renderPasses = {
+	const std::vector<std::string> renderPasses =
+	{
 		GBuffer,
-		// Add more passes here: CSM, PointLightShadows, SpotLightShadows, Transparent, etc.
+		CSM,
+		// Add more passes here: PointLightShadows, SpotLightShadows, Transparent, etc.
 	};
 
-	// Clear previous frame data
+	multiPassData->totalEntityCount = 0;
 	for (const auto& passName : renderPasses)
 	{
 		multiPassData->passesByName[passName] = MultiPassEntityData::PassData{};
 	}
 
-	// Track which BaseMaterials we've already updated this frame
 	std::unordered_set<BaseMaterial*> updatedBaseMaterials;
 
 	uint32_t entityIndex = 0;
-
-	// Single iteration over all entities - prepare for all passes
 	scene->GetRegistry().view<Renderer3D>().each([&](auto entity, Renderer3D& r3d)
 	{
 		// TODO: Put on GPU!
@@ -530,7 +527,6 @@ void RenderPassManager::ProcessEntities(const RenderPass::RenderCallbackInfo& re
 		if (!transform.GetEntity()->IsEnabled())
 			return;
 
-		// Prepare shared entity data (computed once)
 		BindlessUniformWriter::EntityInfo entityInfo{};
 		entityInfo.flags = (uint32_t)BindlessUniformWriter::EntityFlagBits::VALID;
 		entityInfo.transform = transform.GetTransform();
@@ -539,10 +535,8 @@ void RenderPassManager::ProcessEntities(const RenderPass::RenderCallbackInfo& re
 			entityInfo.transform);
 		entityInfo.meshInfoBuffer = r3d.mesh->GetMeshInfoBuffer()->GetDeviceAddress().Get();
 
-		// Material info buffer contains per-pass material buffers and pipeline flags
 		entityInfo.materialInfoBuffer = r3d.material->GetMaterialInfoBuffer()->GetDeviceAddress().Get();
 
-		// Handle skinning
 		if (const auto skeletalAnimatorEntity = scene->FindEntityByUUID(r3d.skeletalAnimatorEntityUUID))
 		{
 			if (auto* skeletalAnimator = scene->GetRegistry().try_get<SkeletalAnimator>(skeletalAnimatorEntity->GetHandle()))
@@ -553,20 +547,16 @@ void RenderPassManager::ProcessEntities(const RenderPass::RenderCallbackInfo& re
 			}
 		}
 
-		// Group by pipeline for each pass this entity supports
 		BaseMaterial* baseMaterial = r3d.material->GetBaseMaterial().get();
 		bool needsBaseMaterialUpdate = updatedBaseMaterials.find(baseMaterial) == updatedBaseMaterials.end();
-		
 		if (needsBaseMaterialUpdate)
 		{
-			// Initialize BaseMaterialInfoBuffer for this material
 			BaseMaterial::BaseMaterialInfoBuffer baseMaterialInfo{};
 			for (size_t i = 0; i < MAX_PIPELINE_COUNT_PER_MATERIAL; i++)
 			{
 				baseMaterialInfo.pipelineIds[i] = 0;
 			}
 			
-			// Populate pipelineIds for each pass
 			for (size_t passIndex = 0; passIndex < renderPasses.size(); ++passIndex)
 			{
 				const auto& passName = renderPasses[passIndex];
@@ -584,7 +574,6 @@ void RenderPassManager::ProcessEntities(const RenderPass::RenderCallbackInfo& re
 					passData.sortedPipelines[pipelineInfo.id] = pipeline;
 				}
 
-				// Store pipeline ID for this pass
 				std::shared_ptr<Pass> pass = RenderPassManager::GetInstance().GetPass(passName);
 				if (pass)
 				{
@@ -595,7 +584,6 @@ void RenderPassManager::ProcessEntities(const RenderPass::RenderCallbackInfo& re
 				passData.entityCount++;
 			}
 			
-			// Write to BaseMaterial buffer
 			baseMaterial->GetBaseMaterialInfoBuffer()->WriteToBuffer(
 				&baseMaterialInfo,
 				sizeof(BaseMaterial::BaseMaterialInfoBuffer),
@@ -605,7 +593,6 @@ void RenderPassManager::ProcessEntities(const RenderPass::RenderCallbackInfo& re
 		}
 		else
 		{
-			// BaseMaterial already processed, just update counts
 			for (size_t passIndex = 0; passIndex < renderPasses.size(); ++passIndex)
 			{
 				const auto& passName = renderPasses[passIndex];
@@ -628,7 +615,8 @@ void RenderPassManager::ProcessEntities(const RenderPass::RenderCallbackInfo& re
 			sizeof(BindlessUniformWriter::EntityInfo) * entityIndex++);
 	});
 
-	// Flush all updated BaseMaterial buffers
+	multiPassData->totalEntityCount = entityIndex;
+
 	for (BaseMaterial* baseMaterial : updatedBaseMaterials)
 	{
 		baseMaterial->GetBaseMaterialInfoBuffer()->Flush();
@@ -657,6 +645,11 @@ void RenderPassManager::CreateComputeIndirectDrawGBuffer()
 
 		MultiPassEntityData* multiPassData = (MultiPassEntityData*)renderInfo.scene->GetRenderView()->GetCustomData("MultiPassEntityData");
 		if (!multiPassData || multiPassData->passesByName.find(GBuffer) == multiPassData->passesByName.end())
+		{
+			return;
+		}
+
+		if (multiPassData->totalEntityCount == 0)
 		{
 			return;
 		}
@@ -696,9 +689,180 @@ void RenderPassManager::CreateComputeIndirectDrawGBuffer()
 				0,
 				renderInfo.frame);
 
-			uint32_t groupCount = (gbufferData.entityCount + 15) / 16;
+			uint32_t groupCount = (multiPassData->totalEntityCount + 15) / 16;
 			renderInfo.renderer->Compute(pipeline, { groupCount, 1, 1 }, uniformWriterNativeHandles, renderInfo.frame);
 			
+			renderInfo.renderer->MemoryBufferBarrierVertexReadWrite(indirectDrawCommandsBuffer->GetNativeHandle(), renderInfo.frame);
+			renderInfo.renderer->MemoryBufferBarrierVertexReadWrite(indirectDrawCommandCountBuffer->GetNativeHandle(), renderInfo.frame);
+
+			renderInfo.renderer->EndCommandLabel(renderInfo.frame);
+		}
+	};
+
+	CreateComputePass(createInfo);
+}
+
+void RenderPassManager::CreateComputeIndirectDrawCSM()
+{
+	ComputePass::CreateInfo createInfo{};
+	createInfo.type = Pass::Type::COMPUTE;
+	createInfo.name = ComputeIndirectDrawCSM;
+
+	createInfo.executeCallback = [this, passName = createInfo.name](const RenderPass::RenderCallbackInfo& renderInfo)
+	{
+		PROFILER_SCOPE(ComputeIndirectDrawCSM);
+
+		const GraphicsSettings::Shadows::CSM& shadowsSettings = renderInfo.scene->GetGraphicsSettings().shadows.csm;
+		if (!shadowsSettings.isEnabled)
+		{
+			return;
+		}
+
+		auto directionalLightView = renderInfo.scene->GetRegistry().view<DirectionalLight>();
+		if (directionalLightView.empty())
+		{
+			return;
+		}
+
+		const std::shared_ptr<BaseMaterial> baseMaterial = MaterialManager::GetInstance().LoadBaseMaterial(
+			std::filesystem::path("Materials") / "ComputeIndirectDrawCSM.basemat");
+		const std::shared_ptr<Pipeline> pipeline = baseMaterial->GetPipeline(passName);
+		if (!pipeline)
+		{
+			return;
+		}
+
+		MultiPassEntityData* multiPassData = (MultiPassEntityData*)renderInfo.scene->GetRenderView()->GetCustomData("MultiPassEntityData");
+		if (!multiPassData || multiPassData->passesByName.find(CSM) == multiPassData->passesByName.end())
+		{
+			return;
+		}
+
+		if (multiPassData->totalEntityCount == 0)
+		{
+			return;
+		}
+
+		const auto& csmData = multiPassData->passesByName[CSM];
+		if (csmData.entityCount == 0)
+		{
+			return;
+		}
+
+		CSMRenderer* csmRenderer = (CSMRenderer*)renderInfo.renderView->GetCustomData("CSMRenderer");
+		if (!csmRenderer)
+		{
+			csmRenderer = new CSMRenderer();
+			renderInfo.renderView->SetCustomData("CSMRenderer", csmRenderer);
+		}
+
+		glm::vec3 lightDirection{};
+		{
+			const entt::entity& entity = directionalLightView.back();
+			const Transform& transform = renderInfo.scene->GetRegistry().get<Transform>(entity);
+			lightDirection = transform.GetForward();
+		}
+
+		const Camera& camera = renderInfo.camera->GetComponent<Camera>();
+		const Transform& cameraTransform = renderInfo.camera->GetComponent<Transform>();
+
+		const glm::ivec2 resolutions[3] = { { 1024, 1024 }, { 2048, 2048 }, { 4096, 4096 } };
+		const glm::ivec2 shadowMapSize = resolutions[shadowsSettings.quality];
+
+		const glm::mat4 projectionMat4 = glm::perspective(
+			camera.GetFov(),
+			(float)renderInfo.viewportSize.x / (float)renderInfo.viewportSize.y,
+			camera.GetZNear(),
+			shadowsSettings.maxDistance);
+
+		csmRenderer->GenerateLightSpaceMatrices(
+			projectionMat4 * camera.GetViewMat4(),
+			lightDirection,
+			shadowMapSize,
+			camera.GetZNear(),
+			shadowsSettings.maxDistance,
+			shadowsSettings.cascadeCount,
+			shadowsSettings.splitFactor,
+			shadowsSettings.stabilizeCascades);
+
+		if (csmRenderer->GetLightSpaceMatrices().empty())
+		{
+			return;
+		}
+
+		const std::shared_ptr<UniformWriter>& lightSpaceUniformWriter = GetOrCreateRendererUniformWriter(
+			renderInfo.renderView, pipeline, ComputeIndirectDrawCSM, {}, true);
+		
+		const std::string lightSpaceMatricesBufferName = "LightSpaceMatrices";
+		const std::shared_ptr<Buffer> lightSpaceMatricesBuffer = GetOrCreateRenderBuffer(
+			renderInfo.renderView,
+			lightSpaceUniformWriter,
+			lightSpaceMatricesBufferName,
+			{},
+			{ Buffer::Usage::UNIFORM_BUFFER },
+			MemoryType::CPU, true);
+
+		baseMaterial->WriteToBuffer(
+			lightSpaceMatricesBuffer,
+			lightSpaceMatricesBufferName,
+			"lightSpaceMatrices",
+			*csmRenderer->GetLightSpaceMatrices().data());
+
+		const int cascadeCount = csmRenderer->GetLightSpaceMatrices().size();
+		baseMaterial->WriteToBuffer(
+			lightSpaceMatricesBuffer,
+			lightSpaceMatricesBufferName,
+			"cascadeCount",
+			cascadeCount);
+		lightSpaceMatricesBuffer->Flush();
+
+		const std::shared_ptr<UniformWriter>& renderUniformWriter = GetOrCreateRendererUniformWriter(
+			renderInfo.renderView, pipeline, "ComputeIndirectDrawCSMBuffers", {}, true);
+		const std::shared_ptr<Buffer>& indirectDrawCommandsBuffer = GetOrCreateRenderBuffer(
+			renderInfo.renderView, renderUniformWriter, "IndirectDrawCommands", "IndirectDrawCommandsCSM", 
+			{ Buffer::Usage::STORAGE_BUFFER, Buffer::Usage::INDIRECT_BUFFER }, MemoryType::GPU, true);
+		const std::shared_ptr<Buffer>& indirectDrawCommandCountBuffer = GetOrCreateRenderBuffer(
+			renderInfo.renderView, renderUniformWriter, "IndirectDrawCommandCount", "IndirectDrawCommandCountCSM", 
+			{ Buffer::Usage::STORAGE_BUFFER, Buffer::Usage::INDIRECT_BUFFER }, MemoryType::GPU, true);
+		const std::shared_ptr<Buffer>& pipelineInfoBuffer = GetOrCreateRenderBuffer(
+			renderInfo.renderView, renderUniformWriter, "PipelineInfoBuffer", "PipelineInfoBufferCSM", 
+			{ Buffer::Usage::STORAGE_BUFFER, Buffer::Usage::INDIRECT_BUFFER }, MemoryType::CPU, true);
+		const std::shared_ptr<Buffer>& csmInstanceDataBuffer = GetOrCreateRenderBuffer(
+			renderInfo.renderView, renderUniformWriter, "CSMInstanceDataBuffer", "CSMInstanceDataBufferCSM", 
+			{ Buffer::Usage::STORAGE_BUFFER }, MemoryType::GPU, true);
+
+		uint32_t pipelineOffset = 0;
+		for (int cascade = 0; cascade < cascadeCount; ++cascade)
+		{
+			for (const auto& [id, pipelinePtr] : csmData.sortedPipelines)
+			{
+				uint32_t cascadePipelineIndex = cascade * MAX_PIPELINE_COUNT + id;
+				pipelineInfoBuffer->WriteToBuffer(
+					(void*)&pipelineOffset,
+					sizeof(uint32_t),
+					sizeof(uint32_t) * cascadePipelineIndex);
+				pipelineOffset += csmData.pipelineInfos.at(pipelinePtr).maxDrawCount;
+			}
+		}
+		pipelineInfoBuffer->Flush();
+
+		std::vector<NativeHandle> uniformWriterNativeHandles;
+		std::vector<std::shared_ptr<UniformWriter>> uniformWriters;
+		GetUniformWriters(pipeline, baseMaterial, nullptr, renderInfo, uniformWriters, uniformWriterNativeHandles);
+		if (FlushUniformWriters(uniformWriters))
+		{
+			renderInfo.renderer->BeginCommandLabel(passName, topLevelRenderPassDebugColor, renderInfo.frame);
+
+			renderInfo.renderer->FillBuffer(
+				indirectDrawCommandCountBuffer->GetNativeHandle(),
+				indirectDrawCommandCountBuffer->GetSize(),
+				0,
+				0,
+				renderInfo.frame);
+
+			uint32_t groupCount = (multiPassData->totalEntityCount + 15) / 16;
+			renderInfo.renderer->Compute(pipeline, { groupCount, 1, 1 }, uniformWriterNativeHandles, renderInfo.frame);
+
 			renderInfo.renderer->MemoryBufferBarrierVertexReadWrite(indirectDrawCommandsBuffer->GetNativeHandle(), renderInfo.frame);
 			renderInfo.renderer->MemoryBufferBarrierVertexReadWrite(indirectDrawCommandCountBuffer->GetNativeHandle(), renderInfo.frame);
 
@@ -1549,7 +1713,6 @@ void RenderPassManager::CreateCSM()
 	createInfo.executeCallback = [this](const RenderPass::RenderCallbackInfo& renderInfo)
 	{
 		PROFILER_SCOPE(CSM);
-
 		const std::string& renderPassName = renderInfo.renderPass->GetName();
 
 		const GraphicsSettings::Shadows::CSM& shadowsSettings = renderInfo.scene->GetGraphicsSettings().shadows.csm;
@@ -1558,7 +1721,6 @@ void RenderPassManager::CreateCSM()
 			renderInfo.renderView->DeleteUniformWriter(renderPassName);
 			renderInfo.renderView->DeleteCustomData("CSMRenderer");
 			renderInfo.renderView->DeleteBuffer("LightSpaceMatrices");
-			renderInfo.renderView->DeleteBuffer("InstanceBufferCSM");
 			renderInfo.renderView->DeleteFrameBuffer(renderPassName);
 
 			return;
@@ -1585,17 +1747,17 @@ void RenderPassManager::CreateCSM()
 			renderInfo.renderView->SetFrameBuffer(renderPassName, frameBuffer);
 		}
 
-		if (frameBuffer->GetSize() != shadowMapSize)
+		const uint32_t currentLayerCount = frameBuffer->GetAttachmentCreateInfos().back().layerCount;
+		const bool needsLayerCountUpdate = currentLayerCount != static_cast<uint32_t>(shadowsSettings.cascadeCount);
+		
+		if (frameBuffer->GetSize() != shadowMapSize || needsLayerCountUpdate)
 		{
+			frameBuffer->GetAttachmentCreateInfos().back().layerCount = shadowsSettings.cascadeCount;
 			frameBuffer->Resize(shadowMapSize);
 		}
 
-		RenderableEntities renderableEntities;
-
-		size_t renderableCount = 0;
 		const std::shared_ptr<Scene> scene = renderInfo.scene;
 		const Camera& camera = renderInfo.camera->GetComponent<Camera>();
-		const glm::vec3 cameraPosition = camera.GetEntity()->GetComponent<Transform>().GetPosition();
 		entt::registry& registry = scene->GetRegistry();
 
 		glm::vec3 lightDirection{};
@@ -1612,14 +1774,13 @@ void RenderPassManager::CreateCSM()
 			lightDirection = transform.GetForward();
 		}
 
-		// TODO: Camera can be ortho, so need to make for ortho as well.
 		const glm::mat4 projectionMat4 = glm::perspective(
 			camera.GetFov(),
 			(float)renderInfo.viewportSize.x / (float)renderInfo.viewportSize.y,
 			camera.GetZNear(),
 			shadowsSettings.maxDistance);
 
-		const bool recreateFrameBuffer = csmRenderer->GenerateLightSpaceMatrices(
+		csmRenderer->GenerateLightSpaceMatrices(
 			projectionMat4 * camera.GetViewMat4(),
 			lightDirection,
 			shadowMapSize,
@@ -1628,270 +1789,117 @@ void RenderPassManager::CreateCSM()
 			shadowsSettings.cascadeCount,
 			shadowsSettings.splitFactor,
 			shadowsSettings.stabilizeCascades);
-		
-		// TODO: Maybe optimize, looks scary!
-		std::unordered_map<entt::entity, uint32_t> visibleEntities;
-		for (size_t i = 0; i < shadowsSettings.cascadeCount; i++)
-		{
-			const auto entityLayer = scene->GetBVH()->CullAgainstFrustum(Utils::GetFrustumPlanes(csmRenderer->GetLightSpaceMatrices()[i]));
-			for (const auto& entity : entityLayer)
-			{
-				auto foundEntity = visibleEntities.find(entity);
-				if (foundEntity != visibleEntities.end())
-				{
-					foundEntity->second |= (1 << i);
-				}
-				else
-				{
-					visibleEntities.emplace(entity, 1 << i);
-				}
-			}
-		}
-		
-		for (const auto& [entity, layers] : visibleEntities)
-		{
-			const Renderer3D& r3d = registry.get<Renderer3D>(entity);
 
-			if (!r3d.castShadows)
-			{
-				continue;
-			}
-
-			if ((r3d.shadowVisibilityMask & camera.GetShadowVisibilityMask()) == 0)
-			{
-				continue;
-			}
-
-			const Transform& transform = registry.get<Transform>(entity);
-			if (!r3d.isEnabled)
-			{
-				continue;
-			}
-
-			if (!r3d.mesh || !r3d.material || !r3d.material->IsPipelineEnabled(renderPassName))
-			{
-				continue;
-			}
-
-			const std::shared_ptr<Pipeline> pipeline = r3d.material->GetBaseMaterial()->GetPipeline(renderPassName);
-			if (!pipeline)
-			{
-				continue;
-			}
-
-			auto lod = GetLod(
-				cameraPosition,
-				transform.GetPosition(),
-				glm::length(transform.GetScale() * glm::max(glm::abs(r3d.mesh->GetBoundingBox().min), glm::abs(r3d.mesh->GetBoundingBox().max))),
-				r3d.mesh->GetLods());
-
-			// if (r3d.mesh->GetType() == Mesh::Type::SKINNED)
-			// {
-			// 	if (const auto skeletalAnimatorEntity = scene->FindEntityByUUID(r3d.skeletalAnimatorEntityUUID))
-			// 	{
-			// 		SkeletalAnimator* skeletalAnimator = registry.try_get<SkeletalAnimator>(skeletalAnimatorEntity->GetHandle());
-			// 		if (skeletalAnimator)
-			// 		{
-			// 			UpdateSkeletalAnimator(skeletalAnimator, r3d.material->GetBaseMaterial(), pipeline);
-			// 		}
-			// 	}
-
-			// 	EntitiesByMesh::Single single{};
-			// 	single.entity = entity;
-			// 	single.mesh = r3d.mesh;
-			// 	single.lod = lod;
-
-			// 	renderableEntities[r3d.material->GetBaseMaterial()][r3d.material].single.emplace_back(single);
-			// }
-			// else if (r3d.mesh->GetType() == Mesh::Type::STATIC)
-			{
-				auto& entities = renderableEntities[r3d.material->GetBaseMaterial()][r3d.material].instanced[r3d.mesh];
-				entities.resize(r3d.mesh->GetLods().size());
-				entities[lod].reserve(50);
-				entities[lod].emplace_back(entity);
-			}
-
-			renderableCount++;
-		}
-
-		struct InstanceDataCSM
-		{
-			glm::mat4 transform;
-			uint32_t layers;
-		};
-
-		std::shared_ptr<Buffer> instanceBuffer = renderInfo.renderView->GetBuffer("InstanceBufferCSM");
-		if ((renderableCount != 0 && !instanceBuffer) || (instanceBuffer && renderableCount != 0 && instanceBuffer->GetInstanceCount() < renderableCount))
-		{
-			instanceBuffer = Buffer::Create(
-				sizeof(InstanceDataCSM),
-				renderableCount * 2,
-				{ Buffer::Usage::VERTEX_BUFFER },
-				MemoryType::CPU,
-				true);
-
-			renderInfo.renderView->SetBuffer("InstanceBufferCSM", instanceBuffer);
-		}
-
-		std::vector<InstanceDataCSM> instanceDatas;
-
-		bool updatedLightSpaceMatrices = false;
+		MultiPassEntityData* multiPassData = (MultiPassEntityData*)renderInfo.scene->GetRenderView()->GetCustomData("MultiPassEntityData");
 
 		RenderPass::SubmitInfo submitInfo{};
 		submitInfo.frame = renderInfo.frame;
 		submitInfo.renderPass = renderInfo.renderPass;
 		submitInfo.frameBuffer = frameBuffer;
-		renderInfo.renderer->BeginRenderPass(submitInfo);
 
-		// Render all base materials -> materials -> meshes | put gameobjects into the instance buffer.
-		for (const auto& [baseMaterial, meshesByMaterial] : renderableEntities)
+		const int cascadeCount = static_cast<int>(csmRenderer->GetLightSpaceMatrices().size());
+
+		if (multiPassData && multiPassData->passesByName.find(CSM) != multiPassData->passesByName.end())
 		{
-			const std::shared_ptr<Pipeline> pipeline = baseMaterial->GetPipeline(renderPassName);
-			if (!pipeline)
+			const auto& csmData = multiPassData->passesByName[CSM];
+
+			const std::shared_ptr<BaseMaterial> baseMaterial = MaterialManager::GetInstance().LoadBaseMaterial(
+				std::filesystem::path("Materials") / "MeshBase.basemat");
+			if (!baseMaterial)
 			{
-				continue;
+				renderInfo.renderer->BeginRenderPass(submitInfo);
+				renderInfo.renderer->EndRenderPass(submitInfo);
+				return;
 			}
 
-			const std::shared_ptr<UniformWriter> renderUniformWriter = GetOrCreateRendererUniformWriter(renderInfo.renderView, pipeline, renderPassName);
-			const std::string lightSpaceMatricesBufferName = "LightSpaceMatrices";
-			const std::shared_ptr<Buffer> lightSpaceMatricesBuffer = GetOrCreateRenderBuffer(
-				renderInfo.renderView,
-				renderUniformWriter,
-				lightSpaceMatricesBufferName,
-				{},
-				{ Buffer::Usage::UNIFORM_BUFFER },
-				MemoryType::CPU,
-				true);
+			std::shared_ptr<Buffer> lightSpaceMatricesBuffer;
 
-			if (!updatedLightSpaceMatrices)
+			renderInfo.renderer->BeginRenderPass(submitInfo);
+
+			const std::shared_ptr<Buffer>& csmInstanceDataBuffer = GetOrCreateRenderBuffer(
+				renderInfo.renderView, nullptr, "CSMInstanceDataBufferCSM");
+			const std::shared_ptr<Buffer>& indirectDrawCommandsBuffer = GetOrCreateRenderBuffer(
+				renderInfo.renderView, nullptr, "IndirectDrawCommandsCSM");
+			const std::shared_ptr<Buffer>& indirectDrawCommandCountBuffer = GetOrCreateRenderBuffer(
+				renderInfo.renderView, nullptr, "IndirectDrawCommandCountCSM");
+			const std::shared_ptr<Buffer>& pipelineInfoBuffer = GetOrCreateRenderBuffer(
+				renderInfo.renderView, nullptr, "PipelineInfoBufferCSM");
+
+			for (int cascadeIndex = 0; cascadeIndex < cascadeCount; ++cascadeIndex)
 			{
-				updatedLightSpaceMatrices = true;
-
-				baseMaterial->WriteToBuffer(
-					lightSpaceMatricesBuffer,
-					lightSpaceMatricesBufferName,
-					"lightSpaceMatrices",
-					*csmRenderer->GetLightSpaceMatrices().data());
-
-				const int cascadeCount = csmRenderer->GetLightSpaceMatrices().size();
-				baseMaterial->WriteToBuffer(
-					lightSpaceMatricesBuffer,
-					lightSpaceMatricesBufferName,
-					"cascadeCount",
-					cascadeCount);
-
-				// Recreate if layer count has been changed.
-				if (recreateFrameBuffer)
+				renderInfo.renderer->BeginCommandLabel(std::format("Cascade {}", cascadeIndex), glm::vec3(1.0f, 1.0f, 0.0f), renderInfo.frame);
+				
+				for (const auto& [id, pipeline] : csmData.sortedPipelines)
 				{
-					auto callback = [this, submitInfo, renderInfo, cascadeCount]()
+					renderInfo.renderer->BindPipeline(pipeline, renderInfo.frame);
+
+					const std::shared_ptr<UniformWriter> renderUniformWriter = GetOrCreateRendererUniformWriter(
+						renderInfo.renderView, pipeline, renderPassName);
+					const std::string lightSpaceMatricesBufferName = "LightSpaceMatrices";
+					lightSpaceMatricesBuffer = GetOrCreateRenderBuffer(
+						renderInfo.renderView,
+						renderUniformWriter,
+						lightSpaceMatricesBufferName,
+						{},
+						{ Buffer::Usage::UNIFORM_BUFFER },
+						MemoryType::CPU,
+						true);
+
+					if (cascadeIndex == 0)
 					{
-						submitInfo.frameBuffer->GetAttachmentCreateInfos().back().layerCount = cascadeCount;
-						submitInfo.frameBuffer->Resize(submitInfo.frameBuffer->GetSize());
-					};
+						baseMaterial->WriteToBuffer(
+							lightSpaceMatricesBuffer,
+							lightSpaceMatricesBufferName,
+							"lightSpaceMatrices",
+							*csmRenderer->GetLightSpaceMatrices().data());
 
-					std::shared_ptr<NextFrameEvent> event = std::make_shared<NextFrameEvent>(callback, Event::Type::OnNextFrame, this);
-					EventSystem::GetInstance().SendEvent(event);
-				}
-			}
-			
-			for (const auto& [material, gameObjectsByMeshes] : meshesByMaterial)
-			{
-				std::vector<NativeHandle> uniformWriterNativeHandles;
-				std::vector<std::shared_ptr<UniformWriter>> uniformWriters;
-				GetUniformWriters(pipeline, baseMaterial, material, renderInfo, uniformWriters, uniformWriterNativeHandles);
-				if (!FlushUniformWriters(uniformWriters))
-				{
-					continue;
-				}
+						baseMaterial->WriteToBuffer(
+							lightSpaceMatricesBuffer,
+							lightSpaceMatricesBufferName,
+							"cascadeCount",
+							cascadeCount);
+						lightSpaceMatricesBuffer->Flush();
 
-				for (const auto& [mesh, entitiesByLod] : gameObjectsByMeshes.instanced)
-				{
-					for (size_t lod = 0; lod < entitiesByLod.size(); lod++)
-					{
-						if (entitiesByLod[lod].empty()) continue;
+						renderUniformWriter->WriteBuffer("CSMInstanceDataBuffer", csmInstanceDataBuffer);
+					}
 
-						const size_t instanceDataOffset = instanceDatas.size();
-
-						for (const entt::entity& entity : entitiesByLod[lod])
+					if (BindAndFlushUniformWriters(
+						pipeline,
+						nullptr,
+						nullptr,
+						renderInfo,
 						{
-							InstanceDataCSM data{};
-							const Transform& transform = registry.get<Transform>(entity);
-							data.transform = transform.GetTransform();
-							data.layers = visibleEntities[entity];
-							instanceDatas.emplace_back(data);
+							Pipeline::DescriptorSetIndexType::BINDLESS,
+							Pipeline::DescriptorSetIndexType::SCENE,
+							Pipeline::DescriptorSetIndexType::BASE_MATERIAL,
+							Pipeline::DescriptorSetIndexType::RENDERER,
+							Pipeline::DescriptorSetIndexType::RENDERPASS
 						}
+					))
+					{
+						uint32_t cascadePipelineIndex = cascadeIndex * MAX_PIPELINE_COUNT + id;
+						uint32_t commandOffset = reinterpret_cast<uint32_t*>(pipelineInfoBuffer->GetData())[cascadePipelineIndex];
 
-						std::vector<NativeHandle> vertexBuffers;
-						std::vector<size_t> vertexBufferOffsets;
-						GetVertexBuffers(pipeline, mesh, vertexBuffers, vertexBufferOffsets);
-
-						renderInfo.renderer->Render(
-							vertexBuffers,
-							vertexBufferOffsets,
-							mesh->GetIndexBuffer()->GetNativeHandle(),
-							mesh->GetLods()[lod].indexOffset * sizeof(uint32_t),
-							mesh->GetLods()[lod].indexCount,
-							pipeline,
-							instanceBuffer->GetNativeHandle(),
-							instanceDataOffset * instanceBuffer->GetInstanceSize(),
-							entitiesByLod[lod].size(),
-							uniformWriterNativeHandles,
+						renderInfo.renderer->DrawIndirectCount(
+							indirectDrawCommandsBuffer->GetNativeHandle(),
+							commandOffset,
+							indirectDrawCommandCountBuffer->GetNativeHandle(),
+							cascadePipelineIndex,
+							csmData.pipelineInfos.at(pipeline).maxDrawCount,
 							renderInfo.frame);
 					}
 				}
 
-				for (const auto& single : gameObjectsByMeshes.single)
-				{
-					const size_t instanceDataOffset = instanceDatas.size();
-
-					InstanceDataCSM data{};
-					const Transform& transform = registry.get<Transform>(single.entity);
-					data.transform = transform.GetTransform();
-					data.layers = visibleEntities[single.entity];
-					instanceDatas.emplace_back(data);
-
-					SkeletalAnimator* skeletalAnimator = nullptr;
-					const Renderer3D& r3d = registry.get<Renderer3D>(single.entity);
-					if (const auto skeletalAnimatorEntity = scene->FindEntityByUUID(r3d.skeletalAnimatorEntityUUID))
-					{
-						skeletalAnimator = registry.try_get<SkeletalAnimator>(skeletalAnimatorEntity->GetHandle());
-					}
-
-					// if (skeletalAnimator)
-					// {
-					// 	std::vector<NativeHandle> newUniformWriterNativeHandles = uniformWriterNativeHandles;
-					// 	newUniformWriterNativeHandles.emplace_back(skeletalAnimator->GetUniformWriter()->GetNativeHandle());
-
-					// 	std::vector<NativeHandle> vertexBuffers;
-					// 	std::vector<size_t> vertexBufferOffsets;
-					// 	GetVertexBuffers(pipeline, single.mesh, vertexBuffers, vertexBufferOffsets);
-
-					// 	renderInfo.renderer->Render(
-					// 		vertexBuffers,
-					// 		vertexBufferOffsets,
-					// 		single.mesh->GetIndexBuffer()->GetNativeHandle(),
-					// 		single.mesh->GetLods()[single.lod].indexOffset * sizeof(uint32_t),
-					// 		single.mesh->GetLods()[single.lod].indexCount,
-					// 		pipeline,
-					// 		instanceBuffer->GetNativeHandle(),
-					// 		instanceDataOffset * instanceBuffer->GetInstanceSize(),
-					// 		1,
-					// 		newUniformWriterNativeHandles,
-					// 		renderInfo.frame);
-					// }
-				}
+				renderInfo.renderer->EndCommandLabel(renderInfo.frame);
 			}
-		}
 
-		// Because these are all just commands and will be rendered later we can write the instance buffer
-		// just once when all instance data is collected.
-		if (instanceBuffer && !instanceDatas.empty())
+			renderInfo.renderer->EndRenderPass(submitInfo);
+		}
+		else
 		{
-			instanceBuffer->WriteToBuffer(instanceDatas.data(), instanceDatas.size() * sizeof(InstanceDataCSM));
-			instanceBuffer->Flush();
+			renderInfo.renderer->BeginRenderPass(submitInfo);
+			renderInfo.renderer->EndRenderPass(submitInfo);
 		}
-
-		renderInfo.renderer->EndRenderPass(submitInfo);
 	};
 
 	CreateRenderPass(createInfo);
@@ -4491,6 +4499,12 @@ std::shared_ptr<Buffer> RenderPassManager::GetOrCreateRenderBuffer(
 	std::shared_ptr<Buffer> buffer = renderView->GetBuffer(setBufferName.empty() ? bufferName : setBufferName);
 	if (buffer)
 	{
+		// Buffer exists, but still need to write it to the uniform writer if provided
+		if (uniformWriter)
+		{
+			uniformWriter->WriteBuffer(bufferName, buffer);
+			uniformWriter->Flush();
+		}
 		return buffer;
 	}
 

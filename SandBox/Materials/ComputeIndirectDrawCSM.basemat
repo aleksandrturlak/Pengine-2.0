@@ -1,0 +1,20 @@
+Basemat:
+  Pipelines:
+    - RenderPass: ComputeIndirectDrawCSM
+      Type: Compute
+      Compute: Shaders/ComputeIndirectDrawCSM.comp
+      DescriptorSets:
+        - Type: Renderer
+          RenderPass: DefaultReflection
+          Set: 0
+        - Type: Renderer
+          RenderPass: ComputeIndirectDrawCSM
+          Set: 1
+        - Type: Renderer
+          RenderPass: ComputeIndirectDrawCSMBuffers
+          Set: 2
+        - Type: Bindless
+          Set: 3
+        - Type: Scene
+          RenderPass: BindlessEntities
+          Set: 4

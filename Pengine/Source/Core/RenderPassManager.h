@@ -86,6 +86,9 @@ namespace Pengine
 			std::shared_ptr<Buffer> entityBuffer;
 			std::shared_ptr<UniformWriter> entityUniformWriter;
 			
+			// Total entity count across all passes (for compute shader dispatch)
+			uint32_t totalEntityCount = 0;
+			
 			// Per-pass pipeline grouping
 			struct PassData
 			{
@@ -120,6 +123,8 @@ namespace Pengine
 			std::vector<size_t>& vertexBufferOffsets);
 
 		void CreateComputeIndirectDrawGBuffer();
+
+		void CreateComputeIndirectDrawCSM();
 
 		void CreateGBuffer();
 
