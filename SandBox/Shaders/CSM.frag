@@ -7,7 +7,7 @@
 layout(location = 0) in vec2 uv;
 layout(location = 1) flat in uint instanceIndex;
 
-#include "Shaders/Includes/BindlessMeshes.h"
+#include "Shaders/Includes/Common.h"
 #include "Shaders/Includes/DefaultMaterial.h"
 
 struct CSMInstanceData

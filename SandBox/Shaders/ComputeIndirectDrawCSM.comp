@@ -16,7 +16,7 @@ layout(set = 1, binding = 0) uniform LightSpaceMatrices
 	int cascadeCount;
 };
 
-#include "Shaders/Includes/BindlessMeshes.h"
+#include "Shaders/Includes/Common.h"
 
 struct DrawIndirectCommand
 {

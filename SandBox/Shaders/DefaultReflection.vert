@@ -18,7 +18,7 @@ layout(set = 2, binding = 0) buffer readonly Material
 	DefaultMaterial material;
 };
 
-#include "Shaders/Includes/BindlessMeshes.h"
+#include "Shaders/Includes/Common.h"
 layout(set = 3, binding = 0, scalar) buffer readonly BindlessEntities
 {
 	EntityInfo entities[20000];

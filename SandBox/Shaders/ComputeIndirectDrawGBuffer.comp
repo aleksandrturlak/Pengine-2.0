@@ -6,7 +6,7 @@ layout(set = 0, binding = 0) uniform GlobalBuffer
 	Camera camera;
 };
 
-#include "Shaders/Includes/BindlessMeshes.h"
+#include "Shaders/Includes/Common.h"
 
 struct DrawIndirectCommand
 {

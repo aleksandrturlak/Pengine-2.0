@@ -2,7 +2,7 @@
 
 #extension GL_ARB_shader_viewport_layer_array : require
 
-#include "Shaders/Includes/BindlessMeshes.h"
+#include "Shaders/Includes/Common.h"
 #include "Shaders/Includes/CSM.h"
 #include "Shaders/Includes/DefaultMaterial.h"
 
