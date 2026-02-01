@@ -1,34 +1,14 @@
 Mat:
-  Basemat: 0xb57c31db19f778c9b4a037b877d49d20
-  Options:
-    - Name: Transparency
-      IsEnabled: false
-      Active:
-        - Transparent
-      Inactive:
-        - GBuffer
-  Pipelines:
-    - RenderPass: SpotLightShadows
-      Uniforms:
-        []
-    - RenderPass: PointLightShadows
-      Uniforms:
-        []
-    - RenderPass: CSM
-      Uniforms:
-        []
-    - RenderPass: Transparent
-      Uniforms:
-        []
-    - RenderPass: GBuffer
-      Uniforms:
-        - Name: MaterialBuffer
+  Basemat: 0xd4e01e5fd1e00c656d6ca62d11cf247e
+  Bindless:
+    - Uniforms:
+        - Name: Material
           Values:
             - Name: material.albedoColor
-              Value: [1, 1, 1, 1]
+              Value: [0.337254912, 0.337254912, 0.337254912, 1]
               Type: vec4
             - Name: material.emissiveColor
-              Value: [0, 0, 0, 1]
+              Value: [1, 1, 1, 1]
               Type: vec4
             - Name: material.uvTransform
               Value: [1, 1, 0, 0]
@@ -43,10 +23,10 @@ Mat:
               Value: 1
               Type: float
             - Name: material.emissiveFactor
-              Value: 1
+              Value: 0
               Type: float
             - Name: material.alphaCutoff
-              Value: 0.5
+              Value: 0.00999999978
               Type: float
             - Name: material.maxParallaxLayers
               Value: 0
@@ -58,7 +38,7 @@ Mat:
               Value: 0
               Type: float
             - Name: material.useNormalMap
-              Value: 1
+              Value: 0
               Type: int
             - Name: material.useAlphaCutoff
               Value: 0
@@ -67,13 +47,13 @@ Mat:
               Value: 0
               Type: int
             - Name: material.albedoTexture
-              Value: 0x0b14c145c0fa277aef98791060a686e4
+              Value: White
               Type: texture
             - Name: material.normalTexture
-              Value: 0x920e85e551c17bd4febd596a3c1464f7
+              Value: Black
               Type: texture
             - Name: material.metallicRoughnessTexture
-              Value: 0x9862ca69907d6ccac066a95508d6837a
+              Value: White
               Type: texture
             - Name: material.aoTexture
               Value: White

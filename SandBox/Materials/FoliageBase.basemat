@@ -1,0 +1,131 @@
+Basemat:
+  Pipelines:
+    - RenderPass: GBuffer
+      DepthTest: true
+      DepthWrite: true
+      CullMode: None
+      PolygonMode: Fill
+      TopologyMode: TriangleList
+      Vertex: Shaders/Foliage.vert
+      Fragment: Shaders/Opaque.frag
+      DescriptorSets:
+        - Type: Renderer
+          RenderPass: DefaultReflection
+          Set: 0
+        - Type: Bindless
+          Set: 1
+        - Type: Scene
+          RenderPass: BindlessEntities
+          Set: 2
+        - Type: BufferDeviceAddress
+          Set: 3
+      ColorBlendStates:
+        - BlendEnabled: false
+        - BlendEnabled: false
+        - BlendEnabled: false
+        - BlendEnabled: false
+    - RenderPass: CSM
+      DepthTest: true
+      DepthWrite: true
+      DepthClamp: true
+      DepthCompare: LessOrEqual
+      CullMode: None
+      PolygonMode: Fill
+      TopologyMode: TriangleList
+      Vertex: Shaders/CSMFoliage.vert
+      Fragment: Shaders/CSM.frag
+      DescriptorSets:
+        - Type: Scene
+          RenderPass: BindlessEntities
+          Set: 0
+        - Type: Renderer
+          RenderPass: CSM
+          Set: 1
+        - Type: Bindless
+          Set: 2
+        - Type: Renderer
+          RenderPass: DefaultReflection
+          Set: 3
+      ColorBlendStates:
+        []
+    - RenderPass: PointLightShadows
+      DepthTest: true
+      DepthWrite: true
+      DepthClamp: true
+      DepthCompare: LessOrEqual
+      CullMode: None
+      PolygonMode: Fill
+      Vertex: Shaders/PointLightShadowsFoliage.vert
+      Fragment: Shaders/PointLightShadows.frag
+      DescriptorSets:
+        - Type: Material
+          RenderPass: GBuffer
+          Set: 0
+        - Type: Bindless
+          Set: 1
+        - Type: Renderer
+          RenderPass: Lights
+          Set: 2
+        - Type: Renderer
+          RenderPass: DefaultReflection
+          Set: 3
+      VertexInputBindingDescriptions:
+        - Binding: 0
+          InputRate: Vertex
+          Tag: Position
+          Names:
+            - positionA
+            - uvA
+        - Binding: 1
+          InputRate: Vertex
+          Tag: Color
+          Names:
+            - colorA
+        - Binding: 2
+          InputRate: Instance
+          Names:
+            - transformA
+            - lightIndexA
+            - faceIndexA
+      ColorBlendStates:
+        []
+    - RenderPass: SpotLightShadows
+      DepthTest: true
+      DepthWrite: true
+      DepthClamp: true
+      DepthCompare: LessOrEqual
+      CullMode: None
+      PolygonMode: Fill
+      Vertex: Shaders/SpotLightShadowsFoliage.vert
+      Fragment: Shaders/SpotLightShadows.frag
+      DescriptorSets:
+        - Type: Material
+          RenderPass: GBuffer
+          Set: 0
+        - Type: Bindless
+          Set: 1
+        - Type: Renderer
+          RenderPass: Lights
+          Set: 2
+        - Type: Renderer
+          RenderPass: DefaultReflection
+          Set: 3
+      VertexInputBindingDescriptions:
+        - Binding: 0
+          InputRate: Vertex
+          Tag: Position
+          Names:
+            - positionA
+            - uvA
+        - Binding: 1
+          InputRate: Vertex
+          Tag: Color
+          Names:
+            - colorA
+        - Binding: 2
+          InputRate: Instance
+          Names:
+            - transformA
+            - lightIndexA
+      ColorBlendStates:
+        []

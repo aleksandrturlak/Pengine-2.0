@@ -21,19 +21,16 @@ layout(buffer_reference, scalar) buffer DefaultMaterialBuffer
 	DefaultMaterial material;
 };
 
-// Set 0: Scene - BindlessEntities
 layout(set = 0, binding = 0, scalar) buffer readonly BindlessEntities
 {
 	EntityInfo entities[MAX_BINDLESS_ENTITIES];
 };
 
-// Set 1: Renderer - CSM specific (LightSpaceMatrices at binding 0, CSMInstanceDataBuffer at binding 1)
 layout(set = 1, binding = 1, scalar) buffer readonly CSMInstanceDataBuffer
 {
 	CSMInstanceData instanceData[MAX_INDIRECT_DRAW_COMMANDS];
 };
 
-// Set 2: Bindless textures
 layout(set = 2, binding = 0) uniform sampler2D bindlessTextures[MAX_BINDLESS_TEXTURES];
 
 void main()
@@ -43,7 +40,6 @@ void main()
 	
 	EntityInfo entityInfo = entities[entityIndex];
 	
-	// Get material buffer for CSM pass
 	uint64_t materialBufferAddress = entityInfo.materialInfoBuffer.materialBuffers[GBUFFER_PASS];
 	if (materialBufferAddress != 0)
 	{

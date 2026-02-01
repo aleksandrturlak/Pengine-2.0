@@ -34,9 +34,9 @@ layout(set = 2, binding = 0) uniform Lights
 	CSM csm;
 
 	PointLightShadows pointLightShadows;
-    SpotLightShadows spotLightShadows;
-    
-    SSS sss;
+	SpotLightShadows spotLightShadows;
+	
+	SSS sss;
 };
 
 layout(set = 3, binding = 0) uniform GlobalBuffer
@@ -46,18 +46,17 @@ layout(set = 3, binding = 0) uniform GlobalBuffer
 
 void main()
 {
-    vec4 windParams = unpackUnorm4x8(colorA);
+	vec4 windParams = unpackUnorm4x8(colorA);
 	float stiffness = windParams.r;
-    float oscillation = windParams.g;
+	float oscillation = windParams.g;
 
 	float windWave = sin(camera.time * camera.wind.frequency + float(gl_VertexIndex) * oscillation);
-
 	float windInfluence = (1.0f - stiffness) * camera.wind.strength;
 	vec3 windDisplacement = camera.wind.direction * windWave * windInfluence;
 
-    positionWorldSpace = transformA * vec4(windDisplacement + positionA, 1.0f);
+	positionWorldSpace = transformA * vec4(windDisplacement + positionA, 1.0f);
 	gl_Position = spotLights[lightIndexA].viewProjectionMat4 * positionWorldSpace;
-    lightPositionWorldSpace = spotLights[lightIndexA].positionWorldSpace;
-    radius = spotLights[lightIndexA].radius;
+	lightPositionWorldSpace = spotLights[lightIndexA].positionWorldSpace;
+	radius = spotLights[lightIndexA].radius;
 	uv = uvA;
 }

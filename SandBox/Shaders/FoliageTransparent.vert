@@ -1,15 +1,24 @@
 #version 460
 
-#include "Shaders/Includes/Common.h"
+layout(location = 0) in vec3 positionA;
+layout(location = 1) in vec2 uvA;
+layout(location = 2) in vec3 normalA;
+layout(location = 3) in vec4 tangentA;
+layout(location = 4) in uint colorA;
+layout(location = 5) in int materialIndexA;
+layout(location = 6) in mat4 transformA;
+layout(location = 10) in mat3 inverseTransformA;
 
-layout(location = 0) out vec3 normalViewSpace;
-layout(location = 1) out vec3 tangentViewSpace;
-layout(location = 2) out vec3 bitangentViewSpace;
-layout(location = 3) out vec2 uv;
-layout(location = 4) out vec4 color;
-layout(location = 5) out vec3 positionTangentSpace;
-layout(location = 6) out vec3 cameraPositionTangentSpace;
-layout(location = 7) flat out uint64_t materialBuffer;
+layout(location = 0) out vec3 positionViewSpace;
+layout(location = 1) out vec3 positionWorldSpace;
+layout(location = 2) out vec3 normalViewSpace;
+layout(location = 3) out vec3 tangentViewSpace;
+layout(location = 4) out vec3 bitangentViewSpace;
+layout(location = 5) out vec2 uv;
+layout(location = 6) out vec4 color;
+layout(location = 7) out vec3 positionTangentSpace;
+layout(location = 8) out vec3 cameraPositionTangentSpace;
+layout(location = 9) flat out int materialIndex;
 
 #include "Shaders/Includes/Camera.h"
 layout(set = 0, binding = 0) uniform GlobalBuffer
@@ -17,23 +26,42 @@ layout(set = 0, binding = 0) uniform GlobalBuffer
 	Camera camera;
 };
 
-layout(set = 1, binding = 0) uniform sampler2D bindlessTextures[MAX_BINDLESS_TEXTURES];
+layout(set = 1, binding = 0) uniform sampler2D bindlessTextures[10000];
 
-layout(set = 2, binding = 0, scalar) buffer readonly BindlessEntities
+void main()
 {
-	EntityInfo entities[MAX_BINDLESS_ENTITIES];
-};
+	// Wind animation for foliage
+	vec4 windParams = unpackUnorm4x8(colorA);
+	float stiffness = windParams.r;
+	float oscillation = windParams.g;
 
-#include "Shaders/Includes/DefaultMaterial.h"
-layout(set = 3, binding = 0, scalar) uniform MaterialBuffer
-{
-	DefaultMaterial material;
-};
+	float windWave = sin(camera.time * camera.wind.frequency + float(gl_VertexIndex) * oscillation);
+	float windInfluence = (1.0f - stiffness) * camera.wind.strength;
+	vec3 windDisplacement = camera.wind.direction * windWave * windInfluence;
 
-layout(buffer_reference, scalar) buffer MaterialBufferReference
-{
-	DefaultMaterial material;
-};
+	// Apply wind displacement to position
+	vec3 position = windDisplacement + positionA;
+
+	positionWorldSpace = (transformA * vec4(position, 1.0f)).xyz;
+	positionViewSpace = (camera.viewMat4 * vec4(positionWorldSpace, 1.0f)).xyz;
+	gl_Position = camera.projectionMat4 * vec4(positionViewSpace, 1.0f);
+
+	vec3 normalWorldSpace = normalize(inverseTransformA * normalize(normalA));
+	vec3 tangentWorldSpace = normalize(inverseTransformA * normalize(tangentA.xyz));
+	vec3 bitangentWorldSpace = normalize(cross(normalWorldSpace, tangentWorldSpace) * tangentA.w);
+
+	normalViewSpace = normalize(mat3(camera.viewMat4) * normalWorldSpace);
+	tangentViewSpace = normalize(mat3(camera.viewMat4) * tangentWorldSpace);
+	bitangentViewSpace = normalize(mat3(camera.viewMat4) * bitangentWorldSpace);
+
+	// Note: Parallax occlusion mapping would require material data, not implemented for transparent pass
+	positionTangentSpace = vec3(0.0f);
+	cameraPositionTangentSpace = vec3(0.0f);
+
+	uv = uvA;
+	color = unpackUnorm4x8(colorA);
+	materialIndex = materialIndexA;
+}
 
 void CalculateSkinning(
 	in vec4 weights,
@@ -88,7 +116,8 @@ void main()
 	
 	mat4 transform = entityInfo.transform;
 
-	materialBuffer = entityInfo.materialInfoBuffer.materialBuffers[GBUFFER_PASS];
+	materialIndex = int(gl_InstanceIndex);
+	uint64_t materialBuffer = entityInfo.materialInfoBuffer.materialBuffers[GBUFFER_PASS];
 	DefaultMaterial material = MaterialBufferReference(materialBuffer).material;
 
 	MeshInfoBuffer meshInfoBuffer = entityInfo.meshInfoBuffer;
@@ -126,8 +155,9 @@ void main()
 			bitangent);
 	}
 
-	vec4 positionWorldSpace = transform * vec4(position, 1.0f);
-	gl_Position = camera.viewProjectionMat4 * positionWorldSpace;
+	positionWorldSpace = (transform * vec4(position, 1.0f)).xyz;
+	positionViewSpace = (camera.viewMat4 * vec4(positionWorldSpace, 1.0f)).xyz;
+	gl_Position = camera.projectionMat4 * vec4(positionViewSpace, 1.0f);
 
 	mat3 inverseTransform = mat3(transpose(inverse(transform)));
 
@@ -152,5 +182,5 @@ void main()
 
 	uv = meshBufferInfoBuffer.vertexBufferPosition.vertices[index].uv * material.uvTransform.xy + material.uvTransform.zw;
 
-	color = vec4(1.0f);
+	color = windParams;
 }

@@ -1,5 +1,5 @@
 Mat:
-  Basemat: 0xd4e01e5fd1e00c656d6ca62d11cf247e
+  Basemat: 0xb57c31db19f778c9b4a037b877d49d20
   Options:
     - Name: Transparency
       IsEnabled: false
@@ -8,9 +8,6 @@ Mat:
       Inactive:
         - GBuffer
   Pipelines:
-    - RenderPass: ZPrePass
-      Uniforms:
-        []
     - RenderPass: SpotLightShadows
       Uniforms:
         []
@@ -22,7 +19,7 @@ Mat:
         []
     - RenderPass: GBuffer
       Uniforms:
-        - Name: GBufferMaterial
+        - Name: MaterialBuffer
           Values:
             - Name: material.albedoColor
               Value: [1, 1, 1, 1]
@@ -46,7 +43,7 @@ Mat:
               Value: 1
               Type: float
             - Name: material.alphaCutoff
-              Value: 0.0500000007
+              Value: 0.100000001
               Type: float
             - Name: material.maxParallaxLayers
               Value: 0
@@ -67,13 +64,13 @@ Mat:
               Value: 0
               Type: int
             - Name: material.albedoTexture
-              Value: Examples/Tree1/Assets/textures/Tree_1Mat_baseColor.png
+              Value: 0x1ad5b93a36a91ba7b72df134d942d69a
               Type: texture
             - Name: material.normalTexture
-              Value: Examples/Tree1/Assets/textures/Tree_1Mat_normal.png
+              Value: 0x940bbfbef102c09d8f1ecffe3ecaf4b3
               Type: texture
             - Name: material.metallicRoughnessTexture
-              Value: Examples/Tree1/Assets/textures/Tree_1Mat_metallicRoughness.png
+              Value: 0x5977aebbfb8ff4a9f9284f112cc239ec
               Type: texture
             - Name: material.aoTexture
               Value: White

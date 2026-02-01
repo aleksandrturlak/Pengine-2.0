@@ -56,7 +56,6 @@ void main()
 
 	vec4 localPosition = vec4(vertex.position, 1.0f);
 
-	// Apply skinning if entity is skinned
 	if (bool(entityInfo.flags & ENTITY_SKINNED))
 	{
 		VertexSkinned skinned = meshInfo.meshBufferInfoBuffer.vertexBufferSkinned.skinned[index];

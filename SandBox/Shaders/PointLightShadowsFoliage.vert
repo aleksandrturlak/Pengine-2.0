@@ -47,18 +47,17 @@ layout(set = 3, binding = 0) uniform GlobalBuffer
 
 void main()
 {
-    vec4 windParams = unpackUnorm4x8(colorA);
+	vec4 windParams = unpackUnorm4x8(colorA);
 	float stiffness = windParams.r;
-    float oscillation = windParams.g;
+	float oscillation = windParams.g;
 
 	float windWave = sin(camera.time * camera.wind.frequency + float(gl_VertexIndex) * oscillation);
-
 	float windInfluence = (1.0f - stiffness) * camera.wind.strength;
 	vec3 windDisplacement = camera.wind.direction * windWave * windInfluence;
 
-    positionWorldSpace = transformA * vec4(windDisplacement + positionA, 1.0f);
+	positionWorldSpace = transformA * vec4(windDisplacement + positionA, 1.0f);
 	gl_Position = pointLights[lightIndexA].pointLightFaceInfos[faceIndexA].viewProjectionMat4 * positionWorldSpace;
-    lightPositionWorldSpace = pointLights[lightIndexA].positionWorldSpace;
-    radius = pointLights[lightIndexA].radius;
+	lightPositionWorldSpace = pointLights[lightIndexA].positionWorldSpace;
+	radius = pointLights[lightIndexA].radius;
 	uv = uvA;
 }

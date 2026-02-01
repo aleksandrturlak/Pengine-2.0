@@ -3,16 +3,16 @@ Settings:
   DrawPhysicsShapes: false
   Wind:
     Direction: [-1, 0, 0]
-    Frequency: 1
-    Strength: 1
+    Frequency: 2
+    Strength: 0.0500000007
 GraphicsSettings: 0x84beaa5529d21a0d243484fff0af8349
 Scene:
   - UUID: 0xc12d3bcc6981515ea023e27bbe9da15c
     Name: Camera
     IsEnabled: true
     Transform:
-      Position: [-7.76397181, -0.0538567789, 5.74975824]
-      Rotation: [-0.523159325, -1.04095209, 0]
+      Position: [-9.40852261, 1.14472103, 14.3399734]
+      Rotation: [-0.343569785, -0.433940381, 0]
       Scale: [1, 1, 1]
       FollowOwner: true
     Camera:
@@ -45,8 +45,8 @@ Scene:
     Name: Cube
     IsEnabled: true
     Transform:
-      Position: [0, 0, 0]
-      Rotation: [0, 0, 0]
+      Position: [0.246058226, -2.75783641e-05, 3.40485668]
+      Rotation: [0, -0, 0]
       Scale: [1, 1, 1]
       FollowOwner: true
     Renderer3D:
@@ -152,3 +152,17 @@ Scene:
       ShadowVisibilityMask: 255
     Childs:
       []
+  - PrefabFilepath: 0x5bb99b3c8f506d6371c1039d4ce771f9
+    UUID: 0x99eaca2bc21738db19e3260ffacd663a
+    Transform:
+      Position: [-3.09333324, -3.0596633, 9.20409298]
+      Rotation: [0, -0, 0]
+      Scale: [1, 1, 1]
+      FollowOwner: true
+  - PrefabFilepath: 0x5bb99b3c8f506d6371c1039d4ce771f9
+    UUID: 0x5a8d07091c4060cce459fe9f450b44b0
+    Transform:
+      Position: [-8.92838764, -3.05967116, 8.32169724]
+      Rotation: [1.05487238e-07, 0.677687883, -0.069963336]
+      Scale: [1.10000014, 1.10000062, 1.10000002]
+      FollowOwner: true
