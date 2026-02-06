@@ -21,7 +21,7 @@ layout(set = 2, binding = 0) uniform BoneMatrices
 void main()
 {
 	vec4 totalPosition = vec4(0.0f);
-	for(int i = 0 ; i < MAX_BONE_INFLUENCE ; i++)
+	for (int i = 0 ; i < MAX_BONE_INFLUENCE ; i++)
 	{
 		if(boneIdsA[i] == -1)
 		{

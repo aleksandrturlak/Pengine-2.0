@@ -54,7 +54,7 @@ void CalculateSkinning(
 	vec3 totalNormal = vec3(0.0f);
 	vec3 totalTangent = vec3(0.0f);
 	vec3 totalBitangent = vec3(0.0f);
-	for(int i = 0; i < MAX_BONE_INFLUENCE; i++)
+	for (int i = 0; i < MAX_BONE_INFLUENCE; i++)
 	{
 		if(boneIds[i] == -1) continue;
 		if(boneIds[i] >= MAX_BONES)

@@ -209,7 +209,7 @@ float CalculatePointLightShadow(
     	minUV,
     	maxUV);
 
-	for(int i = 0; i < 16; i++)
+	for (int i = 0; i < 16; i++)
 	{
 		vec2 offset = rotation * poissonDisk[i];
 		vec2 uv = atlasUV.xy + offset * texelSize;

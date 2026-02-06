@@ -53,7 +53,7 @@ vec3 CalculateCSM(
     }
 
     int layer = -1;
-    for(int i = 0; i < csm.cascadeCount; ++i)
+    for (int i = 0; i < csm.cascadeCount; ++i)
     {
         if(depth < csm.distances[i])
         {
@@ -94,11 +94,11 @@ vec3 CalculateCSM(
     vec2 texelSize = 1.0f / vec2(textureSize(CSMTexture, 0));
    
     float shadow = 0.0f;
-    if(csm.filtering == 1)
+    if (csm.filtering == 1)
     {
-        for(int x = -csm.pcfRange; x <= csm.pcfRange; ++x)
+        for (int x = -csm.pcfRange; x <= csm.pcfRange; ++x)
         {
-            for(int y = -csm.pcfRange; y <= csm.pcfRange; ++y)
+            for (int y = -csm.pcfRange; y <= csm.pcfRange; ++y)
             {
                 float pcfDepth = texture(CSMTexture, vec3(uv.xy + vec2(x, y) * texelSize, layer)).r;
                 shadow += (currentDepth - bias) > pcfDepth ? 1.0f : 0.0f;
@@ -114,7 +114,7 @@ vec3 CalculateCSM(
         mat2 rotation = mat2(cos(angle), -sin(angle),
                             sin(angle), cos(angle));
 
-        for(int i = 0; i < 16; i++)
+        for (int i = 0; i < 16; i++)
         {
             vec2 offset = rotation * poissonDisk[i];
             float closestDepth = texture(CSMTexture, vec3(uv.xy + offset * texelSize, layer)).r;
