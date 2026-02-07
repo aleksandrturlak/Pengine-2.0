@@ -18,7 +18,7 @@ namespace Pengine::Vk
 		VulkanTexture& operator=(const VulkanTexture&) = delete;
 		VulkanTexture& operator=(VulkanTexture&&) = delete;
 
-		VkDescriptorImageInfo GetDescriptorInfo(const uint32_t index = Vk::swapChainImageIndex);
+		VkDescriptorImageInfo GetDescriptorInfo(const uint32_t index = Vk::frameInFlightIndex);
 
 		static VkImageView CreateImageView(
 			VkImage image,
@@ -70,13 +70,13 @@ namespace Pengine::Vk
 
 		virtual void Transition(Layout layout, void* frame = nullptr) override;
 
-		[[nodiscard]] VkImageView GetImageView(const uint32_t index = Vk::swapChainImageIndex) const { return m_IsMultiBuffered ? m_ImageDatas[index].view : m_ImageDatas[0].view; }
+		[[nodiscard]] VkImageView GetImageView(const uint32_t index = Vk::frameInFlightIndex) const { return m_IsMultiBuffered ? m_ImageDatas[index].view : m_ImageDatas[0].view; }
 
-		[[nodiscard]] VkImage GetImage(const uint32_t index = Vk::swapChainImageIndex) const { return m_IsMultiBuffered ? m_ImageDatas[index].image : m_ImageDatas[0].image; }
+		[[nodiscard]] VkImage GetImage(const uint32_t index = Vk::frameInFlightIndex) const { return m_IsMultiBuffered ? m_ImageDatas[index].image : m_ImageDatas[0].image; }
 
 		[[nodiscard]] VkSampler GetSampler() const { return m_Sampler; }
 
-		[[nodiscard]] VkImageLayout GetLayout(const uint32_t index = Vk::swapChainImageIndex) const { return m_IsMultiBuffered ? m_ImageDatas[index].m_Layout : m_ImageDatas[0].m_Layout; }
+		[[nodiscard]] VkImageLayout GetLayout(const uint32_t index = Vk::frameInFlightIndex) const { return m_IsMultiBuffered ? m_ImageDatas[index].m_Layout : m_ImageDatas[0].m_Layout; }
 
 	private:
 		struct ImageData

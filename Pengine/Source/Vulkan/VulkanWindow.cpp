@@ -173,9 +173,11 @@ bool VulkanWindow::Resize(const glm::ivec2& size)
 		imageCount);
 	ImGui_ImplVulkan_SetMinImageCount(imageCount);
 
-	m_VulkanWindow.FrameIndex = 0;
+	frameInFlightCount = m_VulkanWindow.FrameInFlightCount;
+	swapChainImageCount = m_VulkanWindow.ImageCount;
+	m_Frames.resize(frameInFlightCount);
 
-	for (size_t i = 0; i < imageCount; i++)
+	for (size_t i = 0; i < frameInFlightCount; i++)
 	{
 		m_Frames[i].CommandBuffer = m_VulkanWindow.Frames[i].CommandBuffer;
 		m_Frames[i].CommandPool = m_VulkanWindow.Frames[i].CommandPool;
@@ -288,9 +290,10 @@ void* VulkanWindow::BeginFrame()
 		(std::numeric_limits<uint64_t>::max)(),
 		imageAcquiredSemaphore,
 		VK_NULL_HANDLE,
-		&m_VulkanWindow.FrameIndex);
+		&m_VulkanWindow.ImageIndex);
 
-	swapChainImageIndex = m_VulkanWindow.FrameIndex;
+	frameInFlightIndex = m_VulkanWindow.FrameIndex;
+	swapChainImageIndex = m_VulkanWindow.ImageIndex;
 
 	if (result == VK_ERROR_OUT_OF_DATE_KHR)
 	{
@@ -304,7 +307,7 @@ void* VulkanWindow::BeginFrame()
 		return nullptr;
 	}
 
-	VulkanFrameInfo* vkFrame = &(m_Frames[swapChainImageIndex]);
+	VulkanFrameInfo* vkFrame = &(m_Frames[frameInFlightIndex]);
 
 	if (vkWaitForFences(GetVkDevice()->GetDevice(), 1, &vkFrame->Fence, VK_TRUE, UINT64_MAX))
 	{
@@ -374,7 +377,7 @@ void VulkanWindow::EndFrame(void* frame)
 	presentInfo.pWaitSemaphores = &m_VulkanWindow.FrameSemaphores[m_VulkanWindow.SemaphoreIndex].RenderCompleteSemaphore;
 	presentInfo.swapchainCount = 1;
 	presentInfo.pSwapchains = &m_VulkanWindow.Swapchain;
-	presentInfo.pImageIndices = &m_VulkanWindow.FrameIndex;
+	presentInfo.pImageIndices = &m_VulkanWindow.ImageIndex;
 
 	const VkResult result = vkQueuePresentKHR(GetVkDevice()->GetGraphicsQueue(), &presentInfo);
 	if (result == VK_ERROR_OUT_OF_DATE_KHR || result == VK_SUBOPTIMAL_KHR)
@@ -387,6 +390,7 @@ void VulkanWindow::EndFrame(void* frame)
 	}
 
 	m_VulkanWindow.SemaphoreIndex = (m_VulkanWindow.SemaphoreIndex + 1) % m_VulkanWindow.SemaphoreCount;
+	m_VulkanWindow.FrameIndex = (m_VulkanWindow.FrameIndex + 1) % m_VulkanWindow.FrameInFlightCount;
 }
 
 void VulkanWindow::ImGuiRenderPass()
@@ -402,7 +406,7 @@ void VulkanWindow::ImGuiRenderPass()
 	VkRenderPassBeginInfo info{};
 	info.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
 	info.renderPass = m_VulkanWindow.RenderPass;
-	info.framebuffer = imGuiFrame.Framebuffer;
+	info.framebuffer = m_VulkanWindow.Framebuffers[m_VulkanWindow.ImageIndex];
 	info.renderArea.extent.width = m_VulkanWindow.Width;
 	info.renderArea.extent.height = m_VulkanWindow.Height;
 	info.clearValueCount = 1;
@@ -529,9 +533,6 @@ void VulkanWindow::InitializeImGui()
 		imageCount = swapChainSupport.capabilities.maxImageCount;
 	}
 
-	m_Frames.resize(imageCount);
-	swapChainImageCount = imageCount;
-
 	ImGui_ImplVulkanH_CreateOrResizeWindow(
 		GetVkDevice()->GetInstance(),
 		GetVkDevice()->GetPhysicalDevice(),
@@ -542,6 +543,10 @@ void VulkanWindow::InitializeImGui()
 		m_Size.x,
 		m_Size.y,
 		imageCount);
+
+	frameInFlightCount = m_VulkanWindow.FrameInFlightCount;
+	swapChainImageCount = m_VulkanWindow.ImageCount;
+	m_Frames.resize(frameInFlightCount);
 
 	m_ImGuiContext = ImGui::CreateContext();
 	ImGui::SetCurrentContext(m_ImGuiContext);
@@ -560,6 +565,7 @@ void VulkanWindow::InitializeImGui()
 	initializeInfo.DescriptorPool = m_ImGuiDescriptorPool;
 	initializeInfo.MinImageCount = imageCount;
 	initializeInfo.ImageCount = m_VulkanWindow.ImageCount;
+	initializeInfo.FrameInFlightCount = m_VulkanWindow.FrameInFlightCount;
 	initializeInfo.MSAASamples = VK_SAMPLE_COUNT_1_BIT;
 	initializeInfo.UseDynamicRendering = false;
 	initializeInfo.RenderPass = m_VulkanWindow.RenderPass;
@@ -567,7 +573,7 @@ void VulkanWindow::InitializeImGui()
 	ImGui_ImplVulkan_Init(&initializeInfo);
 	ImGui_ImplVulkan_SetMinImageCount(imageCount);
 
-	for (size_t i = 0; i < imageCount; i++)
+	for (size_t i = 0; i < frameInFlightCount; i++)
 	{
 		m_Frames[i].CommandBuffer = m_VulkanWindow.Frames[i].CommandBuffer;
 		m_Frames[i].CommandPool = m_VulkanWindow.Frames[i].CommandPool;

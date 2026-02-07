@@ -109,7 +109,7 @@ void BindlessUniformWriter::CreateBindlessEntitiesResources(
 			MemoryType::CPU,
 			true);
 
-		Logger::Log(std::format("Bindless Entity Buffer Size: {} MB", (entitySize * entityCount * Vk::swapChainImageCount) / 1024.0f / 1024.0f));
+		Logger::Log(std::format("Bindless Entity Buffer Size: {} MB", (entitySize * entityCount * Vk::frameInFlightCount) / 1024.0f / 1024.0f));
 	}
 
 	const std::vector<ShaderReflection::ReflectDescriptorSetBinding> bindings = { *binding };

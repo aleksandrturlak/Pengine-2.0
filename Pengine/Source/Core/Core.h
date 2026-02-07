@@ -133,6 +133,8 @@ namespace Pengine
 
 	namespace Vk
 	{
+		inline uint32_t frameInFlightCount = 0;
+		inline uint32_t frameInFlightIndex = 0;
 		inline uint32_t swapChainImageCount = 0;
 		inline uint32_t swapChainImageIndex = 0;
 	}
@@ -152,6 +154,9 @@ namespace Pengine
 		size_t GetTriangleCount() const;
 		size_t GetCurrentFrame() const;
 		int64_t GetVramAllocated() const;
+
+		uint32_t& GetFrameInFlightCount();
+		uint32_t& GetFrameInFlightIndex();
 
 		uint32_t& GetSwapChainImageCount();
 		uint32_t& GetSwapChainImageIndex();

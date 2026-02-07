@@ -4094,13 +4094,13 @@ void Editor::Thumbnails::Initialize()
 	}
 
 	auto& globalDataAccessor = GlobalDataAccessor::GetInstance();
-	uint32_t& swapChainImageCount = globalDataAccessor.GetSwapChainImageCount();
-	uint32_t& swapChainImageIndex = globalDataAccessor.GetSwapChainImageIndex();
+	uint32_t& frameInFlightCount = globalDataAccessor.GetFrameInFlightCount();
+	uint32_t& frameInFlightIndex = globalDataAccessor.GetFrameInFlightIndex();
 
-	const uint32_t previousSwapChainImageIndex = swapChainImageIndex;
+	const uint32_t previousFrameInFlightIndex = frameInFlightIndex;
 
 	// Need to render n times to initialize every render target and etc.
-	for (size_t i = 0; i < swapChainImageCount; i++)
+	for (size_t i = 0; i < frameInFlightCount; i++)
 	{
 		// SetCamera and other functions in Renderer::Update send callbacks to create render target
 		// and other resources on the next frame,
@@ -4126,12 +4126,12 @@ void Editor::Thumbnails::Initialize()
 
 		m_ThumbnailWindow->EndFrame(frame);
 
-		swapChainImageIndex = ++swapChainImageIndex % swapChainImageCount;
+		frameInFlightIndex = ++frameInFlightIndex % frameInFlightCount;
 	}
 
 	Pengine::GlobalDataAccessor::GetInstance().GetDevice()->WaitIdle();
 
-	swapChainImageIndex = previousSwapChainImageIndex;
+	frameInFlightIndex = previousFrameInFlightIndex;
 }
 
 void Editor::Thumbnails::ShutDown()
@@ -4380,16 +4380,16 @@ void Editor::Thumbnails::UpdateScenePrefabThumbnail(const ThumbnailLoadInfo& thu
 		cameraComponent.SetZFar(maxDistance * distanceScale * 3.0f);
 	}
 	auto& globalDataAccessor = GlobalDataAccessor::GetInstance();
-	uint32_t& swapChainImageCount = globalDataAccessor.GetSwapChainImageCount();
-	uint32_t& swapChainImageIndex = globalDataAccessor.GetSwapChainImageIndex();
+	uint32_t& frameInFlightCount = globalDataAccessor.GetFrameInFlightCount();
+	uint32_t& frameInFlightIndex = globalDataAccessor.GetFrameInFlightIndex();
 
-	uint32_t previousSwapChainImageIndex = swapChainImageIndex;
+	uint32_t previousFrameInFlightIndex = frameInFlightIndex;
 
 	// Need to render n times to initialize every render target and etc.
 	// Though this is a scene thumbnail generation, which happen only on save scene action
 	// and to this point everything should be already initialized,
 	// but still let's just render a couple more frames.
-	for (size_t i = 0; i < swapChainImageCount + 1; i++)
+	for (size_t i = 0; i < frameInFlightCount + 1; i++)
 	{
 		// SetCamera and other functions in Renderer::Update send callbacks to create render target
 		// and other resources on the next frame,
@@ -4414,12 +4414,12 @@ void Editor::Thumbnails::UpdateScenePrefabThumbnail(const ThumbnailLoadInfo& thu
 
 		m_ThumbnailWindow->EndFrame(frame);
 
-		swapChainImageIndex = ++swapChainImageIndex % swapChainImageCount;
+		frameInFlightIndex = ++frameInFlightIndex % frameInFlightCount;
 	}
 
 	Pengine::GlobalDataAccessor::GetInstance().GetDevice()->WaitIdle();
 
-	swapChainImageIndex = previousSwapChainImageIndex;
+	frameInFlightIndex = previousFrameInFlightIndex;
 
 	cameraComponent.TakeScreenshot(thumbnailLoadInfo.thumbnailFilepath, name, &m_GeneratingThumbnails.at(thumbnailLoadInfo.resourceFilepath));
 

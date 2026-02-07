@@ -34,7 +34,7 @@ void VulkanFrameBuffer::Resize(const glm::ivec2& size)
 
 	m_Size = size;
 
-	m_FrameBuffers.resize(swapChainImageCount);
+	m_FrameBuffers.resize(frameInFlightCount);
 
 	const auto& renderPassAttachments = m_RenderPass->GetAttachmentDescriptions();
 
@@ -60,7 +60,7 @@ void VulkanFrameBuffer::Resize(const glm::ivec2& size)
 		textureIndex++;
 	}
 
-	for (size_t frameIndex = 0; frameIndex < swapChainImageCount; frameIndex++)
+	for (size_t frameIndex = 0; frameIndex < frameInFlightCount; frameIndex++)
 	{
 		std::vector<VkImageView> imageViews;
 

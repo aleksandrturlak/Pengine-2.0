@@ -1251,7 +1251,7 @@ void VulkanDevice::FlushDeletionQueue(bool immediate)
 	std::vector<size_t> queuesToDelete;
 	for (auto& [frame, queue] : m_DeletionQueue)
 	{
-		if (!immediate && currentFrame <= frame + swapChainImageCount)
+		if (!immediate && currentFrame <= frame + frameInFlightCount)
 		{
 			continue;
 		}
@@ -1275,12 +1275,12 @@ void VulkanDevice::FlushDeletionQueue(bool immediate)
 void VulkanDevice::ForEachFrame(const std::function<void()>& callback)
 {
 	Lock lock;
-	const uint32_t swapChainImageIndexCopy = Vk::swapChainImageIndex;
-	for (Vk::swapChainImageIndex = 0; Vk::swapChainImageIndex < Vk::swapChainImageCount; Vk::swapChainImageIndex++)
+	const uint32_t frameInFlightIndexCopy = Vk::frameInFlightIndex;
+	for (Vk::frameInFlightIndex = 0; Vk::frameInFlightIndex < Vk::frameInFlightCount; Vk::frameInFlightIndex++)
 	{
 		callback();
 	}
-	Vk::swapChainImageIndex = swapChainImageIndexCopy;
+	Vk::frameInFlightIndex = frameInFlightIndexCopy;
 }
 
 VkCommandBuffer VulkanDevice::GetCommandBufferFromFrame(void* frame)

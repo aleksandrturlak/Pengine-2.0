@@ -42,7 +42,7 @@ VulkanTexture::VulkanTexture(const CreateInfo& createInfo)
 
 	if (m_IsMultiBuffered)
 	{
-		m_ImageDatas.resize(Vk::swapChainImageCount);
+		m_ImageDatas.resize(Vk::frameInFlightCount);
 	}
 	else
 	{
@@ -575,10 +575,10 @@ void VulkanTexture::TransitionInternal(ImageData& imageData, VkImageLayout layou
 
 VulkanTexture::ImageData& VulkanTexture::GetImageData()
 {
-	return m_IsMultiBuffered ? m_ImageDatas[swapChainImageIndex] : m_ImageDatas[0];
+	return m_IsMultiBuffered ? m_ImageDatas[frameInFlightIndex] : m_ImageDatas[0];
 }
 
 const VulkanTexture::ImageData& VulkanTexture::GetImageData() const
 {
-	return m_IsMultiBuffered ? m_ImageDatas[swapChainImageIndex] : m_ImageDatas[0];
+	return m_IsMultiBuffered ? m_ImageDatas[frameInFlightIndex] : m_ImageDatas[0];
 }

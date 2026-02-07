@@ -16,7 +16,7 @@ VulkanUniformWriter::VulkanUniformWriter(
 	bool isMultiBuffered)
 	: UniformWriter(uniformLayout, isMultiBuffered)
 {
-	const size_t count = IsMultiBuffered() ? swapChainImageCount : 1;
+	const size_t count = IsMultiBuffered() ? frameInFlightCount : 1;
 
 	m_DescriptorSets.resize(count);
 
@@ -37,7 +37,7 @@ VulkanUniformWriter::~VulkanUniformWriter()
 
 void VulkanUniformWriter::Flush()
 {
-	const uint32_t index = IsMultiBuffered() * swapChainImageIndex;
+	const uint32_t index = IsMultiBuffered() * frameInFlightIndex;
 	const VkDescriptorSet set = m_DescriptorSets[index];
 
 	std::vector<VkWriteDescriptorSet> writes;
@@ -124,7 +124,7 @@ NativeHandle VulkanUniformWriter::GetNativeHandle() const
 
 void VulkanUniformWriter::WriteTexture(uint32_t location, const std::vector<VkDescriptorImageInfo>& vkDescriptorImageInfos)
 {
-	const size_t count = IsMultiBuffered() ? swapChainImageCount : 1;
+	const size_t count = IsMultiBuffered() ? frameInFlightCount : 1;
 	assert(count == vkDescriptorImageInfos.size());
 
 	const auto binding = m_UniformLayout->GetBindingByLocation(location);
@@ -154,5 +154,5 @@ void VulkanUniformWriter::WriteTexture(uint32_t location, const std::vector<VkDe
 
 VkDescriptorSet VulkanUniformWriter::GetDescriptorSet() const
 {
-	return m_DescriptorSets[IsMultiBuffered() * swapChainImageIndex];
+	return m_DescriptorSets[IsMultiBuffered() * frameInFlightIndex];
 }

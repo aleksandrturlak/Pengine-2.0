@@ -156,8 +156,8 @@ VulkanBuffer::VulkanBuffer(
 		m_Data = new uint8_t[m_BufferSize];
 	}
 
-	m_IsChanged.resize(m_IsMultiBuffered ? swapChainImageCount : 1, false);
-	m_BufferDatas.resize(m_IsMultiBuffered ? swapChainImageCount : 1);
+	m_IsChanged.resize(m_IsMultiBuffered ? frameInFlightCount : 1, false);
+	m_BufferDatas.resize(m_IsMultiBuffered ? frameInFlightCount : 1);
 	for (BufferData& bufferData : m_BufferDatas)
 	{
 		GetVkDevice()->CreateBuffer(
@@ -198,7 +198,7 @@ void* VulkanBuffer::GetData() const
 		FATAL_ERROR("Can't get data from the buffer that is allocated on GPU!");
 	}
 
-	return m_BufferDatas[swapChainImageIndex].m_VmaAllocationInfo.pMappedData;
+	return m_BufferDatas[frameInFlightIndex].m_VmaAllocationInfo.pMappedData;
 }
 
 void VulkanBuffer::WriteToBuffer(void* data, const size_t size, const size_t offset)
@@ -249,7 +249,7 @@ void VulkanBuffer::Flush()
 		return;
 	}
 
-	const uint32_t imageIndex = m_IsChanged.size() == 1 ? 0 : swapChainImageIndex;
+	const uint32_t imageIndex = m_IsChanged.size() == 1 ? 0 : frameInFlightIndex;
 
 	if (!m_IsChanged[imageIndex])
 	{

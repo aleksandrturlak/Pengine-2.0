@@ -30,7 +30,7 @@ SSS:
   MaxDistance: 50
   MaxSteps: 16
   MinThickness: -0.0125000002
-  MaxThickness: 0
+  MaxThickness: -0.00999999978
 PointLightShadows:
   IsEnabled: true
   AtlasQuality: 3

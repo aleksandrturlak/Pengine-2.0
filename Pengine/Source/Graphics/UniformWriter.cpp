@@ -26,7 +26,7 @@ UniformWriter::UniformWriter(
 	: m_UniformLayout(uniformLayout)
 	, m_IsMultiBuffered(isMultiBuffered)
 {
-	m_Writes.resize(m_IsMultiBuffered ? Vk::swapChainImageCount : 1);
+	m_Writes.resize(m_IsMultiBuffered ? Vk::frameInFlightCount : 1);
 }
 
 UniformWriter::~UniformWriter()

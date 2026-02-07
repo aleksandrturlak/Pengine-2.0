@@ -71,7 +71,7 @@ namespace Pengine::Vk
 			VkDeviceSize size = VK_WHOLE_SIZE,
 			VkDeviceSize offset = 0) const;
 
-		[[nodiscard]] inline VkBuffer GetBuffer() const { return m_BufferDatas[swapChainImageIndex * m_IsMultiBuffered].m_Buffer; }
+		[[nodiscard]] inline VkBuffer GetBuffer() const { return m_BufferDatas[frameInFlightIndex * m_IsMultiBuffered].m_Buffer; }
 		[[nodiscard]] inline VkDeviceSize GetAlignmentSize() const { return m_AlignmentSize; }
 		[[nodiscard]] inline VkBufferUsageFlags GetUsageFlags() const { return m_UsageFlags; }
 		[[nodiscard]] inline VmaMemoryUsage GetMemoryUsage() const { return m_MemoryUsage; }
