@@ -180,14 +180,7 @@ namespace Pengine
 			const std::string& uniformWriterIndexByName = {},
 			const bool isMultiBuffered = true);
 
-		static std::shared_ptr<class UniformWriter> GetOrCreateRendererUniformWriter(
-			std::shared_ptr<class RenderView> renderView,
-			std::shared_ptr<class Pipeline> pipeline,
-			const std::string& uniformWriterName,
-			const std::string& uniformWriterIndexByName = {},
-			const bool isMultiBuffered = true);
-
-		static std::shared_ptr<class Buffer> GetOrCreateRenderBuffer(
+		static std::shared_ptr<class Buffer> GetOrCreateBuffer(
 			std::shared_ptr<class RenderView> renderView,
 			std::shared_ptr<class UniformWriter> uniformWriter,
 			const std::string& bufferName,

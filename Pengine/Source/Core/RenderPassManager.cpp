@@ -226,7 +226,7 @@ void RenderPassManager::PrepareUniformsPerViewportBeforeDraw(const RenderPass::R
 
 	const std::shared_ptr<UniformWriter> renderUniformWriter = GetOrCreateUniformWriter(renderInfo.renderView, pipeline, Pipeline::DescriptorSetIndexType::RENDERER, DefaultReflection);
 	const std::string globalBufferName = "GlobalBuffer";
-	const std::shared_ptr<Buffer> globalBuffer = GetOrCreateRenderBuffer(
+	const std::shared_ptr<Buffer> globalBuffer = GetOrCreateBuffer(
 		renderInfo.renderView,
 		renderUniformWriter,
 		globalBufferName,
@@ -656,12 +656,13 @@ void RenderPassManager::CreateComputeIndirectDrawGBuffer()
 
 		const auto& gbufferData = multiPassData->passesByName[GBuffer];
 
-		const std::shared_ptr<UniformWriter>& renderUniformWriter = GetOrCreateRendererUniformWriter(renderInfo.renderView, pipeline, ComputeIndirectDrawGBuffer, {}, true);
-		const std::shared_ptr<Buffer>& indirectDrawCommandsBuffer = GetOrCreateRenderBuffer(
+		const std::shared_ptr<UniformWriter>& renderUniformWriter = GetOrCreateUniformWriter(
+			renderInfo.renderView, pipeline, Pipeline::DescriptorSetIndexType::RENDERER, ComputeIndirectDrawGBuffer, {}, true);
+		const std::shared_ptr<Buffer>& indirectDrawCommandsBuffer = GetOrCreateBuffer(
 			renderInfo.renderView, renderUniformWriter, "IndirectDrawCommands", {}, { Buffer::Usage::STORAGE_BUFFER, Buffer::Usage::INDIRECT_BUFFER }, MemoryType::GPU, true);
-		const std::shared_ptr<Buffer>& indirectDrawCommandCountBuffer = GetOrCreateRenderBuffer(
+		const std::shared_ptr<Buffer>& indirectDrawCommandCountBuffer = GetOrCreateBuffer(
 			renderInfo.renderView, renderUniformWriter, "IndirectDrawCommandCount", {}, { Buffer::Usage::STORAGE_BUFFER, Buffer::Usage::INDIRECT_BUFFER }, MemoryType::GPU, true);
-		const std::shared_ptr<Buffer>& pipelineInfoBuffer = GetOrCreateRenderBuffer(
+		const std::shared_ptr<Buffer>& pipelineInfoBuffer = GetOrCreateBuffer(
 			renderInfo.renderView, renderUniformWriter, "PipelineInfoBuffer", {}, { Buffer::Usage::STORAGE_BUFFER, Buffer::Usage::INDIRECT_BUFFER }, MemoryType::CPU, true);
 
 		uint32_t offset = 0;
@@ -790,11 +791,11 @@ void RenderPassManager::CreateComputeIndirectDrawCSM()
 			return;
 		}
 
-		const std::shared_ptr<UniformWriter>& lightSpaceUniformWriter = GetOrCreateRendererUniformWriter(
-			renderInfo.renderView, pipeline, ComputeIndirectDrawCSM, {}, true);
+		const std::shared_ptr<UniformWriter>& lightSpaceUniformWriter = GetOrCreateUniformWriter(
+			renderInfo.renderView, pipeline, Pipeline::DescriptorSetIndexType::RENDERER, ComputeIndirectDrawCSM, {}, true);
 		
 		const std::string lightSpaceMatricesBufferName = "LightSpaceMatrices";
-		const std::shared_ptr<Buffer> lightSpaceMatricesBuffer = GetOrCreateRenderBuffer(
+		const std::shared_ptr<Buffer> lightSpaceMatricesBuffer = GetOrCreateBuffer(
 			renderInfo.renderView,
 			lightSpaceUniformWriter,
 			lightSpaceMatricesBufferName,
@@ -816,18 +817,18 @@ void RenderPassManager::CreateComputeIndirectDrawCSM()
 			cascadeCount);
 		lightSpaceMatricesBuffer->Flush();
 
-		const std::shared_ptr<UniformWriter>& renderUniformWriter = GetOrCreateRendererUniformWriter(
-			renderInfo.renderView, pipeline, "ComputeIndirectDrawCSMBuffers", {}, true);
-		const std::shared_ptr<Buffer>& indirectDrawCommandsBuffer = GetOrCreateRenderBuffer(
+		const std::shared_ptr<UniformWriter>& renderUniformWriter = GetOrCreateUniformWriter(
+			renderInfo.renderView, pipeline, Pipeline::DescriptorSetIndexType::RENDERER, "ComputeIndirectDrawCSMBuffers", {}, true);
+		const std::shared_ptr<Buffer>& indirectDrawCommandsBuffer = GetOrCreateBuffer(
 			renderInfo.renderView, renderUniformWriter, "IndirectDrawCommands", "IndirectDrawCommandsCSM", 
 			{ Buffer::Usage::STORAGE_BUFFER, Buffer::Usage::INDIRECT_BUFFER }, MemoryType::GPU, true);
-		const std::shared_ptr<Buffer>& indirectDrawCommandCountBuffer = GetOrCreateRenderBuffer(
+		const std::shared_ptr<Buffer>& indirectDrawCommandCountBuffer = GetOrCreateBuffer(
 			renderInfo.renderView, renderUniformWriter, "IndirectDrawCommandCount", "IndirectDrawCommandCountCSM", 
 			{ Buffer::Usage::STORAGE_BUFFER, Buffer::Usage::INDIRECT_BUFFER }, MemoryType::GPU, true);
-		const std::shared_ptr<Buffer>& pipelineInfoBuffer = GetOrCreateRenderBuffer(
+		const std::shared_ptr<Buffer>& pipelineInfoBuffer = GetOrCreateBuffer(
 			renderInfo.renderView, renderUniformWriter, "PipelineInfoBuffer", "PipelineInfoBufferCSM", 
 			{ Buffer::Usage::STORAGE_BUFFER, Buffer::Usage::INDIRECT_BUFFER }, MemoryType::CPU, true);
-		const std::shared_ptr<Buffer>& csmInstanceDataBuffer = GetOrCreateRenderBuffer(
+		const std::shared_ptr<Buffer>& csmInstanceDataBuffer = GetOrCreateBuffer(
 			renderInfo.renderView, renderUniformWriter, "CSMInstanceDataBuffer", "CSMInstanceDataBufferCSM", 
 			{ Buffer::Usage::STORAGE_BUFFER }, MemoryType::GPU, true);
 
@@ -1035,9 +1036,9 @@ void RenderPassManager::CreateGBuffer()
 					}
 				))
 				{
-					const std::shared_ptr<Buffer>& indirectDrawCommandsBuffer = GetOrCreateRenderBuffer(
+					const std::shared_ptr<Buffer>& indirectDrawCommandsBuffer = GetOrCreateBuffer(
 						renderInfo.renderView, nullptr, "IndirectDrawCommands");
-					const std::shared_ptr<Buffer>& indirectDrawCommandCountBuffer = GetOrCreateRenderBuffer(
+					const std::shared_ptr<Buffer>& indirectDrawCommandCountBuffer = GetOrCreateBuffer(
 						renderInfo.renderView, nullptr, "IndirectDrawCommandCount");
 
 					renderInfo.renderer->DrawIndirectCount(
@@ -1116,8 +1117,9 @@ void RenderPassManager::CreateDeferred()
 		}
 
 		const std::string lightsBufferName = "Lights";
-		const std::shared_ptr<UniformWriter> lightsUniformWriter = GetOrCreateRendererUniformWriter(renderInfo.renderView, pipeline, lightsBufferName);
-		const std::shared_ptr<Buffer> lightsBuffer = GetOrCreateRenderBuffer(
+		const std::shared_ptr<UniformWriter> lightsUniformWriter = GetOrCreateUniformWriter(
+			renderInfo.renderView, pipeline, Pipeline::DescriptorSetIndexType::RENDERER, lightsBufferName);
+		const std::shared_ptr<Buffer> lightsBuffer = GetOrCreateBuffer(
 			renderInfo.renderView,
 			lightsUniformWriter,
 			lightsBufferName,
@@ -1199,13 +1201,15 @@ void RenderPassManager::CreateDeferred()
 			baseMaterial->WriteToBuffer(lightsBuffer, lightsBufferName, "csm.cascadeCount", hasDirectionalLight);
 		}
 
-		const std::shared_ptr<UniformWriter> renderUniformWriter = GetOrCreateRendererUniformWriter(renderInfo.renderView, pipeline, passName);
+		const std::shared_ptr<UniformWriter> renderUniformWriter = GetOrCreateUniformWriter(
+			renderInfo.renderView, pipeline, Pipeline::DescriptorSetIndexType::RENDERER, passName);
 		WriteRenderViews(renderInfo.renderView, renderInfo.scene->GetRenderView(), pipeline, renderUniformWriter);
 
 		const std::shared_ptr<Texture> colorTexture = renderInfo.renderView->GetFrameBuffer(Transparent)->GetAttachment(0);
 		const std::shared_ptr<Texture> emissiveTexture = renderInfo.renderView->GetFrameBuffer(GBuffer)->GetAttachment(3);
 
-		const std::shared_ptr<UniformWriter> outputUniformWriter = GetOrCreateRendererUniformWriter(renderInfo.renderView, pipeline, "DeferredOutput");
+		const std::shared_ptr<UniformWriter> outputUniformWriter = GetOrCreateUniformWriter(
+			renderInfo.renderView, pipeline, Pipeline::DescriptorSetIndexType::RENDERER, "DeferredOutput");
 		outputUniformWriter->WriteTexture("outColor", colorTexture);
 		outputUniformWriter->WriteTexture("outEmissive", emissiveTexture);
 		
@@ -1319,7 +1323,7 @@ void RenderPassManager::CreateAtmosphere()
 		const std::shared_ptr<UniformWriter> renderUniformWriter = GetOrCreateUniformWriter(
 			renderInfo.scene->GetRenderView(), pipeline, Pipeline::DescriptorSetIndexType::SCENE, renderPassName);
 		const std::string atmosphereBufferName = "AtmosphereBuffer";
-		const std::shared_ptr<Buffer> atmosphereBuffer = GetOrCreateRenderBuffer(
+		const std::shared_ptr<Buffer> atmosphereBuffer = GetOrCreateBuffer(
 			renderInfo.scene->GetRenderView(),
 			renderUniformWriter,
 			atmosphereBufferName,
@@ -1817,13 +1821,13 @@ void RenderPassManager::CreateCSM()
 
 			renderInfo.renderer->BeginRenderPass(submitInfo);
 
-			const std::shared_ptr<Buffer>& csmInstanceDataBuffer = GetOrCreateRenderBuffer(
+			const std::shared_ptr<Buffer>& csmInstanceDataBuffer = GetOrCreateBuffer(
 				renderInfo.renderView, nullptr, "CSMInstanceDataBufferCSM");
-			const std::shared_ptr<Buffer>& indirectDrawCommandsBuffer = GetOrCreateRenderBuffer(
+			const std::shared_ptr<Buffer>& indirectDrawCommandsBuffer = GetOrCreateBuffer(
 				renderInfo.renderView, nullptr, "IndirectDrawCommandsCSM");
-			const std::shared_ptr<Buffer>& indirectDrawCommandCountBuffer = GetOrCreateRenderBuffer(
+			const std::shared_ptr<Buffer>& indirectDrawCommandCountBuffer = GetOrCreateBuffer(
 				renderInfo.renderView, nullptr, "IndirectDrawCommandCountCSM");
-			const std::shared_ptr<Buffer>& pipelineInfoBuffer = GetOrCreateRenderBuffer(
+			const std::shared_ptr<Buffer>& pipelineInfoBuffer = GetOrCreateBuffer(
 				renderInfo.renderView, nullptr, "PipelineInfoBufferCSM");
 
 			for (int cascadeIndex = 0; cascadeIndex < cascadeCount; ++cascadeIndex)
@@ -1834,10 +1838,10 @@ void RenderPassManager::CreateCSM()
 				{
 					renderInfo.renderer->BindPipeline(pipeline, renderInfo.frame);
 
-					const std::shared_ptr<UniformWriter> renderUniformWriter = GetOrCreateRendererUniformWriter(
-						renderInfo.renderView, pipeline, renderPassName);
+					const std::shared_ptr<UniformWriter> renderUniformWriter = GetOrCreateUniformWriter(
+						renderInfo.renderView, pipeline, Pipeline::DescriptorSetIndexType::RENDERER, renderPassName);
 					const std::string lightSpaceMatricesBufferName = "LightSpaceMatrices";
-					lightSpaceMatricesBuffer = GetOrCreateRenderBuffer(
+					lightSpaceMatricesBuffer = GetOrCreateBuffer(
 						renderInfo.renderView,
 						renderUniformWriter,
 						lightSpaceMatricesBufferName,
@@ -2016,8 +2020,9 @@ void RenderPassManager::CreatePointLightShadows()
 		}
 
 		const std::string lightsBufferName = "Lights";
-		const std::shared_ptr<UniformWriter> lightsUniformWriter = GetOrCreateRendererUniformWriter(renderInfo.renderView, deferredPipeline, lightsBufferName);
-		const std::shared_ptr<Buffer> lightsBuffer = GetOrCreateRenderBuffer(
+		const std::shared_ptr<UniformWriter> lightsUniformWriter = GetOrCreateUniformWriter(
+			renderInfo.renderView, deferredPipeline, Pipeline::DescriptorSetIndexType::RENDERER, lightsBufferName);
+		const std::shared_ptr<Buffer> lightsBuffer = GetOrCreateBuffer(
 			renderInfo.renderView,
 			lightsUniformWriter,
 			lightsBufferName,
@@ -2557,8 +2562,9 @@ void RenderPassManager::CreateSpotLightShadows()
 		}
 
 		const std::string lightsBufferName = "Lights";
-		const std::shared_ptr<UniformWriter> lightsUniformWriter = GetOrCreateRendererUniformWriter(renderInfo.renderView, deferredPipeline, lightsBufferName);
-		const std::shared_ptr<Buffer> lightsBuffer = GetOrCreateRenderBuffer(
+		const std::shared_ptr<UniformWriter> lightsUniformWriter = GetOrCreateUniformWriter(
+			renderInfo.renderView, deferredPipeline, Pipeline::DescriptorSetIndexType::RENDERER, lightsBufferName);
+		const std::shared_ptr<Buffer> lightsBuffer = GetOrCreateBuffer(
 			renderInfo.renderView,
 			lightsUniformWriter,
 			lightsBufferName,
@@ -3133,9 +3139,9 @@ void RenderPassManager::CreateBloom()
 				{
 					const std::string mipLevelString = std::to_string(mipLevel);
 
-					const std::shared_ptr<UniformWriter> renderUniformWriter = GetOrCreateRendererUniformWriter(
-						renderInfo.renderView, pipeline, renderPassName, "BloomDownUniformWriters[" + mipLevelString + "]");
-					GetOrCreateRenderBuffer(
+					const std::shared_ptr<UniformWriter> renderUniformWriter = GetOrCreateUniformWriter(
+						renderInfo.renderView, pipeline, Pipeline::DescriptorSetIndexType::RENDERER, renderPassName, "BloomDownUniformWriters[" + mipLevelString + "]");
+					GetOrCreateBuffer(
 						renderInfo.renderView,
 						renderUniformWriter,
 						"MipBuffer",
@@ -3231,7 +3237,12 @@ void RenderPassManager::CreateBloom()
 			{
 				for (int mipLevel = 0; mipLevel < mipCount - 1; mipLevel++)
 				{
-					GetOrCreateRendererUniformWriter(renderInfo.renderView, pipeline, renderPassName, "BloomUpUniformWriters[" + std::to_string(mipLevel) + "]");
+					GetOrCreateUniformWriter(
+						renderInfo.renderView,
+						pipeline,
+						Pipeline::DescriptorSetIndexType::RENDERER,
+						renderPassName,
+						"BloomUpUniformWriters[" + std::to_string(mipLevel) + "]");
 				}
 			}
 
@@ -3321,7 +3332,11 @@ void RenderPassManager::CreateSSR()
 			{
 				ssrTexture = Texture::Create(createInfo);
 				renderInfo.renderView->SetStorageImage(passName, ssrTexture);
-				GetOrCreateRendererUniformWriter(renderInfo.renderView, pipeline, passName)->WriteTexture("outColor", ssrTexture);
+				GetOrCreateUniformWriter(
+					renderInfo.renderView,
+					pipeline,
+					Pipeline::DescriptorSetIndexType::RENDERER,
+					passName)->WriteTexture("outColor", ssrTexture);
 			}
 		}
 		else
@@ -3335,13 +3350,15 @@ void RenderPassManager::CreateSSR()
 
 		if (currentViewportSize != ssrTexture->GetSize())
 		{
-			const std::shared_ptr<UniformWriter> renderUniformWriter = GetOrCreateRendererUniformWriter(renderInfo.renderView, pipeline, passName);
+			const std::shared_ptr<UniformWriter> renderUniformWriter = GetOrCreateUniformWriter(
+				renderInfo.renderView, pipeline, Pipeline::DescriptorSetIndexType::RENDERER, passName);
 			const std::shared_ptr<Texture> ssrTexture = Texture::Create(createInfo);
 			renderInfo.renderView->SetStorageImage(passName, ssrTexture);
 			renderUniformWriter->WriteTexture("outColor", ssrTexture);
 		}
 
-		const std::shared_ptr<UniformWriter> renderUniformWriter = GetOrCreateRendererUniformWriter(renderInfo.renderView, pipeline, passName);
+		const std::shared_ptr<UniformWriter> renderUniformWriter = GetOrCreateUniformWriter(
+			renderInfo.renderView, pipeline, Pipeline::DescriptorSetIndexType::RENDERER, passName);
 
 		WriteRenderViews(renderInfo.renderView, renderInfo.scene->GetRenderView(), pipeline, renderUniformWriter);
 		if (const auto frameBuffer = renderInfo.scene->GetRenderView()->GetFrameBuffer(Atmosphere))
@@ -3351,7 +3368,7 @@ void RenderPassManager::CreateSSR()
 
 		const glm::vec2 viewportScale = glm::vec2(resolutionScales[ssrSettings.resolutionScale]);
 		const int useSkyBoxFallback = ssrSettings.useSkyBoxFallback;
-		const std::shared_ptr<Buffer> ssrBuffer = GetOrCreateRenderBuffer(
+		const std::shared_ptr<Buffer> ssrBuffer = GetOrCreateBuffer(
 			renderInfo.renderView,
 			renderUniformWriter,
 			ssrBufferName,
@@ -3430,7 +3447,11 @@ void RenderPassManager::CreateSSRBlur()
 			{
 				ssrBlurTexture = Texture::Create(createInfo);
 				renderInfo.renderView->SetStorageImage(passName, ssrBlurTexture);
-				GetOrCreateRendererUniformWriter(renderInfo.renderView, pipeline, passName)->WriteTexture("outColor", ssrBlurTexture);
+				GetOrCreateUniformWriter(
+					renderInfo.renderView,
+					pipeline,
+					Pipeline::DescriptorSetIndexType::RENDERER,
+					passName)->WriteTexture("outColor", ssrBlurTexture);
 			}
 		}
 		else
@@ -3444,17 +3465,19 @@ void RenderPassManager::CreateSSRBlur()
 
 		if (currentViewportSize != ssrBlurTexture->GetSize())
 		{
-			const std::shared_ptr<UniformWriter> renderUniformWriter = GetOrCreateRendererUniformWriter(renderInfo.renderView, pipeline, passName);
+			const std::shared_ptr<UniformWriter> renderUniformWriter = GetOrCreateUniformWriter(
+				renderInfo.renderView, pipeline, Pipeline::DescriptorSetIndexType::RENDERER, passName);
 			const std::shared_ptr<Texture> ssrBlurTexture = Texture::Create(createInfo);
 			renderInfo.renderView->SetStorageImage(passName, ssrBlurTexture);
 			renderUniformWriter->WriteTexture("outColor", ssrBlurTexture);
 		}
 
-		const std::shared_ptr<UniformWriter> renderUniformWriter = GetOrCreateRendererUniformWriter(renderInfo.renderView, pipeline, passName);
+		const std::shared_ptr<UniformWriter> renderUniformWriter = GetOrCreateUniformWriter(
+			renderInfo.renderView, pipeline, Pipeline::DescriptorSetIndexType::RENDERER, passName);
 
 		const int blur = (int)ssrSettings.blur;
 
-		const std::shared_ptr<Buffer> ssrBuffer = GetOrCreateRenderBuffer(
+		const std::shared_ptr<Buffer> ssrBuffer = GetOrCreateBuffer(
 			renderInfo.renderView,
 			renderUniformWriter,
 			ssrBufferName,
@@ -3550,13 +3573,18 @@ void RenderPassManager::CreateSSAO()
 			{
 				ssaoTexture = Texture::Create(createInfo);
 				renderInfo.renderView->SetStorageImage(passName, ssaoTexture);
-				GetOrCreateRendererUniformWriter(renderInfo.renderView, pipeline, passName)->WriteTexture("outColor", ssaoTexture);
+				GetOrCreateUniformWriter(
+					renderInfo.renderView,
+					pipeline,
+					Pipeline::DescriptorSetIndexType::RENDERER,
+					passName)->WriteTexture("outColor", ssaoTexture);
 			}
 		}
 
 		if (currentViewportSize != ssaoTexture->GetSize())
 		{
-			const std::shared_ptr<UniformWriter> renderUniformWriter = GetOrCreateRendererUniformWriter(renderInfo.renderView, pipeline, passName);
+			const std::shared_ptr<UniformWriter> renderUniformWriter = GetOrCreateUniformWriter(
+				renderInfo.renderView, pipeline, Pipeline::DescriptorSetIndexType::RENDERER, passName);
 			const std::shared_ptr<Texture> ssaoTexture = Texture::Create(createInfo);
 			renderInfo.renderView->SetStorageImage(passName, ssaoTexture);
 			renderUniformWriter->WriteTexture("outColor", ssaoTexture);
@@ -3571,8 +3599,9 @@ void RenderPassManager::CreateSSAO()
 			ssaoRenderer->GenerateNoiseTexture(ssaoSettings.noiseSize);
 		}
 
-		const std::shared_ptr<UniformWriter> renderUniformWriter = GetOrCreateRendererUniformWriter(renderInfo.renderView, pipeline, passName);
-		const std::shared_ptr<Buffer> ssaoBuffer = GetOrCreateRenderBuffer(
+		const std::shared_ptr<UniformWriter> renderUniformWriter = GetOrCreateUniformWriter(
+			renderInfo.renderView, pipeline, Pipeline::DescriptorSetIndexType::RENDERER, passName);
+		const std::shared_ptr<Buffer> ssaoBuffer = GetOrCreateBuffer(
 			renderInfo.renderView,
 			renderUniformWriter,
 			ssaoBufferName,
@@ -3659,11 +3688,13 @@ void RenderPassManager::CreateSSAOBlur()
 			{
 				ssaoBlurTexture = Texture::Create(createInfo);
 				renderInfo.renderView->SetStorageImage(passName, ssaoBlurTexture);
-				GetOrCreateRendererUniformWriter(renderInfo.renderView, pipeline, passName)->WriteTexture("outColor", ssaoBlurTexture);
+				GetOrCreateUniformWriter(
+					renderInfo.renderView, pipeline, Pipeline::DescriptorSetIndexType::RENDERER, passName)->WriteTexture("outColor", ssaoBlurTexture);
 			}
 		}
 
-		const std::shared_ptr<UniformWriter> renderUniformWriter = GetOrCreateRendererUniformWriter(renderInfo.renderView, pipeline, passName);
+		const std::shared_ptr<UniformWriter> renderUniformWriter = GetOrCreateUniformWriter(
+			renderInfo.renderView, pipeline, Pipeline::DescriptorSetIndexType::RENDERER, passName);
 		if (currentViewportSize != ssaoBlurTexture->GetSize())
 		{
 			const std::shared_ptr<Texture> ssaoBlurTexture = Texture::Create(createInfo);
@@ -3740,19 +3771,25 @@ void RenderPassManager::CreateSSS()
 			{
 				sssTexture = Texture::Create(createInfo);
 				renderInfo.renderView->SetStorageImage(passName, sssTexture);
-				GetOrCreateRendererUniformWriter(renderInfo.renderView, pipeline, passName)->WriteTexture("outColor", sssTexture);
+				GetOrCreateUniformWriter(
+					renderInfo.renderView,
+					pipeline,
+					Pipeline::DescriptorSetIndexType::RENDERER,
+					passName)->WriteTexture("outColor", sssTexture);
 			}
 		}
 
 		if (currentViewportSize != sssTexture->GetSize())
 		{
-			const std::shared_ptr<UniformWriter> renderUniformWriter = GetOrCreateRendererUniformWriter(renderInfo.renderView, pipeline, passName);
+			const std::shared_ptr<UniformWriter> renderUniformWriter = GetOrCreateUniformWriter(
+				renderInfo.renderView, pipeline, Pipeline::DescriptorSetIndexType::RENDERER, passName);
 			const std::shared_ptr<Texture> sssTexture = Texture::Create(createInfo);
 			renderInfo.renderView->SetStorageImage(passName, sssTexture);
 			renderUniformWriter->WriteTexture("outColor", sssTexture);
 		}
 
-		const std::shared_ptr<UniformWriter> renderUniformWriter = GetOrCreateRendererUniformWriter(renderInfo.renderView, pipeline, passName);
+		const std::shared_ptr<UniformWriter> renderUniformWriter = GetOrCreateUniformWriter(
+			renderInfo.renderView, pipeline, Pipeline::DescriptorSetIndexType::RENDERER, passName);
 
 		WriteRenderViews(renderInfo.renderView, renderInfo.scene->GetRenderView(), pipeline, renderUniformWriter);
 
@@ -3765,8 +3802,9 @@ void RenderPassManager::CreateSSS()
 		}
 
 		const std::string lightsBufferName = "Lights";
-		const std::shared_ptr<UniformWriter> lightsUniformWriter = GetOrCreateRendererUniformWriter(renderInfo.renderView, deferredPipeline, lightsBufferName);
-		const std::shared_ptr<Buffer> lightsBuffer = GetOrCreateRenderBuffer(
+		const std::shared_ptr<UniformWriter> lightsUniformWriter = GetOrCreateUniformWriter(
+			renderInfo.renderView, deferredPipeline, Pipeline::DescriptorSetIndexType::RENDERER, lightsBufferName);
+		const std::shared_ptr<Buffer> lightsBuffer = GetOrCreateBuffer(
 			renderInfo.renderView,
 			lightsUniformWriter,
 			lightsBufferName,
@@ -3849,11 +3887,16 @@ void RenderPassManager::CreateSSSBlur()
 			{
 				sssBlurTexture = Texture::Create(createInfo);
 				renderInfo.renderView->SetStorageImage(passName, sssBlurTexture);
-				GetOrCreateRendererUniformWriter(renderInfo.renderView, pipeline, passName)->WriteTexture("outColor", sssBlurTexture);
+				GetOrCreateUniformWriter(
+					renderInfo.renderView,
+					pipeline,
+					Pipeline::DescriptorSetIndexType::RENDERER,
+					passName)->WriteTexture("outColor", sssBlurTexture);
 			}
 		}
 
-		const std::shared_ptr<UniformWriter> renderUniformWriter = GetOrCreateRendererUniformWriter(renderInfo.renderView, pipeline, passName);
+		const std::shared_ptr<UniformWriter> renderUniformWriter = GetOrCreateUniformWriter(
+			renderInfo.renderView, pipeline, Pipeline::DescriptorSetIndexType::RENDERER, passName);
 		if (currentViewportSize != sssBlurTexture->GetSize())
 		{
 			const std::shared_ptr<Texture> ssaoBlurTexture = Texture::Create(createInfo);
@@ -4101,7 +4144,8 @@ void RenderPassManager::CreateDecalPass()
 			return;
 		}
 
-		const std::shared_ptr<UniformWriter> renderUniformWriter = GetOrCreateRendererUniformWriter(renderInfo.renderView, decalBasePipeline, Decals);
+		const std::shared_ptr<UniformWriter> renderUniformWriter = GetOrCreateUniformWriter(
+			renderInfo.renderView, decalBasePipeline, Pipeline::DescriptorSetIndexType::RENDERER, Decals);
 
 		const std::shared_ptr<Texture> depthTexture = renderInfo.renderView->GetFrameBuffer(GBuffer)->GetAttachment(4);
 		const std::shared_ptr<Texture> normalTexture = renderInfo.renderView->GetFrameBuffer(GBuffer)->GetAttachment(1);
@@ -4219,9 +4263,10 @@ void RenderPassManager::CreateToneMappingPass()
 
 		const GraphicsSettings& graphicsSettings = renderInfo.scene->GetGraphicsSettings();
 
-		const std::shared_ptr<UniformWriter> renderUniformWriter = GetOrCreateRendererUniformWriter(renderInfo.renderView, pipeline, renderPassName);
+		const std::shared_ptr<UniformWriter> renderUniformWriter = GetOrCreateUniformWriter(
+			renderInfo.renderView, pipeline, Pipeline::DescriptorSetIndexType::RENDERER, renderPassName);
 		const std::string toneMappingBufferBufferName = "ToneMappingBuffer";
-		const std::shared_ptr<Buffer> toneMappingBufferBuffer = GetOrCreateRenderBuffer(
+		const std::shared_ptr<Buffer> toneMappingBufferBuffer = GetOrCreateBuffer(
 			renderInfo.renderView,
 			renderUniformWriter,
 			toneMappingBufferBufferName,
@@ -4320,9 +4365,13 @@ void RenderPassManager::CreateAntiAliasingAndComposePass()
 
 		const GraphicsSettings& graphicsSettings = renderInfo.scene->GetGraphicsSettings();
 
-		const std::shared_ptr<UniformWriter> renderUniformWriter = GetOrCreateRendererUniformWriter(renderInfo.renderView, pipeline, renderPassName);
+		const std::shared_ptr<UniformWriter> renderUniformWriter = GetOrCreateUniformWriter(
+			renderInfo.renderView,
+			pipeline,
+			Pipeline::DescriptorSetIndexType::RENDERER,
+			renderPassName);
 		const std::string postProcessBufferName = "PostProcessBuffer";
-		const std::shared_ptr<Buffer> postProcessBuffer = GetOrCreateRenderBuffer(
+		const std::shared_ptr<Buffer> postProcessBuffer = GetOrCreateBuffer(
 			renderInfo.renderView,
 			renderUniformWriter,
 			postProcessBufferName,
@@ -4479,17 +4528,7 @@ std::shared_ptr<UniformWriter> RenderPassManager::GetOrCreateUniformWriter(
 	return renderUniformWriter;
 }
 
-std::shared_ptr<UniformWriter> RenderPassManager::GetOrCreateRendererUniformWriter(
-	std::shared_ptr<RenderView> renderView,
-	std::shared_ptr<Pipeline> pipeline,
-	const std::string& uniformWriterName,
-	const std::string& uniformWriterIndexByName,
-	const bool isMultiBuffered)
-{
-	return GetOrCreateUniformWriter(renderView, pipeline, Pipeline::DescriptorSetIndexType::RENDERER, uniformWriterName, uniformWriterIndexByName, isMultiBuffered);
-}
-
-std::shared_ptr<Buffer> RenderPassManager::GetOrCreateRenderBuffer(
+std::shared_ptr<Buffer> RenderPassManager::GetOrCreateBuffer(
 	std::shared_ptr<RenderView> renderView,
 	std::shared_ptr<UniformWriter> uniformWriter,
 	const std::string& bufferName,
@@ -4503,7 +4542,6 @@ std::shared_ptr<Buffer> RenderPassManager::GetOrCreateRenderBuffer(
 	std::shared_ptr<Buffer> buffer = renderView->GetBuffer(setBufferName.empty() ? bufferName : setBufferName);
 	if (buffer)
 	{
-		// Buffer exists, but still need to write it to the uniform writer if provided
 		if (uniformWriter)
 		{
 			uniformWriter->WriteBuffer(bufferName, buffer);
