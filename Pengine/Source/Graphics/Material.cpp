@@ -315,12 +315,14 @@ void Material::CreateResources(const CreateInfo &createInfo)
 						usage = Buffer::Usage::STORAGE_BUFFER;
 					}
 					
-					const std::shared_ptr<Buffer> buffer = Buffer::Create(
-						binding.buffer->size,
-						1,
-						{ usage },
-						MemoryType::CPU,
-						true);
+					Buffer::CreateInfo createInfo{};
+					createInfo.instanceSize = binding.buffer->size;
+					createInfo.instanceCount = 1;
+					createInfo.usages = { usage };
+					createInfo.memoryType = MemoryType::CPU;
+					createInfo.isMultiBuffered = true;
+					const std::shared_ptr<Buffer> buffer = Buffer::Create(createInfo);
+					
 					m_BuffersByName[binding.buffer->name] = buffer;
 					uniformWriter->WriteBuffer(binding.buffer->name, buffer);
 					uniformWriter->Flush();
@@ -337,12 +339,13 @@ void Material::CreateResources(const CreateInfo &createInfo)
 			{
 				if (binding.buffer)
 				{
-					const std::shared_ptr<Buffer> buffer = Buffer::Create(
-						binding.buffer->size,
-						1,
-						{ Buffer::Usage::STORAGE_BUFFER },
-						MemoryType::CPU,
-						true);
+					Buffer::CreateInfo createInfo{};
+					createInfo.instanceSize = binding.buffer->size;
+					createInfo.instanceCount = 1;
+					createInfo.usages = { Buffer::Usage::STORAGE_BUFFER };
+					createInfo.memoryType = MemoryType::CPU;
+					createInfo.isMultiBuffered = true;
+					const std::shared_ptr<Buffer> buffer = Buffer::Create(createInfo);
 					m_BuffersByName[binding.buffer->name] = buffer;
 
 					m_MaterialInfoIntermediate.materialBuffer[pass->GetId()] = buffer;
@@ -424,12 +427,13 @@ void Material::ReloadMaterialInfoBuffer()
 
 	if (!m_MaterialInfoBuffer)
 	{
-		m_MaterialInfoBuffer = Buffer::Create(
-			sizeof(MaterialInfo),
-			1,
-			{ Buffer::Usage::STORAGE_BUFFER },
-			MemoryType::GPU,
-			true);
+		Buffer::CreateInfo createInfo{};
+		createInfo.instanceSize = sizeof(MaterialInfo);
+		createInfo.instanceCount = 1;
+		createInfo.usages = { Buffer::Usage::STORAGE_BUFFER };
+		createInfo.memoryType = MemoryType::GPU;
+		createInfo.isMultiBuffered = true;
+		m_MaterialInfoBuffer = Buffer::Create(createInfo);
 	}
 
 	device->ForEachFrame([this]()

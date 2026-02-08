@@ -11,12 +11,7 @@ namespace Pengine::Vk
 	class PENGINE_API VulkanBuffer final : public Buffer
 	{
 	public:
-		static std::shared_ptr<VulkanBuffer> Create(
-			const size_t instanceSize,
-			const uint32_t instanceCount,
-			const std::vector<Usage>& usages,
-			const MemoryType memoryType,
-			const bool isMultiBuffered);
+		static std::shared_ptr<VulkanBuffer> Create(const CreateInfo& createInfo);
 
 		static std::shared_ptr<VulkanBuffer> CreateStagingBuffer(
 			VkDeviceSize instanceSize,
@@ -26,15 +21,7 @@ namespace Pengine::Vk
 
 		static Usage ConvertUsage(VkBufferUsageFlagBits usage);
 
-		VulkanBuffer(
-			const VkDeviceSize instanceSize,
-			const uint32_t instanceCount,
-			const VkBufferUsageFlags bufferUsageFlags,
-			const VmaMemoryUsage memoryUsage,
-			const VmaAllocationCreateFlags memoryFlags,
-			const MemoryType memoryType,
-			const bool isMultiBuffered,
-			const VkDeviceSize minOffsetAlignment = 1);
+		VulkanBuffer(const CreateInfo& createInfo);
 		~VulkanBuffer() override;
 		VulkanBuffer(const VkBuffer&) = delete;
 		VulkanBuffer(VkBuffer&&) = delete;
@@ -71,7 +58,7 @@ namespace Pengine::Vk
 			VkDeviceSize size = VK_WHOLE_SIZE,
 			VkDeviceSize offset = 0) const;
 
-		[[nodiscard]] inline VkBuffer GetBuffer() const { return m_BufferDatas[frameInFlightIndex * m_IsMultiBuffered].m_Buffer; }
+		[[nodiscard]] inline VkBuffer GetBuffer() const { return m_BufferDatas[frameInFlightIndex * IsMultiBuffered()].m_Buffer; }
 		[[nodiscard]] inline VkDeviceSize GetAlignmentSize() const { return m_AlignmentSize; }
 		[[nodiscard]] inline VkBufferUsageFlags GetUsageFlags() const { return m_UsageFlags; }
 		[[nodiscard]] inline VmaMemoryUsage GetMemoryUsage() const { return m_MemoryUsage; }
@@ -100,13 +87,13 @@ namespace Pengine::Vk
 
 		VkBuffer m_CurrentBuffer = VK_NULL_HANDLE;
 
-		VkDeviceSize m_BufferSize;
-		uint32_t m_InstanceCount;
-		VkDeviceSize m_InstanceSize;
-		VkDeviceSize m_AlignmentSize;
-		VkBufferUsageFlags m_UsageFlags;
-		VmaMemoryUsage m_MemoryUsage;
-		VmaAllocationCreateFlags m_MemoryFlags;
+		VkDeviceSize m_BufferSize{};
+		uint32_t m_InstanceCount{};
+		VkDeviceSize m_InstanceSize{};
+		VkDeviceSize m_AlignmentSize{};
+		VkBufferUsageFlags m_UsageFlags{};
+		VmaMemoryUsage m_MemoryUsage{};
+		VmaAllocationCreateFlags m_MemoryFlags{};
 
 		std::vector<bool> m_IsChanged;
 	};

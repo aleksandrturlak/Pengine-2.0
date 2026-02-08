@@ -16,12 +16,13 @@ namespace Pengine
 	{
 		m_FinalBoneMatrices.resize(100, glm::mat4(1.0f));
 
-		m_Buffer = Buffer::Create(
-			sizeof(glm::mat4),
-			100,
-			{ Buffer::Usage::STORAGE_BUFFER },
-			MemoryType::CPU,
-			true);
+		Buffer::CreateInfo createInfo{};
+		createInfo.instanceSize = sizeof(glm::mat4);
+		createInfo.instanceCount = 100;
+		createInfo.usages = { Buffer::Usage::STORAGE_BUFFER };
+		createInfo.memoryType = MemoryType::CPU;
+		createInfo.isMultiBuffered = true;
+		m_Buffer = Buffer::Create(createInfo);
 	}
 
 	SkeletalAnimator::SkeletalAnimator(const SkeletalAnimator& skeletalAnimator)
@@ -32,12 +33,13 @@ namespace Pengine
 		m_Skeleton = skeletalAnimator.GetSkeleton();
 		m_FinalBoneMatrices.resize(100, glm::mat4(1.0f));
 
-		m_Buffer = Buffer::Create(
-			sizeof(glm::mat4),
-			100,
-			{ Buffer::Usage::STORAGE_BUFFER },
-			MemoryType::CPU,
-			true);
+		Buffer::CreateInfo createInfo{};
+		createInfo.instanceSize = sizeof(glm::mat4);
+		createInfo.instanceCount = 100;
+		createInfo.usages = { Buffer::Usage::STORAGE_BUFFER };
+		createInfo.memoryType = MemoryType::CPU;
+		createInfo.isMultiBuffered = true;
+		m_Buffer = Buffer::Create(createInfo);
 	}
 
     void SkeletalAnimator::UpdateAnimation(std::shared_ptr<Entity> entity, const float deltaTime, const glm::mat4& parentTransform)

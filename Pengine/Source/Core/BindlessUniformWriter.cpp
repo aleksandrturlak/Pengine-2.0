@@ -102,12 +102,13 @@ void BindlessUniformWriter::CreateBindlessEntitiesResources(
 
 		assert(entitySize == sizeof(EntityInfo));
 
-		buffer = Buffer::Create(
-			entitySize,
-			entityCount,
-			{ Buffer::Usage::STORAGE_BUFFER },
-			MemoryType::CPU,
-			true);
+		Buffer::CreateInfo createInfo{};
+		createInfo.instanceSize = entitySize;
+		createInfo.instanceCount = entityCount;
+		createInfo.usages = { Buffer::Usage::STORAGE_BUFFER };
+		createInfo.memoryType = MemoryType::CPU;
+		createInfo.isMultiBuffered = true;
+		buffer = Buffer::Create(createInfo);
 
 		Logger::Log(std::format("Bindless Entity Buffer Size: {} MB", (entitySize * entityCount * Vk::frameInFlightCount) / 1024.0f / 1024.0f));
 	}

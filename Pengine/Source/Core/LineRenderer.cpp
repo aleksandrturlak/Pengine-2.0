@@ -49,19 +49,22 @@ void LineRenderer::Render(const RenderPass::RenderCallbackInfo& renderInfo)
 			if (m_Batches.size() == batchIndex)
 			{
 				Batch batch;
-				batch.vertexBuffer = Buffer::Create(
-					sizeof(glm::vec3) * 2,
-					MAX_BATCH_LINE_COUNT * 2,
-					{ Buffer::Usage::VERTEX_BUFFER },
-					MemoryType::CPU,
-					true);
 
-				batch.indexBuffer = Buffer::Create(
-					sizeof(uint32_t),
-					MAX_BATCH_LINE_COUNT * 2,
-					{ Buffer::Usage::INDEX_BUFFER },
-					MemoryType::CPU,
-					true);
+				Buffer::CreateInfo createInfoVertexBuffer;
+				createInfoVertexBuffer.instanceSize = sizeof(glm::vec3) * 2;
+				createInfoVertexBuffer.instanceCount = MAX_BATCH_LINE_COUNT * 2;
+				createInfoVertexBuffer.usages = { Buffer::Usage::VERTEX_BUFFER };
+				createInfoVertexBuffer.memoryType = MemoryType::CPU;
+				createInfoVertexBuffer.isMultiBuffered = true;
+				batch.vertexBuffer = Buffer::Create(createInfoVertexBuffer);
+
+				Buffer::CreateInfo createInfoIndexBuffer;
+				createInfoIndexBuffer.instanceSize = sizeof(uint32_t);
+				createInfoIndexBuffer.instanceCount = MAX_BATCH_LINE_COUNT * 2;
+				createInfoIndexBuffer.usages = { Buffer::Usage::INDEX_BUFFER };
+				createInfoIndexBuffer.memoryType = MemoryType::CPU;
+				createInfoIndexBuffer.isMultiBuffered = true;
+				batch.indexBuffer = Buffer::Create(createInfoIndexBuffer);
 
 				m_Batches.emplace_back(batch);
 			}

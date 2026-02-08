@@ -15,18 +15,22 @@ namespace Pengine
 			INDEX_BUFFER,
 			STORAGE_BUFFER,
 			INDIRECT_BUFFER,
+			TRANSFER_SRC,
+			TRANSFER_DST
 		};
 
-		static std::shared_ptr<Buffer> Create(
-			const size_t instanceSize,
-			const uint32_t instanceCount,
-			const std::vector<Usage>& usages,
-			const MemoryType memoryType,
-			const bool isMultiBuffered = false);
+		struct CreateInfo
+		{
+			size_t instanceSize = 0;
+			uint32_t instanceCount = 1;
+			std::vector<Usage> usages;
+			MemoryType memoryType = MemoryType::CPU;
+			bool isMultiBuffered = false;
+		};
 
-		Buffer(
-			const MemoryType memoryType,
-			const bool isMultiBuffered);
+		static std::shared_ptr<Buffer> Create(const CreateInfo& createInfo);
+
+		Buffer(const CreateInfo& createInfo);
 		virtual ~Buffer() = default;
 		Buffer(const Buffer&) = delete;
 		Buffer& operator=(const Buffer&) = delete;
@@ -56,14 +60,12 @@ namespace Pengine
 
 		[[nodiscard]] virtual NativeHandle GetDeviceAddress() const = 0;
 
-		[[nodiscard]] MemoryType GetMemoryType() const { return m_MemoryType; }
+		[[nodiscard]] MemoryType GetMemoryType() const { return m_CreateInfo.memoryType; }
 
-		[[nodiscard]] bool IsMultiBuffered() const { return m_IsMultiBuffered; }
+		[[nodiscard]] bool IsMultiBuffered() const { return m_CreateInfo.isMultiBuffered; }
 
 	protected:
-		MemoryType m_MemoryType = MemoryType::CPU;
-
-		bool m_IsMultiBuffered = false;
+		CreateInfo m_CreateInfo;
 	};
 
 }

@@ -67,12 +67,13 @@ void Mesh::Reload(const CreateInfo& createInfo)
 	// TODO: Maybe need to check whether createInfo is valid!
 	m_CreateInfo = createInfo;
 
-	std::shared_ptr<Buffer> indices = Buffer::Create(
-		sizeof(m_CreateInfo.indices[0]),
-		m_CreateInfo.indices.size(),
-		{ Buffer::Usage::INDEX_BUFFER },
-		MemoryType::GPU,
-		false);
+	Buffer::CreateInfo createInfoIndexBuffer{};
+	createInfoIndexBuffer.instanceSize = sizeof(m_CreateInfo.indices[0]);
+	createInfoIndexBuffer.instanceCount = m_CreateInfo.indices.size();
+	createInfoIndexBuffer.usages = { Buffer::Usage::INDEX_BUFFER };
+	createInfoIndexBuffer.memoryType = MemoryType::GPU;
+	createInfoIndexBuffer.isMultiBuffered = false;
+	std::shared_ptr<Buffer> indices = Buffer::Create(createInfoIndexBuffer);
 
 	indices->WriteToBuffer(m_CreateInfo.indices.data(), indices->GetSize());
 
@@ -102,12 +103,13 @@ void Mesh::Reload(const CreateInfo& createInfo)
 	std::vector<std::shared_ptr<Buffer>> vertices;
 	for (std::vector<uint8_t>& vertexBuffer : vertexBuffers)
 	{
-		vertices.emplace_back(Buffer::Create(
-			sizeof(vertexBuffer[0]),
-			vertexBuffer.size(),
-			{ Buffer::Usage::VERTEX_BUFFER },
-			MemoryType::GPU,
-			false));
+		Buffer::CreateInfo createInfoVertexBuffer{};
+		createInfoVertexBuffer.instanceSize = sizeof(vertexBuffer[0]);
+		createInfoVertexBuffer.instanceCount = vertexBuffer.size();
+		createInfoVertexBuffer.usages = { Buffer::Usage::VERTEX_BUFFER };
+		createInfoVertexBuffer.memoryType = MemoryType::GPU;
+		createInfoVertexBuffer.isMultiBuffered = false;
+		vertices.emplace_back(Buffer::Create(createInfoVertexBuffer));
 
 		vertices.back()->WriteToBuffer(vertexBuffer.data(), vertexBuffer.size());
 	}
@@ -233,12 +235,13 @@ void Mesh::Reload(const CreateInfo& createInfo)
 			size_t indexBuffer;
 		};
 
-		m_MeshBufferInfoBuffer = Buffer::Create(
-			sizeof(MeshBufferInfo),
-			1,
-			{ Buffer::Usage::STORAGE_BUFFER },
-			MemoryType::GPU,
-			false);
+		Buffer::CreateInfo createInfoMeshBufferInfoBuffer{};
+		createInfoMeshBufferInfoBuffer.instanceSize = sizeof(MeshBufferInfo);
+		createInfoMeshBufferInfoBuffer.instanceCount = 1;
+		createInfoMeshBufferInfoBuffer.usages = { Buffer::Usage::STORAGE_BUFFER };
+		createInfoMeshBufferInfoBuffer.memoryType = MemoryType::GPU;
+		createInfoMeshBufferInfoBuffer.isMultiBuffered = false;
+		m_MeshBufferInfoBuffer = Buffer::Create(createInfoMeshBufferInfoBuffer);
 
 		MeshBufferInfo meshBufferInfo{};
 
@@ -285,12 +288,13 @@ void Mesh::Reload(const CreateInfo& createInfo)
 			LodInfo lods[MAX_LODS];
 		};
 
-		m_MeshInfoBuffer = Buffer::Create(
-			sizeof(MeshInfo),
-			1,
-			{ Buffer::Usage::STORAGE_BUFFER },
-			MemoryType::GPU,
-			false);
+		Buffer::CreateInfo createInfoMeshInfoBuffer{};
+		createInfoMeshInfoBuffer.instanceSize = sizeof(MeshInfo);
+		createInfoMeshInfoBuffer.instanceCount = 1;
+		createInfoMeshInfoBuffer.usages = { Buffer::Usage::STORAGE_BUFFER };
+		createInfoMeshInfoBuffer.memoryType = MemoryType::GPU;
+		createInfoMeshInfoBuffer.isMultiBuffered = false;
+		m_MeshInfoBuffer = Buffer::Create(createInfoMeshInfoBuffer);
 
 		MeshInfo meshInfo{};
 

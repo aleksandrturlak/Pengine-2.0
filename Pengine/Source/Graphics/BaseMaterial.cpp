@@ -350,12 +350,13 @@ void BaseMaterial::CreateResources(const CreateInfo& createInfo)
 	}
 
 	{
-		m_BaseMaterialInfoBuffer = Buffer::Create(
-			sizeof(BaseMaterialInfoBuffer),
-			1,
-			{ Buffer::Usage::STORAGE_BUFFER },
-			MemoryType::CPU,
-			true);
+		Buffer::CreateInfo createInfo{};
+		createInfo.instanceSize = sizeof(BaseMaterialInfoBuffer);
+		createInfo.instanceCount = 1;
+		createInfo.usages = { Buffer::Usage::STORAGE_BUFFER };
+		createInfo.memoryType = MemoryType::CPU;
+		createInfo.isMultiBuffered = true;
+		m_BaseMaterialInfoBuffer = Buffer::Create(createInfo);
 	}
 }
 
@@ -385,12 +386,13 @@ void BaseMaterial::CreatePipelineResources(
 					usage = Buffer::Usage::STORAGE_BUFFER;
 				}
 
-				const std::shared_ptr<Buffer> buffer = Buffer::Create(
-					binding.buffer->size,
-					1,
-					{ usage },
-					MemoryType::CPU,
-					true);
+				Buffer::CreateInfo createInfo{};
+				createInfo.instanceSize = binding.buffer->size;
+				createInfo.instanceCount = 1;
+				createInfo.usages = { usage };
+				createInfo.memoryType = MemoryType::CPU;
+				createInfo.isMultiBuffered = true;
+				const std::shared_ptr<Buffer> buffer = Buffer::Create(createInfo);
 
 				m_BuffersByName[binding.buffer->name] = buffer;
 				uniformWriter->WriteBuffer(binding.buffer->name, buffer);

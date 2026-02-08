@@ -1584,12 +1584,13 @@ void RenderPassManager::CreateTransparent()
 		std::shared_ptr<Buffer> instanceBuffer = renderInfo.renderView->GetBuffer("InstanceBufferTransparent");
 		if ((renderableCount != 0 && !instanceBuffer) || (instanceBuffer && renderableCount != 0 && instanceBuffer->GetInstanceCount() < renderableCount))
 		{
-			instanceBuffer = Buffer::Create(
-				sizeof(InstanceData),
-				renderableCount * 2,
-				{ Buffer::Usage::VERTEX_BUFFER },
-				MemoryType::CPU,
-				true);
+			Buffer::CreateInfo createInfo{};
+			createInfo.instanceSize = sizeof(InstanceData);
+			createInfo.instanceCount = renderableCount * 2;
+			createInfo.usages = { Buffer::Usage::VERTEX_BUFFER };
+			createInfo.memoryType = MemoryType::CPU;
+			createInfo.isMultiBuffered = true;
+			instanceBuffer = Buffer::Create(createInfo);
 
 			renderInfo.renderView->SetBuffer("InstanceBufferTransparent", instanceBuffer);
 		}
@@ -2274,12 +2275,13 @@ void RenderPassManager::CreatePointLightShadows()
 		std::shared_ptr<Buffer> instanceBuffer = renderInfo.renderView->GetBuffer("InstanceBufferPointLightShadows");
 		if ((renderableCount != 0 && !instanceBuffer) || (instanceBuffer && renderableCount != 0 && instanceBuffer->GetInstanceCount() < renderableCount))
 		{
-			instanceBuffer = Buffer::Create(
-				sizeof(InstanceData),
-				renderableCount * 2,
-				{ Buffer::Usage::VERTEX_BUFFER },
-				MemoryType::CPU,
-				true);
+			Buffer::CreateInfo createInfo{};
+			createInfo.instanceSize = sizeof(InstanceData);
+			createInfo.instanceCount = renderableCount * 2;
+			createInfo.usages = { Buffer::Usage::VERTEX_BUFFER };
+			createInfo.memoryType = MemoryType::CPU;
+			createInfo.isMultiBuffered = true;
+			instanceBuffer = Buffer::Create(createInfo);
 
 			renderInfo.renderView->SetBuffer("InstanceBufferPointLightShadows", instanceBuffer);
 		}
@@ -2805,12 +2807,13 @@ void RenderPassManager::CreateSpotLightShadows()
 		std::shared_ptr<Buffer> instanceBuffer = renderInfo.renderView->GetBuffer("InstanceBufferSpotLightShadows");
 		if ((renderableCount != 0 && !instanceBuffer) || (instanceBuffer && renderableCount != 0 && instanceBuffer->GetInstanceCount() < renderableCount))
 		{
-			instanceBuffer = Buffer::Create(
-				sizeof(InstanceData),
-				renderableCount * 2,
-				{ Buffer::Usage::VERTEX_BUFFER },
-				MemoryType::CPU,
-				true);
+			Buffer::CreateInfo createInfo{};
+			createInfo.instanceSize = sizeof(InstanceData);
+			createInfo.instanceCount = renderableCount * 2;
+			createInfo.usages = { Buffer::Usage::VERTEX_BUFFER };
+			createInfo.memoryType = MemoryType::CPU;
+			createInfo.isMultiBuffered = true;
+			instanceBuffer = Buffer::Create(createInfo);
 
 			renderInfo.renderView->SetBuffer("InstanceBufferSpotLightShadows", instanceBuffer);
 		}
@@ -4076,12 +4079,13 @@ void RenderPassManager::CreateDecalPass()
 		std::shared_ptr<Buffer> instanceBuffer = renderInfo.renderView->GetBuffer("DecalInstanceBuffer");
 		if ((renderableCount != 0 && !instanceBuffer) || (instanceBuffer && renderableCount != 0 && instanceBuffer->GetInstanceCount() < renderableCount))
 		{
-			instanceBuffer = Buffer::Create(
-				sizeof(DecalInstanceData),
-				renderableCount * 2,
-				{ Buffer::Usage::VERTEX_BUFFER },
-				MemoryType::CPU,
-				true);
+			Buffer::CreateInfo createInfo{};
+			createInfo.instanceSize = sizeof(DecalInstanceData);
+			createInfo.instanceCount = renderableCount * 2;
+			createInfo.usages = { Buffer::Usage::VERTEX_BUFFER };
+			createInfo.memoryType = MemoryType::CPU;
+			createInfo.isMultiBuffered = true;
+			instanceBuffer = Buffer::Create(createInfo);
 
 			renderInfo.renderView->SetBuffer("DecalInstanceBuffer", instanceBuffer);
 		}
@@ -4511,12 +4515,13 @@ std::shared_ptr<Buffer> RenderPassManager::GetOrCreateRenderBuffer(
 	auto binding = uniformWriter->GetUniformLayout()->GetBindingByName(bufferName);
 	if (binding && binding->buffer)
 	{
-		buffer = Buffer::Create(
-			binding->buffer->size,
-			1,
-			usages,
-			memoryType,
-			isMultiBuffered);
+		Buffer::CreateInfo createInfo{};
+		createInfo.instanceSize = binding->buffer->size;
+		createInfo.instanceCount = 1;
+		createInfo.usages = usages;
+		createInfo.memoryType = memoryType;
+		createInfo.isMultiBuffered = isMultiBuffered;
+		buffer = Buffer::Create(createInfo);
 
 		renderView->SetBuffer(setBufferName.empty() ? bufferName : setBufferName, buffer);
 		uniformWriter->WriteBuffer(binding->buffer->name, buffer);
