@@ -117,7 +117,7 @@ std::shared_ptr<Material> Material::Clone(
 			{
 				if (binding.type == ShaderReflection::Type::COMBINED_IMAGE_SAMPLER)
 				{
-					createInfo.uniformInfos[passName].texturesByName[binding.name] = material->GetUniformWriter(passName)->GetTexture(binding.name).back()->GetFilepath().string();
+					createInfo.uniformInfos[passName].texturesByName[binding.name] = material->GetUniformWriter(passName)->GetTextureInfo(binding.name).back().texture->GetFilepath().string();
 				}
 				else if (binding.type == ShaderReflection::Type::UNIFORM_BUFFER || binding.type == ShaderReflection::Type::STORAGE_BUFFER)
 				{

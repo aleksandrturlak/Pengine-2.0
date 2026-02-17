@@ -67,6 +67,7 @@ namespace Pengine
 			Texture::Layout layout;
 			Load load = Load::CLEAR;
 			Store store = Store::STORE;
+			uint32_t baseMipLevel = 0;
 			std::function<std::shared_ptr<Texture>(RenderView*)> getFrameBufferCallback;
 		};
 

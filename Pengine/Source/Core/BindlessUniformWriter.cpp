@@ -57,7 +57,7 @@ int BindlessUniformWriter::BindTexture(const std::shared_ptr<Texture>& texture)
 	// Note: Slot 0 is supposed to be pink texture and always taken!
 	if (index > 0)
 	{
-		m_BindlessUniformWriter->WriteTextureToAllFrames(0, texture, index);
+		m_BindlessUniformWriter->WriteTextureToAllFrames(0, { texture, 0 }, index);
 	}
 
 	return index;

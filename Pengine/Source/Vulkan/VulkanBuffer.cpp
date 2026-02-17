@@ -18,14 +18,14 @@ VkDeviceSize VulkanBuffer::GetAlignment(const VkDeviceSize instanceSize, const V
 }
 
 void VulkanBuffer::WriteToVulkanBuffer(
-	const uint32_t imageIndex,
+	const uint32_t frameIndex,
 	void* data,
 	const size_t size,
 	const size_t offset)
 {
 	if (GetMemoryType() == MemoryType::CPU)
 	{
-		vmaCopyMemoryToAllocation(GetVkDevice()->GetVmaAllocator(), data, m_BufferDatas[imageIndex].m_VmaAllocation, offset, size);
+		vmaCopyMemoryToAllocation(GetVkDevice()->GetVmaAllocator(), data, m_BufferDatas[frameIndex].m_VmaAllocation, offset, size);
 	}
 	else if (GetMemoryType() == MemoryType::GPU)
 	{
@@ -36,8 +36,8 @@ void VulkanBuffer::WriteToVulkanBuffer(
 		stagingBuffer->WriteToBuffer(data, size, offset);
 
 		GetVkDevice()->CopyBuffer(
-			stagingBuffer->m_BufferDatas[imageIndex].m_Buffer,
-			m_BufferDatas[imageIndex].m_Buffer,
+			stagingBuffer->m_BufferDatas[frameIndex].m_Buffer,
+			m_BufferDatas[frameIndex].m_Buffer,
 			size,
 			offset);
 	}
@@ -231,9 +231,9 @@ void VulkanBuffer::Flush()
 		return;
 	}
 
-	const uint32_t imageIndex = m_IsChanged.size() == 1 ? 0 : frameInFlightIndex;
+	const uint32_t frameIndex = m_IsChanged.size() == 1 ? 0 : frameInFlightIndex;
 
-	if (!m_IsChanged[imageIndex])
+	if (!m_IsChanged[frameIndex])
 	{
 		return;
 	}
@@ -244,7 +244,7 @@ void VulkanBuffer::Flush()
 		vmaCopyMemoryToAllocation(
 			GetVkDevice()->GetVmaAllocator(),
 			m_Data,
-			m_BufferDatas[imageIndex].m_VmaAllocation,
+			m_BufferDatas[frameIndex].m_VmaAllocation,
 			0,
 			GetSize());
 	}
@@ -258,12 +258,12 @@ void VulkanBuffer::Flush()
 
 		GetVkDevice()->CopyBuffer(
 			stagingBuffer->m_BufferDatas.begin()->m_Buffer,
-			m_BufferDatas[imageIndex].m_Buffer,
+			m_BufferDatas[frameIndex].m_Buffer,
 			GetSize(),
 			0);
 	}
 
-	m_IsChanged[imageIndex] = false;
+	m_IsChanged[frameIndex] = false;
 }
 
 void VulkanBuffer::ClearWrites()
@@ -287,12 +287,12 @@ NativeHandle VulkanBuffer::GetDeviceAddress() const
 }
 
 VkDescriptorBufferInfo VulkanBuffer::GetDescriptorInfo(
-	const uint32_t imageIndex,
+	const uint32_t frameIndex,
 	const VkDeviceSize size,
 	const VkDeviceSize offset) const
 {
 	return VkDescriptorBufferInfo{
-		m_BufferDatas[imageIndex].m_Buffer,
+		m_BufferDatas[frameIndex].m_Buffer,
 		offset,
 		size,
 	};

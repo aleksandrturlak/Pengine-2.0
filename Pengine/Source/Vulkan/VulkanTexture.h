@@ -18,12 +18,13 @@ namespace Pengine::Vk
 		VulkanTexture& operator=(const VulkanTexture&) = delete;
 		VulkanTexture& operator=(VulkanTexture&&) = delete;
 
-		VkDescriptorImageInfo GetDescriptorInfo(const uint32_t frameIndex = Vk::frameInFlightIndex);
+		VkDescriptorImageInfo GetDescriptorInfo(const uint32_t baseMipLevel = 0, const uint32_t frameIndex = Vk::frameInFlightIndex);
 
 		static VkImageView CreateImageView(
 			VkImage image,
 			VkFormat format,
 			VkImageAspectFlagBits aspectMask,
+			uint32_t baseMipLevel,
 			uint32_t mipLevels,
 			uint32_t layerCount,
 			VkImageViewType imageViewType);
@@ -70,7 +71,10 @@ namespace Pengine::Vk
 
 		virtual void Transition(Layout layout, void* frame = nullptr) override;
 
-		[[nodiscard]] VkImageView GetImageView(const uint32_t frameIndex = Vk::frameInFlightIndex) const { return m_IsMultiBuffered ? m_ImageDatas[frameIndex].view : m_ImageDatas[0].view; }
+		[[nodiscard]] VkImageView GetImageView(
+			const uint32_t baseMipLevel = 0,
+			const uint32_t frameIndex = Vk::frameInFlightIndex) const
+			{ return m_IsMultiBuffered ? m_ImageDatas[frameIndex].views[baseMipLevel] : m_ImageDatas[0].views[baseMipLevel]; }
 
 		[[nodiscard]] VkImage GetImage(const uint32_t frameIndex = Vk::frameInFlightIndex) const { return m_IsMultiBuffered ? m_ImageDatas[frameIndex].image : m_ImageDatas[0].image; }
 
@@ -84,9 +88,9 @@ namespace Pengine::Vk
 			VkImage image{};
 			VmaAllocation vmaAllocation = VK_NULL_HANDLE;
 			VmaAllocationInfo vmaAllocationInfo{};
-			VkImageView view{};
 			VkImageLayout m_Layout = VK_IMAGE_LAYOUT_UNDEFINED;
 			VkImageLayout m_PreviousLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+			std::vector<VkImageView> views;
 		};
 
 		void TransitionInternal(ImageData& imageData, VkImageLayout layout, VkCommandBuffer commandBuffer = VK_NULL_HANDLE);

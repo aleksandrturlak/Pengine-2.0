@@ -119,13 +119,17 @@ VulkanTexture::VulkanTexture(const CreateInfo& createInfo)
 
 	for (auto& imageData : m_ImageDatas)
 	{
-		imageData.view = CreateImageView(
-			imageData.image,
-			format,
-			aspectMask,
-			m_MipLevels,
-			m_LayerCount,
-			imageViewType);
+		for (size_t i = 0; i < m_MipLevels; i++)
+		{
+			imageData.views.emplace_back(CreateImageView(
+				imageData.image,
+				format,
+				aspectMask,
+				i,
+				m_MipLevels - i,
+				m_LayerCount,
+				imageViewType));
+		}
 	}
 
 	m_Sampler = CreateSampler(createInfo.samplerCreateInfo);
@@ -157,7 +161,7 @@ VulkanTexture::VulkanTexture(const CreateInfo& createInfo)
 		std::vector<VkDescriptorImageInfo> vkDescriptorImageInfos(m_ImageDatas.size());
 		for (int i = 0; i < m_ImageDatas.size(); ++i)
 		{
-			vkDescriptorImageInfos[i] = GetDescriptorInfo(i);
+			vkDescriptorImageInfos[i] = GetDescriptorInfo(0, i);
 		}
 
 		// No need to flush, because it is a special function in VulkanUniformWriter, it flushes itself.
@@ -169,20 +173,25 @@ VulkanTexture::~VulkanTexture()
 {
 	for (auto& imageData : m_ImageDatas)
 	{
-		GetVkDevice()->DeleteResource([view = imageData.view]()
+		GetVkDevice()->DeleteResource([views = imageData.views]()
 		{
-			vkDestroyImageView(GetVkDevice()->GetDevice(), view, nullptr);
+			for (const auto& view : views)
+			{
+				vkDestroyImageView(GetVkDevice()->GetDevice(), view, nullptr);
+			}
 		});
 
 		GetVkDevice()->DestroyImage(imageData.image, imageData.vmaAllocation, imageData.vmaAllocationInfo);
 	}
 }
 
-VkDescriptorImageInfo VulkanTexture::GetDescriptorInfo(const uint32_t frameIndex)
+VkDescriptorImageInfo VulkanTexture::GetDescriptorInfo(
+	const uint32_t baseMipLevel,
+	const uint32_t frameIndex)
 {
 	VkDescriptorImageInfo descriptorImageInfo{};
 	descriptorImageInfo.imageLayout = GetLayout(frameIndex);
-	descriptorImageInfo.imageView = GetImageView(frameIndex);
+	descriptorImageInfo.imageView = GetImageView(baseMipLevel, frameIndex);
 	descriptorImageInfo.sampler = m_Sampler;
 
 	return descriptorImageInfo;
@@ -192,6 +201,7 @@ VkImageView VulkanTexture::CreateImageView(
 	const VkImage image,
 	const VkFormat format,
 	const VkImageAspectFlagBits aspectMask,
+	uint32_t baseMipLevel,
 	const uint32_t mipLevels,
 	uint32_t layerCount,
 	VkImageViewType imageViewType)
@@ -202,7 +212,7 @@ VkImageView VulkanTexture::CreateImageView(
 	viewInfo.viewType = imageViewType;
 	viewInfo.format = format;
 	viewInfo.subresourceRange.aspectMask = aspectMask;
-	viewInfo.subresourceRange.baseMipLevel = 0;
+	viewInfo.subresourceRange.baseMipLevel = baseMipLevel;
 	viewInfo.subresourceRange.levelCount = mipLevels;
 	viewInfo.subresourceRange.baseArrayLayer = 0;
 	viewInfo.subresourceRange.layerCount = layerCount;

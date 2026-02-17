@@ -1337,7 +1337,7 @@ void Serializer::SerializeMaterial(const std::shared_ptr<Material>& material, bo
 
 				if (binding.type == ShaderReflection::Type::COMBINED_IMAGE_SAMPLER)
 				{
-					const std::shared_ptr<Texture> texture = material->GetUniformWriter(passName)->GetTexture(binding.name).back();
+					const std::shared_ptr<Texture> texture = material->GetUniformWriter(passName)->GetTextureInfo(binding.name).back().texture;
 					if (texture)
 					{
 						const auto uuid = Utils::FindUuid(texture->GetFilepath());

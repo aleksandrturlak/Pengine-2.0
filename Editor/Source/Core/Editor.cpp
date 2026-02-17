@@ -3592,7 +3592,7 @@ void Editor::MaterialMenu::Update(Editor& editor)
 					{
 						if (uniformWriter && binding.type == ShaderReflection::Type::COMBINED_IMAGE_SAMPLER)
 						{
-							if (std::shared_ptr<Texture> texture = uniformWriter->GetTexture(binding.name).back())
+							if (std::shared_ptr<Texture> texture = uniformWriter->GetTextureInfo(binding.name).back().texture)
 							{
 								drawTexture(texture, binding, passName, isChangedToSerialize);
 							}

@@ -67,7 +67,7 @@ void VulkanFrameBuffer::Resize(const glm::ivec2& size)
 		for (int i = 0; i < textureIndex; ++i)
 		{
 			std::shared_ptr<VulkanTexture> vkTexture = std::dynamic_pointer_cast<VulkanTexture>(m_Attachments[i]);
-			imageViews.emplace_back(vkTexture->GetImageView(frameIndex));
+			imageViews.emplace_back(vkTexture->GetImageView(renderPassAttachments[i].baseMipLevel, frameIndex));
 		}
 
 		VkFramebufferCreateInfo framebufferInfo{};

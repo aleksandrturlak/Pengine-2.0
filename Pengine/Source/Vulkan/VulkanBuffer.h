@@ -54,7 +54,7 @@ namespace Pengine::Vk
 		[[nodiscard]] virtual NativeHandle GetDeviceAddress() const override;
 		
 		[[nodiscard]] VkDescriptorBufferInfo GetDescriptorInfo(
-			const uint32_t imageIndex,
+			const uint32_t frameIndex,
 			VkDeviceSize size = VK_WHOLE_SIZE,
 			VkDeviceSize offset = 0) const;
 
@@ -70,7 +70,7 @@ namespace Pengine::Vk
 			VkDeviceSize minOffsetAlignment);
 
 		void WriteToVulkanBuffer(
-			const uint32_t imageIndex,
+			const uint32_t frameIndex,
 			void* data,
 			const size_t size,
 			const size_t offset = 0);

@@ -33,11 +33,11 @@ UniformWriter::~UniformWriter()
 {
 	m_Writes.clear();
 
-	for (auto& [name, textures] : m_TexturesByName)
+	for (auto& [name, textureInfos] : m_TextureInfosByName)
 	{
-		for (auto& texture : textures)
+		for (auto& textureInfo : textureInfos)
 		{
-			TextureManager::GetInstance().Delete(texture);
+			TextureManager::GetInstance().Delete(textureInfo.texture);
 		}
 	}
 }
@@ -80,22 +80,22 @@ void UniformWriter::WriteBufferToAllFrames(
 
 void UniformWriter::WriteTextureToFrame(
 	uint32_t location,
-	const std::shared_ptr<Texture>& texture,
+	const TextureInfo& textureInfo,
 	uint32_t dstArrayElement,
 	uint32_t srcFrameIndex,
 	uint32_t dstFrameIndex)
 {
-	WriteTexturesToFrame(location, { texture }, dstArrayElement, srcFrameIndex, dstFrameIndex);
+	WriteTexturesToFrame(location, { textureInfo }, dstArrayElement, srcFrameIndex, dstFrameIndex);
 }
 
 void UniformWriter::WriteTexturesToFrame(
 	uint32_t location,
-	const std::vector<std::shared_ptr<Texture>>& textures,
+	const std::vector<TextureInfo>& textureInfos,
 	uint32_t dstArrayElement,
 	uint32_t srcFrameIndex,
 	uint32_t dstFrameIndex)
 {
-	assert(!textures.empty());
+	assert(!textureInfos.empty());
 
 	const auto binding = m_UniformLayout->GetBindingByLocation(location);
 	if (!binding)
@@ -104,7 +104,7 @@ void UniformWriter::WriteTexturesToFrame(
 	}
 
 	TextureWrite write{};
-	write.textures = textures;
+	write.textureInfos = textureInfos;
 	write.binding = *binding;
 	write.dstArrayElement = dstArrayElement;
 	write.frameIndex = srcFrameIndex;
@@ -115,20 +115,20 @@ void UniformWriter::WriteTexturesToFrame(
 
 void UniformWriter::WriteTextureToAllFrames(
 	uint32_t location,
-	const std::shared_ptr<Texture>& texture,
+	const TextureInfo& textureInfo,
 	uint32_t dstArrayElement)
 {
-	WriteTexturesToAllFrames(location, { texture }, dstArrayElement);
+	WriteTexturesToAllFrames(location, { textureInfo }, dstArrayElement);
 }
 
 void UniformWriter::WriteTexturesToAllFrames(
 	uint32_t location,
-	const std::vector<std::shared_ptr<Texture>>& textures,
+	const std::vector<TextureInfo>& textureInfos,
 	uint32_t dstArrayElement)
 {
 	for (size_t i = 0; i < Vk::frameInFlightCount; i++)
 	{
-		WriteTexturesToFrame(location, textures, dstArrayElement, i, i);
+		WriteTexturesToFrame(location, textureInfos, dstArrayElement, i, i);
 	}
 }
 
@@ -160,30 +160,59 @@ void UniformWriter::WriteBufferToAllFrames(
 
 void UniformWriter::WriteTextureToFrame(
 	const std::string& name,
+	const TextureInfo& textureInfo,
+	uint32_t dstArrayElement,
+	uint32_t srcFrameIndex,
+	uint32_t dstFrameIndex)
+{
+	const uint32_t location = m_UniformLayout->GetBindingLocationByName(name);
+	m_TextureNameByLocation[location] = name;
+	m_TextureInfosByName[name] = { textureInfo };
+
+	WriteTextureToFrame(location, { textureInfo }, dstArrayElement, srcFrameIndex, dstFrameIndex);
+}
+
+void UniformWriter::WriteTexturesToFrame(
+	const std::string& name,
+	const std::vector<TextureInfo>& textureInfos,
+	uint32_t dstArrayElement,
+	uint32_t srcFrameIndex,
+	uint32_t dstFrameIndex)
+{
+	const uint32_t location = m_UniformLayout->GetBindingLocationByName(name);
+	m_TextureNameByLocation[location] = name;
+	m_TextureInfosByName[name] = textureInfos;
+
+	WriteTexturesToFrame(location, textureInfos, dstArrayElement, srcFrameIndex, dstFrameIndex);
+}
+
+void UniformWriter::WriteTextureToAllFrames(
+	const std::string& name,
+	const TextureInfo& textureInfo,
+	uint32_t dstArrayElement)
+{
+	WriteTexturesToAllFrames(name, { textureInfo }, dstArrayElement);
+}
+
+void UniformWriter::WriteTexturesToAllFrames(
+	const std::string& name,
+	const std::vector<TextureInfo>& textureInfos,
+	uint32_t dstArrayElement)
+{
+	for (size_t i = 0; i < Vk::frameInFlightCount; i++)
+	{
+		WriteTexturesToFrame(name, textureInfos, dstArrayElement, i, i);
+	}
+}
+
+void UniformWriter::WriteTextureToFrame(
+	const std::string& name,
 	const std::shared_ptr<Texture>& texture,
 	uint32_t dstArrayElement,
 	uint32_t srcFrameIndex,
 	uint32_t dstFrameIndex)
 {
-	const uint32_t location = m_UniformLayout->GetBindingLocationByName(name);
-	m_TextureNameByLocation[location] = name;
-	m_TexturesByName[name] = { texture };
-
-	WriteTextureToFrame(location, texture, dstArrayElement, srcFrameIndex, dstFrameIndex);
-}
-
-void UniformWriter::WriteTexturesToFrame(
-	const std::string& name,
-	const std::vector<std::shared_ptr<Texture>>& textures,
-	uint32_t dstArrayElement,
-	uint32_t srcFrameIndex,
-	uint32_t dstFrameIndex)
-{
-	const uint32_t location = m_UniformLayout->GetBindingLocationByName(name);
-	m_TextureNameByLocation[location] = name;
-	m_TexturesByName[name] = textures;
-
-	WriteTexturesToFrame(location, textures, dstArrayElement, srcFrameIndex, dstFrameIndex);
+	WriteTextureToFrame(name, TextureInfo{ texture, 0 }, dstArrayElement, srcFrameIndex, dstFrameIndex);
 }
 
 void UniformWriter::WriteTextureToAllFrames(
@@ -191,18 +220,7 @@ void UniformWriter::WriteTextureToAllFrames(
 	const std::shared_ptr<Texture>& texture,
 	uint32_t dstArrayElement)
 {
-	WriteTexturesToAllFrames(name, { texture }, dstArrayElement);
-}
-
-void UniformWriter::WriteTexturesToAllFrames(
-	const std::string& name,
-	const std::vector<std::shared_ptr<Texture>>& textures,
-	uint32_t dstArrayElement)
-{
-	for (size_t i = 0; i < Vk::frameInFlightCount; i++)
-	{
-		WriteTexturesToFrame(name, textures, dstArrayElement, i, i);
-	}
+	WriteTextureToAllFrames(name, TextureInfo{ texture, 0 }, dstArrayElement);
 }
 
 std::vector<std::shared_ptr<Buffer>> UniformWriter::GetBuffer(const std::string& name)
@@ -210,7 +228,7 @@ std::vector<std::shared_ptr<Buffer>> UniformWriter::GetBuffer(const std::string&
 	return Utils::Find(name, m_BuffersByName);
 }
 
-std::vector<std::shared_ptr<Texture>> UniformWriter::GetTexture(const std::string& name)
+std::vector<UniformWriter::TextureInfo> UniformWriter::GetTextureInfo(const std::string& name)
 {
-	return Utils::Find(name, m_TexturesByName);
+	return Utils::Find(name, m_TextureInfosByName);
 }

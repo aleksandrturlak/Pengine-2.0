@@ -77,7 +77,7 @@ void VulkanUniformWriter::Flush()
 	{
 		for (const auto& textureWrite : textureWrites)
 		{
-			imageInfoCount += textureWrite.textures.size();
+			imageInfoCount += textureWrite.textureInfos.size();
 		}
 	}
 
@@ -89,10 +89,10 @@ void VulkanUniformWriter::Flush()
 		{
 			const size_t imageInfoIndex = imageInfos.size();
 
-			for (const auto& texture : textureWrite.textures)
+			for (const auto& textureInfo : textureWrite.textureInfos)
 			{
 				assert(imageInfoCount > 0);
-				imageInfos.emplace_back(std::static_pointer_cast<VulkanTexture>(texture)->GetDescriptorInfo(index));
+				imageInfos.emplace_back(std::static_pointer_cast<VulkanTexture>(textureInfo.texture)->GetDescriptorInfo(textureInfo.baseMipLevel, textureWrite.frameIndex));
 			}
 
 			VkWriteDescriptorSet write{};
@@ -100,7 +100,7 @@ void VulkanUniformWriter::Flush()
 			write.descriptorType = VulkanUniformLayout::ConvertDescriptorType(textureWrite.binding.type);
 			write.dstBinding = location;
 			write.pImageInfo = &imageInfos[imageInfoIndex];
-			write.descriptorCount = textureWrite.textures.size();
+			write.descriptorCount = textureWrite.textureInfos.size();
 			write.dstArrayElement = textureWrite.dstArrayElement;
 			write.dstSet = set;
 

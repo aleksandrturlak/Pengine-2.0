@@ -12,6 +12,12 @@ namespace Pengine
 	class PENGINE_API UniformWriter
 	{
 	public:
+		struct TextureInfo
+		{
+			std::shared_ptr<Texture> texture;
+			uint32_t baseMipLevel = 0;
+		};
+	
 		static std::shared_ptr<UniformWriter> Create(
 			std::shared_ptr<UniformLayout> uniformLayout,
 			bool isMultiBuffered = true);
@@ -38,26 +44,26 @@ namespace Pengine
 
 		void WriteTextureToFrame(
 			uint32_t location,
-			const std::shared_ptr<Texture>& texture,
+			const TextureInfo& textureInfo,
 			uint32_t dstArrayElement = 0,
 			uint32_t srcFrameIndex = Vk::frameInFlightIndex,
 			uint32_t dstFrameIndex = Vk::frameInFlightIndex);
 
 		void WriteTexturesToFrame(
 			uint32_t location,
-			const std::vector<std::shared_ptr<Texture>>& textures,
+			const std::vector<TextureInfo>& textureInfos,
 			uint32_t dstArrayElement = 0,
 			uint32_t srcFrameIndex = Vk::frameInFlightIndex,
 			uint32_t dstFrameIndex = Vk::frameInFlightIndex);
 
 		void WriteTextureToAllFrames(
 			uint32_t location,
-			const std::shared_ptr<Texture>& texture,
+			const TextureInfo& textureInfo,
 			uint32_t dstArrayElement = 0);
 
 		void WriteTexturesToAllFrames(
 			uint32_t location,
-			const std::vector<std::shared_ptr<Texture>>& textures,
+			const std::vector<TextureInfo>& textureInfos,
 			uint32_t dstArrayElement = 0);
 
 		void WriteBufferToFrame(
@@ -75,14 +81,31 @@ namespace Pengine
 
 		void WriteTextureToFrame(
 			const std::string& name,
-			const std::shared_ptr<Texture>& texture,
+			const TextureInfo& textureInfo,
 			uint32_t dstArrayElement = 0,
 			uint32_t srcFrameIndex = Vk::frameInFlightIndex,
 			uint32_t dstFrameIndex = Vk::frameInFlightIndex);
 
 		void WriteTexturesToFrame(
 			const std::string& name,
-			const std::vector<std::shared_ptr<Texture>>& textures,
+			const std::vector<TextureInfo>& textureInfos,
+			uint32_t dstArrayElement = 0,
+			uint32_t srcFrameIndex = Vk::frameInFlightIndex,
+			uint32_t dstFrameIndex = Vk::frameInFlightIndex);
+
+		void WriteTextureToAllFrames(
+			const std::string& name,
+			const TextureInfo& textureInfo,
+			uint32_t dstArrayElement = 0);
+
+		void WriteTexturesToAllFrames(
+			const std::string& name,
+			const std::vector<TextureInfo>& textureInfos,
+			uint32_t dstArrayElement = 0);
+
+		void WriteTextureToFrame(
+			const std::string& name,
+			const std::shared_ptr<Texture>& texture,
 			uint32_t dstArrayElement = 0,
 			uint32_t srcFrameIndex = Vk::frameInFlightIndex,
 			uint32_t dstFrameIndex = Vk::frameInFlightIndex);
@@ -92,11 +115,6 @@ namespace Pengine
 			const std::shared_ptr<Texture>& texture,
 			uint32_t dstArrayElement = 0);
 
-		void WriteTexturesToAllFrames(
-			const std::string& name,
-			const std::vector<std::shared_ptr<Texture>>& textures,
-			uint32_t dstArrayElement = 0);
-
 		virtual void Flush() = 0;
 		virtual NativeHandle GetNativeHandle() const = 0;
 
@@ -104,9 +122,9 @@ namespace Pengine
 
 		std::vector<std::shared_ptr<Buffer>> GetBuffer(const std::string& name);
 
-		const std::unordered_map<std::string, std::vector<std::shared_ptr<Texture>>>& GetTexturesByName() const { return m_TexturesByName; }
+		const std::unordered_map<std::string, std::vector<TextureInfo>>& GetTexturesByName() const { return m_TextureInfosByName; }
 
-		std::vector<std::shared_ptr<Texture>> GetTexture(const std::string& name);
+		std::vector<TextureInfo> GetTextureInfo(const std::string& name);
 		
 		std::shared_ptr<UniformLayout> GetUniformLayout() const { return m_UniformLayout; }
 
@@ -116,7 +134,7 @@ namespace Pengine
 		std::shared_ptr<UniformLayout> m_UniformLayout;
 
 		std::unordered_map<std::string, std::vector<std::shared_ptr<Buffer>>> m_BuffersByName;
-		std::unordered_map<std::string, std::vector<std::shared_ptr<Texture>>> m_TexturesByName;
+		std::unordered_map<std::string, std::vector<TextureInfo>> m_TextureInfosByName;
 
 		std::unordered_map<uint32_t, std::string> m_BufferNameByLocation;
 		std::unordered_map<uint32_t, std::string> m_TextureNameByLocation;
@@ -132,7 +150,7 @@ namespace Pengine
 		struct TextureWrite
 		{
 			ShaderReflection::ReflectDescriptorSetBinding binding;
-			std::vector<std::shared_ptr<Texture>> textures;
+			std::vector<TextureInfo> textureInfos;
 			uint32_t dstArrayElement = 0;
 			uint32_t frameIndex = 0;
 		};
