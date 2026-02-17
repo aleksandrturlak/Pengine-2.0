@@ -176,7 +176,7 @@ namespace Pengine
 		Texture& operator=(const Texture&) = delete;
 		Texture& operator=(Texture&&) = delete;
 
-		[[nodiscard]] virtual void* GetId() const { return nullptr;  }
+		[[nodiscard]] virtual void* GetId(const uint32_t frameIndex = Vk::frameInFlightIndex) const { return nullptr;  }
 
 		[[nodiscard]] virtual void* GetData() const = 0;
 

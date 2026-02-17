@@ -3362,7 +3362,7 @@ void Editor::MaterialMenu::Update(Editor& editor)
 
 				if (FileFormats::IsTexture(Utils::GetFileFormat(filepath)))
 				{
-					material->GetUniformWriter(passName)->WriteTexture(binding.name, TextureManager::GetInstance().Load(filepath));
+					material->GetUniformWriter(passName)->WriteTextureToAllFrames(binding.name, TextureManager::GetInstance().Load(filepath));
 					
 					isChangedToSerialize = true;
 				}
@@ -3377,7 +3377,7 @@ void Editor::MaterialMenu::Update(Editor& editor)
 		ImGui::PushID(whiteId.c_str());
 		if (ImGui::Button("White"))
 		{
-			material->GetUniformWriter(passName)->WriteTexture(binding.name, TextureManager::GetInstance().GetWhite());
+			material->GetUniformWriter(passName)->WriteTextureToAllFrames(binding.name, TextureManager::GetInstance().GetWhite());
 
 			isChangedToSerialize = true;
 		}
@@ -3389,7 +3389,7 @@ void Editor::MaterialMenu::Update(Editor& editor)
 		ImGui::PushID(blackId.c_str());
 		if (ImGui::Button("Black"))
 		{
-			material->GetUniformWriter(passName)->WriteTexture(binding.name, TextureManager::GetInstance().GetBlack());
+			material->GetUniformWriter(passName)->WriteTextureToAllFrames(binding.name, TextureManager::GetInstance().GetBlack());
 
 			isChangedToSerialize = true;
 		}

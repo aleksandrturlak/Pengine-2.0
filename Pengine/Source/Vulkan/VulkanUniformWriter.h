@@ -26,7 +26,7 @@ namespace Pengine::Vk
 
 		void WriteTexture(uint32_t location, const std::vector<VkDescriptorImageInfo>& vkDescriptorImageInfos);
 
-		[[nodiscard]] VkDescriptorSet GetDescriptorSet() const;
+		[[nodiscard]] VkDescriptorSet GetDescriptorSet(const uint32_t frameIndex = Vk::frameInFlightIndex) const;
 
 	private:
 		std::vector<VkDescriptorSet> m_DescriptorSets;

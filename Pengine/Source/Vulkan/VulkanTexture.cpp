@@ -9,6 +9,7 @@
 #include "VulkanUniformWriter.h"
 
 #include "../Core/Logger.h"
+#include "../Graphics/RenderPass.h"
 
 #include <imgui/backends/imgui_impl_vulkan.h>
 
@@ -177,11 +178,11 @@ VulkanTexture::~VulkanTexture()
 	}
 }
 
-VkDescriptorImageInfo VulkanTexture::GetDescriptorInfo(const uint32_t index)
+VkDescriptorImageInfo VulkanTexture::GetDescriptorInfo(const uint32_t frameIndex)
 {
 	VkDescriptorImageInfo descriptorImageInfo{};
-	descriptorImageInfo.imageLayout = GetLayout(index);
-	descriptorImageInfo.imageView = GetImageView(index);
+	descriptorImageInfo.imageLayout = GetLayout(frameIndex);
+	descriptorImageInfo.imageView = GetImageView(frameIndex);
 	descriptorImageInfo.sampler = m_Sampler;
 
 	return descriptorImageInfo;
@@ -476,10 +477,10 @@ Texture::SamplerCreateInfo::BorderColor VulkanTexture::ConvertBorderColor(VkBord
 	return {};
 }
 
-void* VulkanTexture::GetId() const
+void* VulkanTexture::GetId(const uint32_t frameIndex) const
 {
 	std::shared_ptr<VulkanUniformWriter> vkUniformWriter = std::dynamic_pointer_cast<VulkanUniformWriter>(m_UniformWriter);
-	return (void*)vkUniformWriter->GetDescriptorSet();
+	return (void*)vkUniformWriter->GetDescriptorSet(frameIndex);
 }
 
 void* VulkanTexture::GetData() const

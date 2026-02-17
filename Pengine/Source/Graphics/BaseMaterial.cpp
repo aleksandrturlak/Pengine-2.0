@@ -395,7 +395,7 @@ void BaseMaterial::CreatePipelineResources(
 				const std::shared_ptr<Buffer> buffer = Buffer::Create(createInfo);
 
 				m_BuffersByName[binding.buffer->name] = buffer;
-				uniformWriter->WriteBuffer(binding.buffer->name, buffer);
+				uniformWriter->WriteBufferToAllFrames(binding.buffer->name, buffer);
 				uniformWriter->Flush();
 			}
 		}
@@ -410,7 +410,7 @@ void BaseMaterial::CreatePipelineResources(
 	for (const auto& [name, filepath] : uniformInfo.texturesByName)
 	{
 		std::shared_ptr<Texture> texture = TextureManager::GetInstance().Load(filepath);
-		uniformWriter->WriteTexture(name, texture);
+		uniformWriter->WriteTextureToAllFrames(name, texture);
 	}
 	uniformWriter->Flush();
 

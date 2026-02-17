@@ -57,7 +57,7 @@ int BindlessUniformWriter::BindTexture(const std::shared_ptr<Texture>& texture)
 	// Note: Slot 0 is supposed to be pink texture and always taken!
 	if (index > 0)
 	{
-		m_BindlessUniformWriter->WriteTexture(0, texture, index);
+		m_BindlessUniformWriter->WriteTextureToAllFrames(0, texture, index);
 	}
 
 	return index;
@@ -116,6 +116,6 @@ void BindlessUniformWriter::CreateBindlessEntitiesResources(
 	const std::vector<ShaderReflection::ReflectDescriptorSetBinding> bindings = { *binding };
 	const auto entityUniformLayout = UniformLayout::Create(bindings);
 	uniformWriter = UniformWriter::Create(entityUniformLayout, true);
-	uniformWriter->WriteBuffer("BindlessEntities", buffer);
+	uniformWriter->WriteBufferToAllFrames("BindlessEntities", buffer);
 	uniformWriter->Flush();
 }

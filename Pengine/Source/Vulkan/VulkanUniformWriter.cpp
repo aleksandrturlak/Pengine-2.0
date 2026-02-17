@@ -152,7 +152,7 @@ void VulkanUniformWriter::WriteTexture(uint32_t location, const std::vector<VkDe
 	vkUpdateDescriptorSets(GetVkDevice()->GetDevice(), writes.size(), writes.data(), 0, nullptr);
 }
 
-VkDescriptorSet VulkanUniformWriter::GetDescriptorSet() const
+VkDescriptorSet VulkanUniformWriter::GetDescriptorSet(const uint32_t frameIndex) const
 {
-	return m_DescriptorSets[IsMultiBuffered() * frameInFlightIndex];
+	return m_DescriptorSets[IsMultiBuffered() * frameIndex];
 }

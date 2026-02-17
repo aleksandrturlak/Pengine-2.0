@@ -23,12 +23,80 @@ namespace Pengine
 		UniformWriter(const UniformWriter&) = delete;
 		UniformWriter& operator=(const UniformWriter&) = delete;
 
-		void WriteBuffer(uint32_t location, const std::shared_ptr<Buffer>& buffer, size_t size = -1, size_t offset = 0);
-		void WriteTexture(uint32_t location, const std::shared_ptr<Texture>& texture, uint32_t dstArrayElement = 0);
-		void WriteTextures(uint32_t location, const std::vector<std::shared_ptr<Texture>>& textures, uint32_t dstArrayElement = 0);
-		void WriteBuffer(const std::string& name, const std::shared_ptr<Buffer>& buffer, size_t size = -1, size_t offset = 0);
-		void WriteTexture(const std::string& name, const std::shared_ptr<Texture>& texture, uint32_t dstArrayElement = 0);
-		void WriteTextures(const std::string& name, const std::vector<std::shared_ptr<Texture>>& textures, uint32_t dstArrayElement = 0);
+		void WriteBufferToFrame(
+			uint32_t location,
+			const std::shared_ptr<Buffer>& buffer,
+			size_t size = -1,
+			size_t offset = 0,
+			uint32_t frameIndex = Vk::frameInFlightIndex);
+
+		void WriteBufferToAllFrames(
+			uint32_t location,
+			const std::shared_ptr<Buffer>& buffer,
+			size_t size = -1,
+			size_t offset = 0);
+
+		void WriteTextureToFrame(
+			uint32_t location,
+			const std::shared_ptr<Texture>& texture,
+			uint32_t dstArrayElement = 0,
+			uint32_t srcFrameIndex = Vk::frameInFlightIndex,
+			uint32_t dstFrameIndex = Vk::frameInFlightIndex);
+
+		void WriteTexturesToFrame(
+			uint32_t location,
+			const std::vector<std::shared_ptr<Texture>>& textures,
+			uint32_t dstArrayElement = 0,
+			uint32_t srcFrameIndex = Vk::frameInFlightIndex,
+			uint32_t dstFrameIndex = Vk::frameInFlightIndex);
+
+		void WriteTextureToAllFrames(
+			uint32_t location,
+			const std::shared_ptr<Texture>& texture,
+			uint32_t dstArrayElement = 0);
+
+		void WriteTexturesToAllFrames(
+			uint32_t location,
+			const std::vector<std::shared_ptr<Texture>>& textures,
+			uint32_t dstArrayElement = 0);
+
+		void WriteBufferToFrame(
+			const std::string& name,
+			const std::shared_ptr<Buffer>& buffer,
+			size_t size = -1,
+			size_t offset = 0,
+			uint32_t frameIndex = Vk::frameInFlightIndex);
+
+		void WriteBufferToAllFrames(
+			const std::string& name,
+			const std::shared_ptr<Buffer>& buffer,
+			size_t size = -1,
+			size_t offset = 0);
+
+		void WriteTextureToFrame(
+			const std::string& name,
+			const std::shared_ptr<Texture>& texture,
+			uint32_t dstArrayElement = 0,
+			uint32_t srcFrameIndex = Vk::frameInFlightIndex,
+			uint32_t dstFrameIndex = Vk::frameInFlightIndex);
+
+		void WriteTexturesToFrame(
+			const std::string& name,
+			const std::vector<std::shared_ptr<Texture>>& textures,
+			uint32_t dstArrayElement = 0,
+			uint32_t srcFrameIndex = Vk::frameInFlightIndex,
+			uint32_t dstFrameIndex = Vk::frameInFlightIndex);
+
+		void WriteTextureToAllFrames(
+			const std::string& name,
+			const std::shared_ptr<Texture>& texture,
+			uint32_t dstArrayElement = 0);
+
+		void WriteTexturesToAllFrames(
+			const std::string& name,
+			const std::vector<std::shared_ptr<Texture>>& textures,
+			uint32_t dstArrayElement = 0);
+
 		virtual void Flush() = 0;
 		virtual NativeHandle GetNativeHandle() const = 0;
 
@@ -66,6 +134,7 @@ namespace Pengine
 			ShaderReflection::ReflectDescriptorSetBinding binding;
 			std::vector<std::shared_ptr<Texture>> textures;
 			uint32_t dstArrayElement = 0;
+			uint32_t frameIndex = 0;
 		};
 
 		struct Write

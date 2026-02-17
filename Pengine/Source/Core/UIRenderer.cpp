@@ -488,7 +488,7 @@ UIRenderer::Batch& UIRenderer::GetOrCreateBatch(const uint32_t batchIndex, std::
 		batch.uniformBuffer = Buffer::Create(createInfoUniformBuffer);
 
 		batch.uniformWriter = UniformWriter::Create(pipeline->GetUniformLayout(1));
-		batch.uniformWriter->WriteBuffer("InstanceBuffer", batch.uniformBuffer);
+		batch.uniformWriter->WriteBufferToAllFrames("InstanceBuffer", batch.uniformBuffer);
 		batch.uniformWriter->Flush();
 
 		m_Batches.emplace_back(batch);
