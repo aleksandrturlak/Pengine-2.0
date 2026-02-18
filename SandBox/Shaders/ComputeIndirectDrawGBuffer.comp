@@ -1,12 +1,14 @@
 #version 450
 
+#extension GL_EXT_debug_printf : enable
+
+#include "Shaders/Includes/Common.h"
+
 #include "Shaders/Includes/Camera.h"
 layout(set = 0, binding = 0) uniform GlobalBuffer
 {
 	Camera camera;
 };
-
-#include "Shaders/Includes/Common.h"
 
 struct DrawIndirectCommand
 {
@@ -29,6 +31,17 @@ layout(set = 1, binding = 1) buffer IndirectDrawCommandCount
 layout(set = 1, binding = 2) buffer PipelineInfoBuffer
 {
   uint pipelineCommandOffset[MAX_PIPELINE_COUNT];
+};
+
+layout(set = 1, binding = 3, r32f) coherent uniform image2D hiZPyramid[16];
+
+#include "Shaders/Includes/HiZOcclusionCulling.h"
+
+layout(set = 1, binding = 4) uniform HiZPyramidMipLevelCountBuffer
+{
+    uint mipLevelCount;
+    float depthBias;
+    int isHiZOcclusionCullingEnabled;
 };
 
 layout(set = 2, binding = 0) uniform sampler2D bindlessTextures[MAX_BINDLESS_TEXTURES];
@@ -87,7 +100,7 @@ layout (local_size_x = 16, local_size_y = 1, local_size_z = 1) in;
 void main()
 {
     uint entityIndex = gl_GlobalInvocationID.x;
-    if (entityIndex >= 20000) return;
+    if (entityIndex >= MAX_BINDLESS_ENTITIES) return;
 
     EntityInfo entityInfo = entities[entityIndex];
     if (!bool(entityInfo.flags & ENTITY_VALID)) return;
@@ -95,6 +108,18 @@ void main()
     if (!bool((entityInfo.materialInfoBuffer.pipelineFlags >> GBUFFER_PASS) & uint64_t(1))) return;
 
     if (!IsAABBInsideFrustum(entityInfo.aabb.min, entityInfo.aabb.max)) return;
+
+    if (bool(isHiZOcclusionCullingEnabled) && IsAABBOccludedByHiZ(
+        entityInfo.aabb.min,
+        entityInfo.aabb.max,
+        camera.previousViewProjectionMat4,
+        camera.viewportSize,
+        mipLevelCount - 1u,
+        depthBias))
+    {
+        //debugPrintfEXT("Hiz %d", entityIndex);
+        return;
+    }
 
     MeshInfoBuffer meshInfoBuffer = entityInfo.meshInfoBuffer;
 

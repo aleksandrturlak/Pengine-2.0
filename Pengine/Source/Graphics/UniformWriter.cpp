@@ -223,6 +223,26 @@ void UniformWriter::WriteTextureToAllFrames(
 	WriteTextureToAllFrames(name, TextureInfo{ texture, 0 }, dstArrayElement);
 }
 
+void UniformWriter::DeleteBuffer(const std::string& name)
+{
+	const uint32_t location = m_UniformLayout->GetBindingLocationByName(name);
+	if (location != -1)
+	{
+		m_TextureInfosByName.erase(name);
+		m_TextureNameByLocation.erase(location);
+	}
+}
+
+void UniformWriter::DeleteTexture(const std::string &name)
+{
+	const uint32_t location = m_UniformLayout->GetBindingLocationByName(name);
+	if (location != -1)
+	{
+		m_BuffersByName.erase(name);
+		m_BufferNameByLocation.erase(location);
+	}
+}
+
 std::vector<std::shared_ptr<Buffer>> UniformWriter::GetBuffer(const std::string& name)
 {
 	return Utils::Find(name, m_BuffersByName);

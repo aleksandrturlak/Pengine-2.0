@@ -16,6 +16,7 @@ namespace Pengine
 		UI,
 		ComputeIndirectDrawGBuffer,
 		GBuffer,
+		HiZPyramid,
 		//Decals,
 		ComputeIndirectDrawCSM,
 		CSM,

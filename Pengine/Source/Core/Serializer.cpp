@@ -5460,6 +5460,16 @@ void Serializer::SerializeGraphicsSettings(const GraphicsSettings& graphicsSetti
 
 	out << YAML::BeginMap;
 
+	// HiZOcclusionCulling.
+	out << YAML::Key << "HiZOcclusionCulling";
+	out << YAML::Value << YAML::BeginMap;
+
+	out << YAML::Key << "IsEnabled" << YAML::Value << graphicsSettings.hiZOcclusionCulling.isEnabled;
+	out << YAML::Key << "DepthBias" << YAML::Value << graphicsSettings.hiZOcclusionCulling.depthBias;
+
+	out << YAML::EndMap;
+	//
+	
 	// SSAO.
 	out << YAML::Key << "SSAO";
 	out << YAML::Value << YAML::BeginMap;
@@ -5606,6 +5616,19 @@ GraphicsSettings Serializer::DeserializeGraphicsSettings(const std::filesystem::
 		FATAL_ERROR(filepath.string() + ":Failed to load yaml file! The file doesn't contain data or doesn't exist!");
 	}
 
+	if (const auto& hiZOcclusionCullingData = data["HiZOcclusionCulling"])
+	{
+		if (const auto& isEnabledData = hiZOcclusionCullingData["IsEnabled"])
+		{
+			graphicsSettings.hiZOcclusionCulling.isEnabled = isEnabledData.as<bool>();
+		}
+
+		if (const auto& depthBiasData = hiZOcclusionCullingData["DepthBias"])
+		{
+			graphicsSettings.hiZOcclusionCulling.depthBias = depthBiasData.as<float>();
+		}
+	}
+	
 	if (const auto& ssaoData = data["SSAO"])
 	{
 		if (const auto& isEnabledData = ssaoData["IsEnabled"])

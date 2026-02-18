@@ -92,18 +92,6 @@ VulkanTexture::VulkanTexture(const CreateInfo& createInfo)
 				imageData.image,
 				static_cast<uint32_t>(m_Size.x),
 				static_cast<uint32_t>(m_Size.y));
-
-			if (m_MipLevels > 1)
-			{
-				GetVkDevice()->GenerateMipMaps(
-					imageData.image,
-					ConvertFormat(m_Format),
-					m_Size.x,
-					m_Size.y,
-					m_MipLevels,
-					m_LayerCount,
-					VK_NULL_HANDLE);
-			}
 		}
 	}
 
@@ -119,6 +107,18 @@ VulkanTexture::VulkanTexture(const CreateInfo& createInfo)
 
 	for (auto& imageData : m_ImageDatas)
 	{
+		if (m_MipLevels > 1)
+		{
+			GetVkDevice()->GenerateMipMaps(
+				imageData.image,
+				ConvertFormat(m_Format),
+				m_Size.x,
+				m_Size.y,
+				m_MipLevels,
+				m_LayerCount,
+				VK_NULL_HANDLE);
+		}
+		
 		for (size_t i = 0; i < m_MipLevels; i++)
 		{
 			imageData.views.emplace_back(CreateImageView(

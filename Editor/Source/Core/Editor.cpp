@@ -1423,6 +1423,17 @@ void Editor::GraphicsSettingsInfo(GraphicsSettings& graphicsSettings)
 			ImGui::PopID();
 		}
 
+		if (ImGui::CollapsingHeader("HiZ Occlusion Culling"))
+		{
+			ImGui::PushID("HiZ Occlusion Culling Is Enabled");
+			isChangedToSerialize += ImGui::Checkbox("Is Enabled", &graphicsSettings.hiZOcclusionCulling.isEnabled);
+			ImGui::PopID();
+
+			ImGui::PushID("HiZ Occlusion Culling Depth Bias");
+			isChangedToSerialize += ImGui::SliderFloat("Depth Bias", &graphicsSettings.hiZOcclusionCulling.depthBias, 0.0f, 0.5f);
+			ImGui::PopID();
+		}
+
 		if (ImGui::CollapsingHeader("Post Process"))
 		{
 			ImGui::PushID("Post Process FXAA");

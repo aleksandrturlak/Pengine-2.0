@@ -156,6 +156,8 @@ namespace Pengine
 
 		void CreateSSSBlur();
 
+		void CreateHiZPyramid();
+
 		void CreateUI();
 
 		void CreateDecalPass();

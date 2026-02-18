@@ -115,6 +115,10 @@ namespace Pengine
 			const std::shared_ptr<Texture>& texture,
 			uint32_t dstArrayElement = 0);
 
+		void DeleteBuffer(const std::string& name);
+
+		void DeleteTexture(const std::string& name);
+
 		virtual void Flush() = 0;
 		virtual NativeHandle GetNativeHandle() const = 0;
 

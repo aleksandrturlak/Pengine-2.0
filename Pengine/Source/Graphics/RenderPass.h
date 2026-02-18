@@ -28,6 +28,7 @@ namespace Pengine
 	const std::string AntiAliasingAndCompose = "AntiAliasingAndCompose";
 	const std::string SSR = "SSR";
 	const std::string SSRBlur = "SSRBlur";
+	const std::string HiZPyramid = "HiZPyramid";
 	const std::string UI = "UI";
 
 	class FrameBuffer;

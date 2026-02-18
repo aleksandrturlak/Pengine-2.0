@@ -15,6 +15,12 @@ namespace Pengine
 			: Asset(name, filepath)
 		{}
 
+		struct HiZOcclusionCulling
+		{
+			bool isEnabled = true;
+			float depthBias = 0.025f;
+		} hiZOcclusionCulling;
+
 		struct SSAO
 		{
 			bool isEnabled = true;

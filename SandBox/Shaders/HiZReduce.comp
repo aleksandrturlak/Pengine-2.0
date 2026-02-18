@@ -1,0 +1,223 @@
+#version 460 core
+#extension GL_EXT_samplerless_texture_functions : enable
+
+layout(set = 0, binding = 0) uniform sampler2D sourceTexture;
+
+layout(set = 0, binding = 1, r32f) coherent uniform image2D outHiZPyramid[16];
+
+layout(set = 0, binding = 2, std430) coherent buffer HiZAtomicBuffer
+{
+    uint atomicCounter;
+};
+
+layout(set = 0, binding = 3) uniform HiZBuffer
+{
+    uvec2 sourceSize;
+    uint mipLevelCount;
+    uint workgroupCount;
+};
+
+float reduce2x2(float a, float b, float c, float d)
+{
+    return min(min(a, b), min(c, d));
+}
+
+shared float lds[32][32];
+
+layout(local_size_x = 16, local_size_y = 16, local_size_z = 1) in;
+void main()
+{
+    uvec2 tgid    = gl_WorkGroupID.xy;
+    uvec2 lid     = gl_LocalInvocationID.xy;
+    uint  lidFlat = gl_LocalInvocationIndex;
+
+    uvec2 baseCoord = tgid * 64 + lid * 4;
+
+    // ----- Load 4x4 block from source depth (clamped to edges) -----
+    float s00 = texelFetch(sourceTexture, ivec2(min(baseCoord + uvec2(0,0), sourceSize - 1u)), 0).r;
+    float s10 = texelFetch(sourceTexture, ivec2(min(baseCoord + uvec2(1,0), sourceSize - 1u)), 0).r;
+    float s20 = texelFetch(sourceTexture, ivec2(min(baseCoord + uvec2(2,0), sourceSize - 1u)), 0).r;
+    float s30 = texelFetch(sourceTexture, ivec2(min(baseCoord + uvec2(3,0), sourceSize - 1u)), 0).r;
+
+    float s01 = texelFetch(sourceTexture, ivec2(min(baseCoord + uvec2(0,1), sourceSize - 1u)), 0).r;
+    float s11 = texelFetch(sourceTexture, ivec2(min(baseCoord + uvec2(1,1), sourceSize - 1u)), 0).r;
+    float s21 = texelFetch(sourceTexture, ivec2(min(baseCoord + uvec2(2,1), sourceSize - 1u)), 0).r;
+    float s31 = texelFetch(sourceTexture, ivec2(min(baseCoord + uvec2(3,1), sourceSize - 1u)), 0).r;
+
+    float s02 = texelFetch(sourceTexture, ivec2(min(baseCoord + uvec2(0,2), sourceSize - 1u)), 0).r;
+    float s12 = texelFetch(sourceTexture, ivec2(min(baseCoord + uvec2(1,2), sourceSize - 1u)), 0).r;
+    float s22 = texelFetch(sourceTexture, ivec2(min(baseCoord + uvec2(2,2), sourceSize - 1u)), 0).r;
+    float s32 = texelFetch(sourceTexture, ivec2(min(baseCoord + uvec2(3,2), sourceSize - 1u)), 0).r;
+
+    float s03 = texelFetch(sourceTexture, ivec2(min(baseCoord + uvec2(0,3), sourceSize - 1u)), 0).r;
+    float s13 = texelFetch(sourceTexture, ivec2(min(baseCoord + uvec2(1,3), sourceSize - 1u)), 0).r;
+    float s23 = texelFetch(sourceTexture, ivec2(min(baseCoord + uvec2(2,3), sourceSize - 1u)), 0).r;
+    float s33 = texelFetch(sourceTexture, ivec2(min(baseCoord + uvec2(3,3), sourceSize - 1u)), 0).r;
+
+    // ----- Reduce 4x4 block to 2x2 for mip 1 -----
+    float r0 = reduce2x2(s00, s10, s01, s11);
+    float r1 = reduce2x2(s20, s30, s21, s31);
+    float r2 = reduce2x2(s02, s12, s03, s13);
+    float r3 = reduce2x2(s22, s32, s23, s33);
+
+    uvec2 ldsBase = lid * 2;
+    lds[ldsBase.y + 0][ldsBase.x + 0] = r0;
+    lds[ldsBase.y + 0][ldsBase.x + 1] = r1;
+    lds[ldsBase.y + 1][ldsBase.x + 0] = r2;
+    lds[ldsBase.y + 1][ldsBase.x + 1] = r3;
+
+    // Write to mip 1 (if it exists)
+    uvec2 mip1Base = tgid * 32 + ldsBase;
+    uvec2 mip1Size = sourceSize >> 1;
+    if (1 < mipLevelCount)
+    {
+        if (all(lessThan(mip1Base + uvec2(0,0), mip1Size))) imageStore(outHiZPyramid[1], ivec2(mip1Base + uvec2(0,0)), vec4(r0,0,0,1));
+        if (all(lessThan(mip1Base + uvec2(1,0), mip1Size))) imageStore(outHiZPyramid[1], ivec2(mip1Base + uvec2(1,0)), vec4(r1,0,0,1));
+        if (all(lessThan(mip1Base + uvec2(0,1), mip1Size))) imageStore(outHiZPyramid[1], ivec2(mip1Base + uvec2(0,1)), vec4(r2,0,0,1));
+        if (all(lessThan(mip1Base + uvec2(1,1), mip1Size))) imageStore(outHiZPyramid[1], ivec2(mip1Base + uvec2(1,1)), vec4(r3,0,0,1));
+    }
+
+    barrier();
+
+    // ----- Mip 2: 32x32 → 16x16 -----
+    float reduced = reduce2x2(lds[ldsBase.y + 0][ldsBase.x + 0],
+                              lds[ldsBase.y + 0][ldsBase.x + 1],
+                              lds[ldsBase.y + 1][ldsBase.x + 0],
+                              lds[ldsBase.y + 1][ldsBase.x + 1]);
+
+    barrier(); // All threads must finish reading LDS before any thread overwrites.
+
+    lds[lid.y][lid.x] = reduced;
+
+    uvec2 mip2Coord = tgid * 16 + lid;
+    uvec2 mip2Size = sourceSize >> 2;
+    if (2 < mipLevelCount && all(lessThan(mip2Coord, mip2Size)))
+    {
+        imageStore(outHiZPyramid[2], ivec2(mip2Coord), vec4(reduced,0,0,1));
+    }
+
+    barrier();
+
+    // ----- Mip 3: 16x16 → 8x8 -----
+    if (all(lessThan(lid, uvec2(8))))
+    {
+        reduced = reduce2x2(lds[ldsBase.y + 0][ldsBase.x + 0],
+                            lds[ldsBase.y + 0][ldsBase.x + 1],
+                            lds[ldsBase.y + 1][ldsBase.x + 0],
+                            lds[ldsBase.y + 1][ldsBase.x + 1]);
+    }
+
+    barrier(); // All threads must finish reading LDS before any thread overwrites.
+
+    if (all(lessThan(lid, uvec2(8))))
+    {
+        lds[lid.y][lid.x] = reduced;
+
+        uvec2 mip3Coord = tgid * 8 + lid;
+        uvec2 mip3Size = sourceSize >> 3;
+        if (3 < mipLevelCount && all(lessThan(mip3Coord, mip3Size)))
+        {
+            imageStore(outHiZPyramid[3], ivec2(mip3Coord), vec4(reduced,0,0,1));
+        }
+    }
+
+    barrier();
+
+    // ----- Mip 4: 8x8 → 4x4 -----
+    if (all(lessThan(lid, uvec2(4))))
+    {
+        reduced = reduce2x2(lds[ldsBase.y + 0][ldsBase.x + 0],
+                            lds[ldsBase.y + 0][ldsBase.x + 1],
+                            lds[ldsBase.y + 1][ldsBase.x + 0],
+                            lds[ldsBase.y + 1][ldsBase.x + 1]);
+    }
+
+    barrier(); // All threads must finish reading LDS before any thread overwrites.
+
+    if (all(lessThan(lid, uvec2(4))))
+    {
+        lds[lid.y][lid.x] = reduced;
+
+        uvec2 mip4Coord = tgid * 4 + lid;
+        uvec2 mip4Size = sourceSize >> 4;
+        if (4 < mipLevelCount && all(lessThan(mip4Coord, mip4Size)))
+        {
+            imageStore(outHiZPyramid[4], ivec2(mip4Coord), vec4(reduced,0,0,1));
+        }
+    }
+
+    barrier();
+
+    // ----- Mip 5: 4x4 → 2x2 -----
+    if (all(lessThan(lid, uvec2(2))))
+    {
+        reduced = reduce2x2(lds[ldsBase.y + 0][ldsBase.x + 0],
+                            lds[ldsBase.y + 0][ldsBase.x + 1],
+                            lds[ldsBase.y + 1][ldsBase.x + 0],
+                            lds[ldsBase.y + 1][ldsBase.x + 1]);
+    }
+
+    barrier(); // All threads must finish reading LDS before any thread overwrites.
+
+    if (all(lessThan(lid, uvec2(2))))
+    {
+        lds[lid.y][lid.x] = reduced;
+
+        uvec2 mip5Coord = tgid * 2 + lid;
+        uvec2 mip5Size = sourceSize >> 5;
+        if (5 < mipLevelCount && all(lessThan(mip5Coord, mip5Size)))
+        {
+            imageStore(outHiZPyramid[5], ivec2(mip5Coord), vec4(reduced,0,0,1));
+        }
+    }
+
+    barrier();
+
+    // ----- Mip 6: 2x2 → 1x1 -----
+    if (lidFlat == 0u)
+    {
+        reduced = reduce2x2(lds[0][0], lds[0][1], lds[1][0], lds[1][1]);
+
+        uvec2 mip6Coord = tgid;
+        uvec2 mip6Size = sourceSize >> 6;
+        if (6 < mipLevelCount && all(lessThan(mip6Coord, mip6Size)))
+        {
+            imageStore(outHiZPyramid[6], ivec2(mip6Coord), vec4(reduced,0,0,1));
+        }
+    }
+
+    memoryBarrierImage();
+    barrier();
+
+    // ----- Last workgroup finishes the remaining mip levels -----
+    if (lidFlat == 0u)
+    {
+        uint completed = atomicAdd(atomicCounter, 1u) + 1u; // old + 1
+        if (completed == workgroupCount)
+        {
+            atomicExchange(atomicCounter, 0u); // reset for next use
+
+            for (uint mip = 7u; mip < mipLevelCount; mip++)
+            {
+                // Ensure previous mip's image stores are visible before reading.
+                memoryBarrierImage();
+
+                uvec2 dstSize   = max(sourceSize >> mip,       uvec2(1u));
+                uvec2 srcMipSize = max(sourceSize >> (mip - 1u), uvec2(1u));
+
+                for (uint y = 0u; y < dstSize.y; y++)
+                {
+                    for (uint x = 0u; x < dstSize.x; x++)
+                    {
+                        uvec2 readBase = uvec2(x, y) * 2u;
+                        float r0 = imageLoad(outHiZPyramid[mip-1u], ivec2(min(readBase + uvec2(0u,0u), srcMipSize - 1u))).r;
+                        float r1 = imageLoad(outHiZPyramid[mip-1u], ivec2(min(readBase + uvec2(1u,0u), srcMipSize - 1u))).r;
+                        float r2 = imageLoad(outHiZPyramid[mip-1u], ivec2(min(readBase + uvec2(0u,1u), srcMipSize - 1u))).r;
+                        float r3 = imageLoad(outHiZPyramid[mip-1u], ivec2(min(readBase + uvec2(1u,1u), srcMipSize - 1u))).r;
+                        imageStore(outHiZPyramid[mip], ivec2(x, y), vec4(reduce2x2(r0, r1, r2, r3), 0.0, 0.0, 1.0));
+                    }
+                }
+            }
+        }
+    }
+}

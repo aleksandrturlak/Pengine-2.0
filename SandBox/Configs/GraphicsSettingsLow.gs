@@ -1,3 +1,6 @@
+HiZOcclusionCulling:
+  IsEnabled: true
+  DepthBias: 0.0199999996
 SSAO:
   IsEnabled: false
   AoScale: 1

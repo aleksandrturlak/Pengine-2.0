@@ -8,6 +8,7 @@ struct Wind
 struct Camera
 {
 	mat4 viewProjectionMat4;
+	mat4 previousViewProjectionMat4;
 	mat4 projectionMat4;
 	mat4 viewMat4;
 	mat4 inverseViewMat4;

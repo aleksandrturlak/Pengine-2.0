@@ -237,11 +237,18 @@ void RenderPassManager::PrepareUniformsPerViewportBeforeDraw(const RenderPass::R
 	const Camera& camera = renderInfo.camera->GetComponent<Camera>();
 	const Transform& cameraTransform = renderInfo.camera->GetComponent<Transform>();
 	const glm::mat4 viewProjectionMat4 = renderInfo.projection * camera.GetViewMat4();
+	const glm::mat4 previousViewProjectionMat4 = reflectionBaseMaterial->GetBufferValue<glm::mat4>(globalBuffer, globalBufferName, "camera.viewProjectionMat4");
 	reflectionBaseMaterial->WriteToBuffer(
 		globalBuffer,
 		globalBufferName,
 		"camera.viewProjectionMat4",
 		viewProjectionMat4);
+
+	reflectionBaseMaterial->WriteToBuffer(
+		globalBuffer,
+		globalBufferName,
+		"camera.previousViewProjectionMat4",
+		previousViewProjectionMat4);
 
 	const glm::mat4 viewMat4 = camera.GetViewMat4();
 	reflectionBaseMaterial->WriteToBuffer(
@@ -429,6 +436,7 @@ void RenderPassManager::Initialize()
 	CreateUI();
 	CreateDecalPass();
 	CreateDefaultReflection();
+	CreateHiZPyramid();
 }
 
 void RenderPassManager::GetVertexBuffers(
@@ -654,6 +662,8 @@ void RenderPassManager::CreateComputeIndirectDrawGBuffer()
 			return;
 		}
 
+		const GraphicsSettings::HiZOcclusionCulling& hiZOcclusionCulling = renderInfo.scene->GetGraphicsSettings().hiZOcclusionCulling;
+
 		const auto& gbufferData = multiPassData->passesByName[GBuffer];
 
 		const std::shared_ptr<UniformWriter>& renderUniformWriter = GetOrCreateUniformWriter(
@@ -664,6 +674,38 @@ void RenderPassManager::CreateComputeIndirectDrawGBuffer()
 			renderInfo.renderView, renderUniformWriter, "IndirectDrawCommandCount", {}, { Buffer::Usage::STORAGE_BUFFER, Buffer::Usage::INDIRECT_BUFFER }, MemoryType::GPU, true);
 		const std::shared_ptr<Buffer>& pipelineInfoBuffer = GetOrCreateBuffer(
 			renderInfo.renderView, renderUniformWriter, "PipelineInfoBuffer", {}, { Buffer::Usage::STORAGE_BUFFER, Buffer::Usage::INDIRECT_BUFFER }, MemoryType::CPU, true);
+		const std::shared_ptr<Buffer>& hiZPyramidMipLevelCountBuffer = GetOrCreateBuffer(
+			renderInfo.renderView, renderUniformWriter, "HiZPyramidMipLevelCountBuffer", {}, { Buffer::Usage::UNIFORM_BUFFER }, MemoryType::CPU, true);
+
+		uint32_t mipLevelCount = 1;
+		const std::shared_ptr<Texture> hiZTexture = renderInfo.renderView->GetStorageImage(HiZPyramid);
+		if (hiZTexture)
+		{
+			mipLevelCount = hiZTexture->GetMipLevels();
+			std::vector<UniformWriter::TextureInfo> textureInfos(mipLevelCount);
+			for (size_t i = 0; i < mipLevelCount; i++)
+			{
+				UniformWriter::TextureInfo& textureInfo = textureInfos[i];
+				textureInfo.texture = hiZTexture;
+				textureInfo.baseMipLevel = i;
+			}
+			
+			renderUniformWriter->WriteTexturesToFrame(
+				"hiZPyramid",
+				textureInfos,
+				0,
+				(Vk::frameInFlightIndex + 1) % Vk::frameInFlightCount,
+				Vk::frameInFlightIndex);
+		}
+		else
+		{
+			renderUniformWriter->DeleteTexture("hiZPyramid");
+		}
+
+		const int isHiZOcclusionCullingEnabled = hiZOcclusionCulling.isEnabled && hiZTexture;
+		baseMaterial->WriteToBuffer(hiZPyramidMipLevelCountBuffer, "HiZPyramidMipLevelCountBuffer", "isHiZOcclusionCullingEnabled", isHiZOcclusionCullingEnabled);
+		baseMaterial->WriteToBuffer(hiZPyramidMipLevelCountBuffer, "HiZPyramidMipLevelCountBuffer", "depthBias", hiZOcclusionCulling.depthBias);
+		baseMaterial->WriteToBuffer(hiZPyramidMipLevelCountBuffer, "HiZPyramidMipLevelCountBuffer", "mipLevelCount", mipLevelCount);
 
 		uint32_t offset = 0;
 		for (const auto& [id, pipeline] : gbufferData.sortedPipelines)
@@ -3922,6 +3964,128 @@ void RenderPassManager::CreateSSSBlur()
 		}
 
 		renderInfo.renderer->EndCommandLabel(renderInfo.frame);
+	};
+
+	CreateComputePass(createInfo);
+}
+
+void RenderPassManager::CreateHiZPyramid()
+{
+	ComputePass::CreateInfo createInfo{};
+	createInfo.type = Pass::Type::COMPUTE;
+	createInfo.name = HiZPyramid;
+
+	createInfo.executeCallback = [this, passName = createInfo.name](const RenderPass::RenderCallbackInfo& renderInfo)
+	{
+		PROFILER_SCOPE(HiZPyramid);
+
+		if (!renderInfo.scene->GetGraphicsSettings().hiZOcclusionCulling.isEnabled)
+		{
+			renderInfo.renderView->DeleteBuffer("HiZBuffer");
+			renderInfo.renderView->DeleteBuffer("HiZAtomicBuffer");
+			renderInfo.renderView->DeleteStorageImage(passName);
+			renderInfo.renderView->DeleteUniformWriter(passName);
+
+			return;
+		}
+
+		const std::shared_ptr<BaseMaterial> baseMaterial = MaterialManager::GetInstance().LoadBaseMaterial(
+			std::filesystem::path("Materials") / "HiZPyramid.basemat");
+		const std::shared_ptr<Pipeline> pipeline = baseMaterial->GetPipeline(passName);
+		if (!pipeline)
+		{
+			return;
+		}
+
+		const glm::ivec2 viewportSize = renderInfo.viewportSize;
+		const uint32_t mipLevelCount = static_cast<uint32_t>(std::floor(std::log2(std::max(
+			viewportSize.x, viewportSize.y)))) + 1;
+
+		Texture::CreateInfo textureCreateInfo{};
+		textureCreateInfo.aspectMask = Texture::AspectMask::COLOR;
+		textureCreateInfo.instanceSize = sizeof(float);
+		textureCreateInfo.filepath = passName;
+		textureCreateInfo.name = passName;
+		textureCreateInfo.format = Format::R32_SFLOAT;
+		textureCreateInfo.size = viewportSize;
+		textureCreateInfo.usage = { Texture::Usage::STORAGE, Texture::Usage::SAMPLED, Texture::Usage::TRANSFER_SRC, Texture::Usage::TRANSFER_DST };
+		textureCreateInfo.isMultiBuffered = true;
+		textureCreateInfo.mipLevels = mipLevelCount;
+
+		const std::shared_ptr<UniformWriter> renderUniformWriter = GetOrCreateUniformWriter(
+			renderInfo.renderView, pipeline, Pipeline::DescriptorSetIndexType::RENDERER, passName);
+
+		bool needToWriteToUniformWriter = false;
+		std::shared_ptr<Texture> hiZTexture = renderInfo.renderView->GetStorageImage(passName);
+		if (!hiZTexture)
+		{
+			hiZTexture = Texture::Create(textureCreateInfo);
+			renderInfo.renderView->SetStorageImage(passName, hiZTexture);
+			needToWriteToUniformWriter = true;
+		}
+
+		if (viewportSize != hiZTexture->GetSize())
+		{
+			hiZTexture = Texture::Create(textureCreateInfo);
+			renderInfo.renderView->SetStorageImage(passName, hiZTexture);
+		}
+
+		if (needToWriteToUniformWriter)
+		{
+			std::vector<UniformWriter::TextureInfo> textureInfos(mipLevelCount);
+			for (size_t i = 0; i < mipLevelCount; i++)
+			{
+				UniformWriter::TextureInfo& textureInfo = textureInfos[i];
+				textureInfo.texture = hiZTexture;
+				textureInfo.baseMipLevel = i;
+			}
+			
+			renderUniformWriter->WriteTexturesToAllFrames("outHiZPyramid", textureInfos, 0);
+		}
+
+		const std::shared_ptr<Buffer> hiZBuffer = GetOrCreateBuffer(
+			renderInfo.renderView,
+			renderUniformWriter,
+			"HiZBuffer",
+			{},
+			{ Buffer::Usage::UNIFORM_BUFFER },
+			MemoryType::CPU,
+			true);
+
+		const std::shared_ptr<Buffer> hiZAtomicBuffer = GetOrCreateBuffer(
+			renderInfo.renderView,
+			renderUniformWriter,
+			"HiZAtomicBuffer",
+			{},
+			{ Buffer::Usage::STORAGE_BUFFER },
+			MemoryType::GPU,
+			true);
+
+		WriteRenderViews(renderInfo.renderView, renderInfo.scene->GetRenderView(), pipeline, renderUniformWriter);
+
+		uint32_t workgroupsX = (renderInfo.viewportSize.x + 64 - 1) / 64;
+    	uint32_t workgroupsY = (renderInfo.viewportSize.y + 64 - 1) / 64;
+		uint32_t workgroupCount = workgroupsX * workgroupsY;
+		
+		baseMaterial->WriteToBuffer(hiZBuffer, "HiZBuffer", "sourceSize", renderInfo.viewportSize);
+		baseMaterial->WriteToBuffer(hiZBuffer, "HiZBuffer", "mipLevelCount", mipLevelCount);
+		baseMaterial->WriteToBuffer(hiZBuffer, "HiZBuffer", "workgroupCount", workgroupCount);
+
+		std::vector<NativeHandle> uniformWriterNativeHandles;
+		std::vector<std::shared_ptr<UniformWriter>> uniformWriters;
+		GetUniformWriters(pipeline, baseMaterial, nullptr, renderInfo, uniformWriters, uniformWriterNativeHandles);
+		if (FlushUniformWriters(uniformWriters))
+		{
+			renderInfo.renderer->BeginCommandLabel(passName, topLevelRenderPassDebugColor, renderInfo.frame);
+			
+			renderInfo.renderer->FillBuffer(hiZAtomicBuffer->GetNativeHandle(), hiZAtomicBuffer->GetSize(), 0, 0, renderInfo.frame);
+
+			glm::uvec2 groupCount = viewportSize / glm::ivec2(16, 16);
+			groupCount += glm::uvec2(1, 1);
+			renderInfo.renderer->Compute(pipeline, { groupCount.x, groupCount.y, 1 }, uniformWriterNativeHandles, renderInfo.frame);
+
+			renderInfo.renderer->EndCommandLabel(renderInfo.frame);
+		}
 	};
 
 	CreateComputePass(createInfo);

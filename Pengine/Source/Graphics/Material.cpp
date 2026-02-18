@@ -284,7 +284,7 @@ std::shared_ptr<Buffer> Material::GetMaterialInfoBuffer()
 	return m_MaterialInfoBuffer;
 }
 
-void Material::CreateResources(const CreateInfo &createInfo)
+void Material::CreateResources(const CreateInfo& createInfo)
 {
 	m_BaseMaterial = AsyncAssetLoader::GetInstance().SyncLoadBaseMaterial(createInfo.baseMaterial);
 	m_OptionsByName = createInfo.optionsByName;
