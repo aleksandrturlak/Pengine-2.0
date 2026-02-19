@@ -110,6 +110,35 @@ void RenderPassManager::ShutDown()
 	m_PassesByName.clear();
 }
 
+std::shared_ptr<UniformWriter> RenderPassManager::ResolveUniformWriter(
+	Pipeline::DescriptorSetIndexType type,
+	const std::string& name,
+	const std::shared_ptr<BaseMaterial>& baseMaterial,
+	const std::shared_ptr<Material>& material,
+	const RenderPass::RenderCallbackInfo& renderInfo,
+	const std::shared_ptr<UniformWriter>& objectUniformWriter)
+{
+	switch (type)
+	{
+	case Pipeline::DescriptorSetIndexType::BINDLESS:
+		return BindlessUniformWriter::GetInstance().GetBindlessUniformWriter();
+	case Pipeline::DescriptorSetIndexType::RENDERER:
+		return renderInfo.renderView->GetUniformWriter(name);
+	case Pipeline::DescriptorSetIndexType::SCENE:
+		return renderInfo.scene->GetRenderView()->GetUniformWriter(name);
+	case Pipeline::DescriptorSetIndexType::RENDERPASS:
+		return RenderPassManager::GetInstance().GetRenderPass(name)->GetUniformWriter();
+	case Pipeline::DescriptorSetIndexType::BASE_MATERIAL:
+		return baseMaterial ? baseMaterial->GetUniformWriter(name) : nullptr;
+	case Pipeline::DescriptorSetIndexType::MATERIAL:
+		return material ? material->GetUniformWriter(name) : nullptr;
+	case Pipeline::DescriptorSetIndexType::OBJECT:
+		return objectUniformWriter;
+	default:
+		return nullptr;
+	}
+}
+
 void RenderPassManager::GetUniformWriters(
 	std::shared_ptr<Pipeline> pipeline,
 	std::shared_ptr<BaseMaterial> baseMaterial,
@@ -122,28 +151,10 @@ void RenderPassManager::GetUniformWriters(
 
 	for (const auto& [set, location] : pipeline->GetSortedDescriptorSets())
 	{
-		switch (location.first)
+		if (const std::shared_ptr<UniformWriter> uniformWriter = ResolveUniformWriter(
+			location.first, location.second, baseMaterial, material, renderInfo, nullptr))
 		{
-		case Pipeline::DescriptorSetIndexType::BINDLESS:
-			uniformWriters.emplace_back(BindlessUniformWriter::GetInstance().GetBindlessUniformWriter());
-			break;
-		case Pipeline::DescriptorSetIndexType::RENDERER:
-			uniformWriters.emplace_back(renderInfo.renderView->GetUniformWriter(location.second));
-			break;
-		case Pipeline::DescriptorSetIndexType::SCENE:
-			uniformWriters.emplace_back(renderInfo.scene->GetRenderView()->GetUniformWriter(location.second));
-			break;
-		case Pipeline::DescriptorSetIndexType::RENDERPASS:
-			uniformWriters.emplace_back(RenderPassManager::GetInstance().GetRenderPass(location.second)->GetUniformWriter());
-			break;
-		case Pipeline::DescriptorSetIndexType::BASE_MATERIAL:
-			uniformWriters.emplace_back(baseMaterial->GetUniformWriter(location.second));
-			break;
-		case Pipeline::DescriptorSetIndexType::MATERIAL:
-			uniformWriters.emplace_back(material->GetUniformWriter(location.second));
-			break;
-		default:
-			break;
+			uniformWriters.emplace_back(uniformWriter);
 		}
 	}
 
@@ -161,44 +172,16 @@ bool RenderPassManager::BindAndFlushUniformWriters(
 	const std::vector<Pipeline::DescriptorSetIndexType>& descriptorSetIndexTypes,
 	std::shared_ptr<UniformWriter> objectUniformWriter)
 {
-    PROFILER_SCOPE(__FUNCTION__);
+	PROFILER_SCOPE(__FUNCTION__);
 
-	// NOTE: May return reference for better performance!
 	for (const auto& type : descriptorSetIndexTypes)
 	{
 		const auto descriptorSet = pipeline->GetDescriptorSetIndexByType(type);
 		for (const auto& [name, set] : descriptorSet)
 		{
-			std::shared_ptr<UniformWriter> uniformWriter;
-			switch (type)
-			{
-			case Pipeline::DescriptorSetIndexType::BINDLESS:
-				uniformWriter = BindlessUniformWriter::GetInstance().GetBindlessUniformWriter();
-				break;
-			case Pipeline::DescriptorSetIndexType::RENDERER:
-				uniformWriter = renderInfo.renderView->GetUniformWriter(name);
-				break;
-			case Pipeline::DescriptorSetIndexType::SCENE:
-				uniformWriter = renderInfo.scene->GetRenderView()->GetUniformWriter(name);
-				break;
-			case Pipeline::DescriptorSetIndexType::RENDERPASS:
-				uniformWriter = RenderPassManager::GetInstance().GetRenderPass(name)->GetUniformWriter();
-				break;
-			case Pipeline::DescriptorSetIndexType::BASE_MATERIAL:
-				if (!baseMaterial) continue;
-				uniformWriter = baseMaterial->GetUniformWriter(name);
-				break;
-			case Pipeline::DescriptorSetIndexType::MATERIAL:
-				if (!material) continue;
-				uniformWriter = material->GetUniformWriter(name);
-				break;
-			case Pipeline::DescriptorSetIndexType::OBJECT:
-				if (!objectUniformWriter) continue;
-				uniformWriter = objectUniformWriter;
-				break;
-			default:
-				break;
-			}
+			const std::shared_ptr<UniformWriter> uniformWriter = ResolveUniformWriter(
+				type, name, baseMaterial, material, renderInfo, objectUniformWriter);
+			if (!uniformWriter) continue;
 
 			if (!FlushUniformWriters({ uniformWriter }))
 			{

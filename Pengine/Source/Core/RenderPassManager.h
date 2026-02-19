@@ -166,6 +166,14 @@ namespace Pengine
 
 		void CreateAntiAliasingAndComposePass();
 
+		static std::shared_ptr<class UniformWriter> ResolveUniformWriter(
+			Pipeline::DescriptorSetIndexType type,
+			const std::string& name,
+			const std::shared_ptr<class BaseMaterial>& baseMaterial,
+			const std::shared_ptr<class Material>& material,
+			const RenderPass::RenderCallbackInfo& renderInfo,
+			const std::shared_ptr<class UniformWriter>& objectUniformWriter);
+
 		static bool FlushUniformWriters(const std::vector<std::shared_ptr<class UniformWriter>>& uniformWriters);
 
 		static void WriteRenderViews(
