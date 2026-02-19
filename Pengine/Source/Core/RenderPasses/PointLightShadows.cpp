@@ -135,31 +135,6 @@ void RenderPassManager::CreatePointLightShadows()
 		const float facesPerRow = (float)shadowMapAtlasSize.x / (float)faceSize;
 		const int maxShadowMapCount = glm::floor((facesPerRow * facesPerRow) / 6.0f);
 
-		const std::shared_ptr<BaseMaterial> deferredBaseMaterial = MaterialManager::GetInstance().LoadBaseMaterial(
-			std::filesystem::path("Materials") / "Deferred.basemat");
-		const std::shared_ptr<Pipeline> deferredPipeline = deferredBaseMaterial->GetPipeline(Deferred);
-		if (!deferredPipeline)
-		{
-			return;
-		}
-
-		const std::string lightsBufferName = "Lights";
-		const std::shared_ptr<UniformWriter> lightsUniformWriter = GetOrCreateUniformWriter(
-			renderInfo.renderView, deferredPipeline, Pipeline::DescriptorSetIndexType::RENDERER, lightsBufferName);
-		const std::shared_ptr<Buffer> lightsBuffer = GetOrCreateBuffer(
-			renderInfo.renderView,
-			lightsUniformWriter,
-			lightsBufferName,
-			{},
-			{ Buffer::Usage::UNIFORM_BUFFER },
-			MemoryType::CPU,
-			true);
-
-		const int isPointLightShadowsEnabled = pointLightShadowsSettings.isEnabled;
-		deferredBaseMaterial->WriteToBuffer(lightsBuffer, lightsBufferName, "pointLightShadows.isEnabled", isPointLightShadowsEnabled);
-		deferredBaseMaterial->WriteToBuffer(lightsBuffer, lightsBufferName, "pointLightShadows.shadowMapAtlasSize", shadowMapAtlasSize.x);
-		deferredBaseMaterial->WriteToBuffer(lightsBuffer, lightsBufferName, "pointLightShadows.faceSize", faceSize);
-
 		const auto view = registry.view<PointLight>();
 
 		struct LightInfoToSort
@@ -224,15 +199,6 @@ void RenderPassManager::CreatePointLightShadows()
 			PointLight& pl = registry.get<PointLight>(light.entity);
 
 			const glm::vec3 lightPositionWorldSpace = light.position;
-			const glm::vec3 lightPositionViewSpace = camera.GetViewMat4() * glm::vec4(light.position, 1.0f);
-			const int castSSS = pl.castSSS;
-			deferredBaseMaterial->WriteToBuffer(lightsBuffer, lightsBufferName, std::format("pointLights[{}].positionWorldSpace", lightIndex), lightPositionWorldSpace);
-			deferredBaseMaterial->WriteToBuffer(lightsBuffer, lightsBufferName, std::format("pointLights[{}].positionViewSpace", lightIndex), lightPositionViewSpace);
-			deferredBaseMaterial->WriteToBuffer(lightsBuffer, lightsBufferName, std::format("pointLights[{}].castSSS", lightIndex), castSSS);
-			deferredBaseMaterial->WriteToBuffer(lightsBuffer, lightsBufferName, std::format("pointLights[{}].color", lightIndex), pl.color);
-			deferredBaseMaterial->WriteToBuffer(lightsBuffer, lightsBufferName, std::format("pointLights[{}].intensity", lightIndex), pl.intensity);
-			deferredBaseMaterial->WriteToBuffer(lightsBuffer, lightsBufferName, std::format("pointLights[{}].radius", lightIndex), pl.radius);
-			deferredBaseMaterial->WriteToBuffer(lightsBuffer, lightsBufferName, std::format("pointLights[{}].bias", lightIndex), pl.bias);
 
 			if (pl.drawBoundingSphere)
 			{
@@ -281,7 +247,7 @@ void RenderPassManager::CreatePointLightShadows()
 					faceInfo.entities.reserve(bvhNodes.size());
 
 					const auto frustumPlanes = Utils::GetFrustumPlanes(viewProjectionMat4);
-					
+
 					// NOTE: BVH Culling is a lot slower than this for loop checks.
 					for (const auto& node : bvhNodes)
 					{
@@ -290,19 +256,13 @@ void RenderPassManager::CreatePointLightShadows()
 							faceInfo.entities.emplace_back(node.entity->GetHandle());
 						}
 					}
-
-					deferredBaseMaterial->WriteToBuffer(lightsBuffer, lightsBufferName, std::format("pointLights[{}].pointLightFaceInfos[{}].viewProjectionMat4", lightIndex, faceIndex), viewProjectionMat4);
 				}
 			}
-			
+
 			lightInfo.shadowMapIndex = plShadowMapIndex;
-			deferredBaseMaterial->WriteToBuffer(lightsBuffer, lightsBufferName, std::format("pointLights[{}].shadowMapIndex", lightIndex), plShadowMapIndex);
 
 			lightIndex++;
 		}
-
-		int pointLightsCount = lightInfos.size();
-		deferredBaseMaterial->WriteToBuffer(lightsBuffer, lightsBufferName, "pointLightsCount", pointLightsCount);
 
 		if (!pointLightShadowsSettings.isEnabled)
 		{

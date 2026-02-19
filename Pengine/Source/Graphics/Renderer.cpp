@@ -90,6 +90,7 @@ void Renderer::Update(
 			renderInfo.renderView = viewport.renderView;
 
 			RenderPassManager::PrepareUniformsPerViewportBeforeDraw(renderInfo);
+			RenderPassManager::ProcessLights(renderInfo);
 
 			renderer->BeginCommandLabel("Camera: " + viewport.camera->GetName(), glm::vec3(1.0f, 0.75f, 0.0f), frame);
 

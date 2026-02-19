@@ -100,31 +100,6 @@ void RenderPassManager::CreateSpotLightShadows()
 		const float facesPerRow = (float)shadowMapAtlasSize.x / (float)faceSize;
 		const int maxShadowMapCount = glm::floor(facesPerRow * facesPerRow);
 
-		const std::shared_ptr<BaseMaterial> deferredBaseMaterial = MaterialManager::GetInstance().LoadBaseMaterial(
-			std::filesystem::path("Materials") / "Deferred.basemat");
-		const std::shared_ptr<Pipeline> deferredPipeline = deferredBaseMaterial->GetPipeline(Deferred);
-		if (!deferredPipeline)
-		{
-			return;
-		}
-
-		const std::string lightsBufferName = "Lights";
-		const std::shared_ptr<UniformWriter> lightsUniformWriter = GetOrCreateUniformWriter(
-			renderInfo.renderView, deferredPipeline, Pipeline::DescriptorSetIndexType::RENDERER, lightsBufferName);
-		const std::shared_ptr<Buffer> lightsBuffer = GetOrCreateBuffer(
-			renderInfo.renderView,
-			lightsUniformWriter,
-			lightsBufferName,
-			{},
-			{ Buffer::Usage::UNIFORM_BUFFER },
-			MemoryType::CPU,
-			true);
-
-		const int isSpotLightShadowsEnabled = spotLightShadowsSettings.isEnabled;
-		deferredBaseMaterial->WriteToBuffer(lightsBuffer, lightsBufferName, "spotLightShadows.isEnabled", isSpotLightShadowsEnabled);
-		deferredBaseMaterial->WriteToBuffer(lightsBuffer, lightsBufferName, "spotLightShadows.shadowMapAtlasSize", shadowMapAtlasSize.x);
-		deferredBaseMaterial->WriteToBuffer(lightsBuffer, lightsBufferName, "spotLightShadows.faceSize", faceSize);
-
 		const auto view = registry.view<SpotLight>();
 
 		struct LightInfoToSort
@@ -189,21 +164,6 @@ void RenderPassManager::CreateSpotLightShadows()
 			SpotLight& sl = registry.get<SpotLight>(light.entity);
 			Transform& transform = registry.get<Transform>(light.entity);
 
-			const glm::vec3 lightPositionWorldSpace = light.position;
-			const glm::vec3 lightPositionViewSpace = camera.GetViewMat4() * glm::vec4(light.position, 1.0f);
-			const glm::vec3 directionViewSpace = glm::mat3(camera.GetViewMat4()) * transform.GetForward();
-			const int castSSS = sl.castSSS;
-			deferredBaseMaterial->WriteToBuffer(lightsBuffer, lightsBufferName, std::format("spotLights[{}].positionWorldSpace", lightIndex), lightPositionWorldSpace);
-			deferredBaseMaterial->WriteToBuffer(lightsBuffer, lightsBufferName, std::format("spotLights[{}].positionViewSpace", lightIndex), lightPositionViewSpace);
-			deferredBaseMaterial->WriteToBuffer(lightsBuffer, lightsBufferName, std::format("spotLights[{}].directionViewSpace", lightIndex), directionViewSpace);
-			deferredBaseMaterial->WriteToBuffer(lightsBuffer, lightsBufferName, std::format("spotLights[{}].castSSS", lightIndex), castSSS);
-			deferredBaseMaterial->WriteToBuffer(lightsBuffer, lightsBufferName, std::format("spotLights[{}].color", lightIndex), sl.color);
-			deferredBaseMaterial->WriteToBuffer(lightsBuffer, lightsBufferName, std::format("spotLights[{}].intensity", lightIndex), sl.intensity);
-			deferredBaseMaterial->WriteToBuffer(lightsBuffer, lightsBufferName, std::format("spotLights[{}].radius", lightIndex), sl.radius);
-			deferredBaseMaterial->WriteToBuffer(lightsBuffer, lightsBufferName, std::format("spotLights[{}].bias", lightIndex), sl.bias);
-			deferredBaseMaterial->WriteToBuffer(lightsBuffer, lightsBufferName, std::format("spotLights[{}].innerCutOff", lightIndex), sl.innerCutOff);
-			deferredBaseMaterial->WriteToBuffer(lightsBuffer, lightsBufferName, std::format("spotLights[{}].outerCutOff", lightIndex), sl.outerCutOff);
-
 			if (sl.drawBoundingSphere)
 			{
 				constexpr glm::vec3 color = glm::vec3(0.0f, 1.0f, 0.0f);
@@ -251,18 +211,12 @@ void RenderPassManager::CreateSpotLightShadows()
 						lightInfo.entities.emplace_back(node.entity->GetHandle());
 					}
 				}
-
-				deferredBaseMaterial->WriteToBuffer(lightsBuffer, lightsBufferName, std::format("spotLights[{}].viewProjectionMat4", lightIndex), viewProjectionMat4);
 			}
 
 			lightInfo.shadowMapIndex = slShadowMapIndex;
-			deferredBaseMaterial->WriteToBuffer(lightsBuffer, lightsBufferName, std::format("spotLights[{}].shadowMapIndex", lightIndex), slShadowMapIndex);
 
 			lightIndex++;
 		}
-
-		int spotLightsCount = lightInfos.size();
-		deferredBaseMaterial->WriteToBuffer(lightsBuffer, lightsBufferName, "spotLightsCount", spotLightsCount);
 
 		if (!spotLightShadowsSettings.isEnabled)
 		{

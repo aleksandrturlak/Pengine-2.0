@@ -57,6 +57,8 @@ namespace Pengine
 
 		static void ProcessEntities(const RenderPass::RenderCallbackInfo& renderInfo);
 
+		static void ProcessLights(const RenderPass::RenderCallbackInfo& renderInfo);
+
 		std::shared_ptr<Texture> ScaleTexture(
 			std::shared_ptr<Texture> sourceTexture,
 			const glm::ivec2& dstSize);

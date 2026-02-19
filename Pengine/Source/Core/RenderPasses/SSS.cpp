@@ -103,34 +103,6 @@ void RenderPassManager::CreateSSS()
 
 		WriteRenderViews(renderInfo.renderView, renderInfo.scene->GetRenderView(), pipeline, renderUniformWriter);
 
-		const std::shared_ptr<BaseMaterial> deferredBaseMaterial = MaterialManager::GetInstance().LoadBaseMaterial(
-			std::filesystem::path("Materials") / "Deferred.basemat");
-		const std::shared_ptr<Pipeline> deferredPipeline = deferredBaseMaterial->GetPipeline(Deferred);
-		if (!deferredPipeline)
-		{
-			return;
-		}
-
-		const std::string lightsBufferName = "Lights";
-		const std::shared_ptr<UniformWriter> lightsUniformWriter = GetOrCreateUniformWriter(
-			renderInfo.renderView, deferredPipeline, Pipeline::DescriptorSetIndexType::RENDERER, lightsBufferName);
-		const std::shared_ptr<Buffer> lightsBuffer = GetOrCreateBuffer(
-			renderInfo.renderView,
-			lightsUniformWriter,
-			lightsBufferName,
-			{},
-			{ Buffer::Usage::UNIFORM_BUFFER },
-			MemoryType::CPU,
-			true);
-
-		const glm::vec2 viewportScale = glm::vec2(resolutionScales[sssSettings.resolutionScale]);
-		deferredBaseMaterial->WriteToBuffer(lightsBuffer, lightsBufferName, "sss.maxSteps", sssSettings.maxSteps);
-		deferredBaseMaterial->WriteToBuffer(lightsBuffer, lightsBufferName, "sss.maxRayDistance", sssSettings.maxRayDistance);
-		deferredBaseMaterial->WriteToBuffer(lightsBuffer, lightsBufferName, "sss.maxDistance", sssSettings.maxDistance);
-		deferredBaseMaterial->WriteToBuffer(lightsBuffer, lightsBufferName, "sss.minThickness", sssSettings.minThickness);
-		deferredBaseMaterial->WriteToBuffer(lightsBuffer, lightsBufferName, "sss.maxThickness", sssSettings.maxThickness);
-		deferredBaseMaterial->WriteToBuffer(lightsBuffer, lightsBufferName, "sss.viewportScale", viewportScale);
-
 		renderInfo.renderer->BeginCommandLabel(passName, topLevelRenderPassDebugColor, renderInfo.frame);
 
 		std::vector<NativeHandle> uniformWriterNativeHandles;

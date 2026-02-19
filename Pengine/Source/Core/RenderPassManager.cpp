@@ -758,3 +758,260 @@ size_t RenderPassManager::GetLod(
 
 	return lods.size() - 1;
 }
+
+void RenderPassManager::ProcessLights(const RenderPass::RenderCallbackInfo& renderInfo)
+{
+	PROFILER_SCOPE(__FUNCTION__);
+
+	const std::shared_ptr<BaseMaterial> deferredBaseMaterial = MaterialManager::GetInstance().LoadBaseMaterial(
+		std::filesystem::path("Materials") / "Deferred.basemat");
+	const std::shared_ptr<Pipeline> deferredPipeline = deferredBaseMaterial->GetPipeline(Deferred);
+	if (!deferredPipeline)
+	{
+		return;
+	}
+
+	const std::string lightsBufferName = "Lights";
+	const std::shared_ptr<UniformWriter> lightsUniformWriter = GetOrCreateUniformWriter(
+		renderInfo.renderView, deferredPipeline, Pipeline::DescriptorSetIndexType::RENDERER, lightsBufferName);
+	const std::shared_ptr<Buffer> lightsBuffer = GetOrCreateBuffer(
+		renderInfo.renderView,
+		lightsUniformWriter,
+		lightsBufferName,
+		{},
+		{ Buffer::Usage::UNIFORM_BUFFER },
+		MemoryType::CPU,
+		true);
+
+	const Camera& camera = renderInfo.camera->GetComponent<Camera>();
+	const GraphicsSettings& graphicsSettings = renderInfo.scene->GetGraphicsSettings();
+	entt::registry& registry = renderInfo.scene->GetRegistry();
+
+	// Brightness threshold
+	deferredBaseMaterial->WriteToBuffer(lightsBuffer, lightsBufferName, "brightnessThreshold", graphicsSettings.bloom.brightnessThreshold);
+
+	// Directional light + CSM
+	auto directionalLightView = registry.view<DirectionalLight>();
+	if (!directionalLightView.empty())
+	{
+		const entt::entity& entity = directionalLightView.back();
+		DirectionalLight& dl = registry.get<DirectionalLight>(entity);
+		const Transform& transform = registry.get<Transform>(entity);
+
+		deferredBaseMaterial->WriteToBuffer(lightsBuffer, lightsBufferName, "directionalLight.color", dl.color);
+		deferredBaseMaterial->WriteToBuffer(lightsBuffer, lightsBufferName, "directionalLight.intensity", dl.intensity);
+		deferredBaseMaterial->WriteToBuffer(lightsBuffer, lightsBufferName, "directionalLight.ambient", dl.ambient);
+
+		const glm::vec3 directionWorldSpace = transform.GetForward();
+		const glm::vec3 directionViewSpace = glm::normalize(glm::mat3(camera.GetViewMat4()) * directionWorldSpace);
+		deferredBaseMaterial->WriteToBuffer(lightsBuffer, lightsBufferName, "directionalLight.directionWorldSpace", directionWorldSpace);
+		deferredBaseMaterial->WriteToBuffer(lightsBuffer, lightsBufferName, "directionalLight.directionViewSpace", directionViewSpace);
+
+		const int hasDirectionalLight = 1;
+		deferredBaseMaterial->WriteToBuffer(lightsBuffer, lightsBufferName, "hasDirectionalLight", hasDirectionalLight);
+
+		const GraphicsSettings::Shadows::CSM& shadowSettings = graphicsSettings.shadows.csm;
+		const int isEnabled = shadowSettings.isEnabled;
+		deferredBaseMaterial->WriteToBuffer(lightsBuffer, lightsBufferName, "csm.isEnabled", isEnabled);
+
+		CSMRenderer* csmRenderer = (CSMRenderer*)renderInfo.renderView->GetCustomData("CSMRenderer");
+		if (shadowSettings.isEnabled && csmRenderer && !csmRenderer->GetLightSpaceMatrices().empty())
+		{
+			constexpr size_t maxCascadeCount = 10;
+
+			std::vector<glm::vec4> shadowCascadeLevels(maxCascadeCount, glm::vec4{});
+			for (size_t i = 0; i < csmRenderer->GetDistances().size(); i++)
+			{
+				shadowCascadeLevels[i] = glm::vec4(csmRenderer->GetDistances()[i]);
+			}
+
+			deferredBaseMaterial->WriteToBuffer(lightsBuffer, lightsBufferName, "csm.lightSpaceMatrices", *csmRenderer->GetLightSpaceMatrices().data());
+			deferredBaseMaterial->WriteToBuffer(lightsBuffer, lightsBufferName, "csm.distances", *shadowCascadeLevels.data());
+
+			const int cascadeCount = csmRenderer->GetLightSpaceMatrices().size();
+			deferredBaseMaterial->WriteToBuffer(lightsBuffer, lightsBufferName, "csm.cascadeCount", cascadeCount);
+			deferredBaseMaterial->WriteToBuffer(lightsBuffer, lightsBufferName, "csm.fogFactor", shadowSettings.fogFactor);
+			deferredBaseMaterial->WriteToBuffer(lightsBuffer, lightsBufferName, "csm.maxDistance", shadowSettings.maxDistance);
+			deferredBaseMaterial->WriteToBuffer(lightsBuffer, lightsBufferName, "csm.pcfRange", shadowSettings.pcfRange);
+
+			const int filter = (int)shadowSettings.filter;
+			deferredBaseMaterial->WriteToBuffer(lightsBuffer, lightsBufferName, "csm.filtering", filter);
+
+			const int visualize = shadowSettings.visualize;
+			deferredBaseMaterial->WriteToBuffer(lightsBuffer, lightsBufferName, "csm.visualize", visualize);
+
+			std::vector<glm::vec4> biases(maxCascadeCount);
+			for (size_t i = 0; i < shadowSettings.biases.size(); i++)
+			{
+				biases[i] = glm::vec4(shadowSettings.biases[i]);
+			}
+			deferredBaseMaterial->WriteToBuffer(lightsBuffer, lightsBufferName, "csm.biases", *biases.data());
+		}
+	}
+	else
+	{
+		const int hasDirectionalLight = 0;
+		deferredBaseMaterial->WriteToBuffer(lightsBuffer, lightsBufferName, "hasDirectionalLight", hasDirectionalLight);
+		deferredBaseMaterial->WriteToBuffer(lightsBuffer, lightsBufferName, "csm.cascadeCount", hasDirectionalLight);
+	}
+
+	// Point lights
+	{
+		const std::array<glm::vec4, 6> cameraFrustumPlanes = Utils::GetFrustumPlanes(renderInfo.projection * camera.GetViewMat4());
+		const glm::vec3 cameraPosition = camera.GetEntity()->GetComponent<Transform>().GetPosition();
+
+		struct LightInfoToSort
+		{
+			entt::entity entity;
+			glm::vec3 position;
+			float radius;
+		};
+
+		std::vector<LightInfoToSort> lights;
+		auto pointLightView = registry.view<PointLight>();
+		lights.reserve(pointLightView.size());
+
+		for (size_t i = 0; i < pointLightView.size(); i++)
+		{
+			Transform& transform = registry.get<Transform>(pointLightView[i]);
+			if (!transform.GetEntity()->IsEnabled())
+				continue;
+
+			LightInfoToSort info{};
+			info.entity = pointLightView[i];
+			info.position = transform.GetPosition();
+			info.radius = registry.get<PointLight>(pointLightView[i]).radius;
+
+			if (Utils::IsSphereInsideFrustum(cameraFrustumPlanes, info.position, info.radius))
+				lights.emplace_back(info);
+		}
+
+		std::sort(lights.begin(), lights.end(),
+			[&cameraPosition](const LightInfoToSort& first, const LightInfoToSort& second)
+			{
+				float d1 = glm::distance2(cameraPosition, first.position) - (first.radius * first.radius);
+				float d2 = glm::distance2(cameraPosition, second.position) - (second.radius * second.radius);
+				return d1 < d2;
+			});
+
+		int lightIndex = 0;
+		for (const auto& light : lights)
+		{
+			if (lightIndex == 32)
+				break;
+
+			PointLight& pl = registry.get<PointLight>(light.entity);
+
+			const glm::vec3 positionWorldSpace = light.position;
+			const glm::vec3 positionViewSpace = camera.GetViewMat4() * glm::vec4(light.position, 1.0f);
+			const int castSSS = pl.castSSS;
+			const int shadowMapIndex = -1;
+
+			deferredBaseMaterial->WriteToBuffer(lightsBuffer, lightsBufferName, std::format("pointLights[{}].positionWorldSpace", lightIndex), positionWorldSpace);
+			deferredBaseMaterial->WriteToBuffer(lightsBuffer, lightsBufferName, std::format("pointLights[{}].positionViewSpace", lightIndex), positionViewSpace);
+			deferredBaseMaterial->WriteToBuffer(lightsBuffer, lightsBufferName, std::format("pointLights[{}].castSSS", lightIndex), castSSS);
+			deferredBaseMaterial->WriteToBuffer(lightsBuffer, lightsBufferName, std::format("pointLights[{}].color", lightIndex), pl.color);
+			deferredBaseMaterial->WriteToBuffer(lightsBuffer, lightsBufferName, std::format("pointLights[{}].intensity", lightIndex), pl.intensity);
+			deferredBaseMaterial->WriteToBuffer(lightsBuffer, lightsBufferName, std::format("pointLights[{}].radius", lightIndex), pl.radius);
+			deferredBaseMaterial->WriteToBuffer(lightsBuffer, lightsBufferName, std::format("pointLights[{}].bias", lightIndex), pl.bias);
+			deferredBaseMaterial->WriteToBuffer(lightsBuffer, lightsBufferName, std::format("pointLights[{}].shadowMapIndex", lightIndex), shadowMapIndex);
+
+			lightIndex++;
+		}
+
+		const int pointLightsCount = lightIndex;
+		deferredBaseMaterial->WriteToBuffer(lightsBuffer, lightsBufferName, "pointLightsCount", pointLightsCount);
+
+		const int pointLightShadowsEnabled = 0;
+		deferredBaseMaterial->WriteToBuffer(lightsBuffer, lightsBufferName, "pointLightShadows.isEnabled", pointLightShadowsEnabled);
+	}
+
+	// Spot lights
+	{
+		const std::array<glm::vec4, 6> cameraFrustumPlanes = Utils::GetFrustumPlanes(renderInfo.projection * camera.GetViewMat4());
+		const glm::vec3 cameraPosition = camera.GetEntity()->GetComponent<Transform>().GetPosition();
+
+		struct LightInfoToSort
+		{
+			entt::entity entity;
+			glm::vec3 position;
+			float radius;
+		};
+
+		std::vector<LightInfoToSort> lights;
+		auto spotLightView = registry.view<SpotLight>();
+		lights.reserve(spotLightView.size());
+
+		for (size_t i = 0; i < spotLightView.size(); i++)
+		{
+			Transform& transform = registry.get<Transform>(spotLightView[i]);
+			if (!transform.GetEntity()->IsEnabled())
+				continue;
+
+			LightInfoToSort info{};
+			info.entity = spotLightView[i];
+			info.position = transform.GetPosition();
+			info.radius = registry.get<SpotLight>(spotLightView[i]).radius;
+
+			if (Utils::IsSphereInsideFrustum(cameraFrustumPlanes, info.position, info.radius))
+				lights.emplace_back(info);
+		}
+
+		std::sort(lights.begin(), lights.end(),
+			[&cameraPosition](const LightInfoToSort& first, const LightInfoToSort& second)
+			{
+				float d1 = glm::distance2(cameraPosition, first.position) - (first.radius * first.radius);
+				float d2 = glm::distance2(cameraPosition, second.position) - (second.radius * second.radius);
+				return d1 < d2;
+			});
+
+		int lightIndex = 0;
+		for (const auto& light : lights)
+		{
+			if (lightIndex == 32)
+				break;
+
+			SpotLight& sl = registry.get<SpotLight>(light.entity);
+			Transform& transform = registry.get<Transform>(light.entity);
+
+			const glm::vec3 positionWorldSpace = light.position;
+			const glm::vec3 positionViewSpace = camera.GetViewMat4() * glm::vec4(light.position, 1.0f);
+			const glm::vec3 directionViewSpace = glm::mat3(camera.GetViewMat4()) * transform.GetForward();
+			const int castSSS = sl.castSSS;
+			const int shadowMapIndex = -1;
+
+			deferredBaseMaterial->WriteToBuffer(lightsBuffer, lightsBufferName, std::format("spotLights[{}].positionWorldSpace", lightIndex), positionWorldSpace);
+			deferredBaseMaterial->WriteToBuffer(lightsBuffer, lightsBufferName, std::format("spotLights[{}].positionViewSpace", lightIndex), positionViewSpace);
+			deferredBaseMaterial->WriteToBuffer(lightsBuffer, lightsBufferName, std::format("spotLights[{}].directionViewSpace", lightIndex), directionViewSpace);
+			deferredBaseMaterial->WriteToBuffer(lightsBuffer, lightsBufferName, std::format("spotLights[{}].castSSS", lightIndex), castSSS);
+			deferredBaseMaterial->WriteToBuffer(lightsBuffer, lightsBufferName, std::format("spotLights[{}].color", lightIndex), sl.color);
+			deferredBaseMaterial->WriteToBuffer(lightsBuffer, lightsBufferName, std::format("spotLights[{}].intensity", lightIndex), sl.intensity);
+			deferredBaseMaterial->WriteToBuffer(lightsBuffer, lightsBufferName, std::format("spotLights[{}].radius", lightIndex), sl.radius);
+			deferredBaseMaterial->WriteToBuffer(lightsBuffer, lightsBufferName, std::format("spotLights[{}].bias", lightIndex), sl.bias);
+			deferredBaseMaterial->WriteToBuffer(lightsBuffer, lightsBufferName, std::format("spotLights[{}].innerCutOff", lightIndex), sl.innerCutOff);
+			deferredBaseMaterial->WriteToBuffer(lightsBuffer, lightsBufferName, std::format("spotLights[{}].outerCutOff", lightIndex), sl.outerCutOff);
+			deferredBaseMaterial->WriteToBuffer(lightsBuffer, lightsBufferName, std::format("spotLights[{}].shadowMapIndex", lightIndex), shadowMapIndex);
+
+			lightIndex++;
+		}
+
+		const int spotLightsCount = lightIndex;
+		deferredBaseMaterial->WriteToBuffer(lightsBuffer, lightsBufferName, "spotLightsCount", spotLightsCount);
+
+		const int spotLightShadowsEnabled = 0;
+		deferredBaseMaterial->WriteToBuffer(lightsBuffer, lightsBufferName, "spotLightShadows.isEnabled", spotLightShadowsEnabled);
+	}
+
+	// SSS
+	{
+		const GraphicsSettings::Shadows::SSS& sssSettings = graphicsSettings.shadows.sss;
+		constexpr float resolutionScales[] = { 0.25f, 0.5f, 0.75f, 1.0f };
+		const glm::vec2 viewportScale = glm::vec2(resolutionScales[sssSettings.resolutionScale]);
+		deferredBaseMaterial->WriteToBuffer(lightsBuffer, lightsBufferName, "sss.maxSteps", sssSettings.maxSteps);
+		deferredBaseMaterial->WriteToBuffer(lightsBuffer, lightsBufferName, "sss.maxRayDistance", sssSettings.maxRayDistance);
+		deferredBaseMaterial->WriteToBuffer(lightsBuffer, lightsBufferName, "sss.maxDistance", sssSettings.maxDistance);
+		deferredBaseMaterial->WriteToBuffer(lightsBuffer, lightsBufferName, "sss.minThickness", sssSettings.minThickness);
+		deferredBaseMaterial->WriteToBuffer(lightsBuffer, lightsBufferName, "sss.maxThickness", sssSettings.maxThickness);
+		deferredBaseMaterial->WriteToBuffer(lightsBuffer, lightsBufferName, "sss.viewportScale", viewportScale);
+	}
+}
