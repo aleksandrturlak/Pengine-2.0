@@ -477,6 +477,34 @@ YAML::Emitter& operator<<(YAML::Emitter& out, const float* v)
 	return out;
 }
 
+namespace
+{
+	template<typename Writer>
+	void WriteAtomically(const std::filesystem::path& filepath, std::ios_base::openmode mode, Writer&& writer)
+	{
+		std::filesystem::path tmpPath = filepath;
+		tmpPath += ".tmp";
+		{
+			std::ofstream out(tmpPath, mode);
+			writer(out);
+			if (!out.good())
+			{
+				std::error_code ec;
+				std::filesystem::remove(tmpPath, ec);
+				Logger::Error("Failed to write temporary file: " + tmpPath.string());
+				return;
+			}
+		}
+		std::error_code ec;
+		std::filesystem::rename(tmpPath, filepath, ec);
+		if (ec)
+		{
+			Logger::Error("Failed to rename " + tmpPath.string() + " to " + filepath.string() + ": " + ec.message());
+			std::filesystem::remove(tmpPath, ec);
+		}
+	}
+}
+
 EngineConfig Serializer::DeserializeEngineConfig(const std::filesystem::path& filepath)
 {
 	if (filepath.empty() || filepath == none)
@@ -590,10 +618,11 @@ UUID Serializer::GenerateFileUUID(const std::filesystem::path& filepath)
 	out << YAML::EndMap;
 
 	std::filesystem::path metaFilepath = filepath;
-	metaFilepath.concat(FileFormats::Meta()); 
-	std::ofstream fout(metaFilepath);
-	fout << out.c_str();
-	fout.close();
+	metaFilepath.concat(FileFormats::Meta());
+	WriteAtomically(metaFilepath, std::ios::out, [&](std::ofstream& fout)
+	{
+		fout << out.c_str();
+	});
 
 	Utils::SetUUID(uuid, filepath);
 
@@ -1442,9 +1471,10 @@ void Serializer::SerializeMaterial(const std::shared_ptr<Material>& material, bo
 
 	out << YAML::EndMap;
 
-	std::ofstream fout(material->GetFilepath());
-	fout << out.c_str();
-	fout.close();
+	WriteAtomically(material->GetFilepath(), std::ios::out, [&](std::ofstream& fout)
+	{
+		fout << out.c_str();
+	});
 
 	GenerateFileUUID(material->GetFilepath());
 
@@ -1602,13 +1632,12 @@ void Serializer::SerializeMesh(const std::filesystem::path& directory,  const st
 	}
 
 	std::filesystem::path outMeshFilepath = directory / (meshName + FileFormats::Mesh());
-	std::ofstream out(outMeshFilepath, std::ostream::binary);
-
-	out.write((char*)data, static_cast<std::streamsize>(dataSize));
+	WriteAtomically(outMeshFilepath, std::ios::binary, [&](std::ofstream& out)
+	{
+		out.write((char*)data, static_cast<std::streamsize>(dataSize));
+	});
 
 	delete[] data;
-
-	out.close();
 
 	GenerateFileUUID(mesh->GetFilepath());
 
@@ -1825,9 +1854,10 @@ void Serializer::SerializeSkeleton(const std::shared_ptr<Skeleton>& skeleton)
 
 	out << YAML::EndMap;
 
-	std::ofstream fout(skeleton->GetFilepath());
-	fout << out.c_str();
-	fout.close();
+	WriteAtomically(skeleton->GetFilepath(), std::ios::out, [&](std::ofstream& fout)
+	{
+		fout << out.c_str();
+	});
 
 	Logger::Log("Skeleton:" + skeleton->GetFilepath().string() + " has been saved!", BOLDGREEN);
 }
@@ -1993,9 +2023,10 @@ void Serializer::SerializeSkeletalAnimation(const std::shared_ptr<SkeletalAnimat
 
 	out << YAML::EndMap;
 
-	std::ofstream fout(skeletalAnimation->GetFilepath());
-	fout << out.c_str();
-	fout.close();
+	WriteAtomically(skeletalAnimation->GetFilepath(), std::ios::out, [&](std::ofstream& fout)
+	{
+		fout << out.c_str();
+	});
 
 	Logger::Log("Skeletal Animation:" + skeletalAnimation->GetFilepath().string() + " has been saved!", BOLDGREEN);
 }
@@ -2121,13 +2152,12 @@ void Serializer::SerializeShaderCache(const std::filesystem::path& filepath, con
 
 	std::filesystem::path cacheFilepath = directory / uuid.ToString();
 	cacheFilepath.concat(FileFormats::Spv());
-	std::ofstream out(cacheFilepath, std::ostream::binary);
-
 	const size_t lastWriteTime = std::filesystem::last_write_time(filepath).time_since_epoch().count();
-
-	out.write((char*)&lastWriteTime, sizeof(size_t));
-	out.write(code.data(), code.size());
-	out.close();
+	WriteAtomically(cacheFilepath, std::ios::binary, [&](std::ofstream& out)
+	{
+		out.write((char*)&lastWriteTime, sizeof(size_t));
+		out.write(code.data(), code.size());
+	});
 }
 
 std::string Serializer::DeserializeShaderCache(const std::filesystem::path& filepath)
@@ -2310,9 +2340,10 @@ void Serializer::SerializeShaderModuleReflection(
 
 	out << YAML::EndMap;
 
-	std::ofstream fout(reflectShaderModuleFilepath);
-	fout << out.c_str();
-	fout.close();
+	WriteAtomically(reflectShaderModuleFilepath, std::ios::out, [&](std::ofstream& fout)
+	{
+		fout << out.c_str();
+	});
 }
 
 std::optional<ShaderReflection::ReflectShaderModule> Serializer::DeserializeShaderModuleReflection(const std::filesystem::path& filepath)
@@ -4154,9 +4185,10 @@ void Serializer::SerializePrefab(const std::filesystem::path& filepath, const st
 
 	SerializeEntity(out, entity, true, true);
 
-	std::ofstream fout(filepath);
-	fout << out.c_str();
-	fout.close();
+	WriteAtomically(filepath, std::ios::out, [&](std::ofstream& fout)
+	{
+		fout << out.c_str();
+	});
 
 	entity->SetPrefabFilepathUUID(GenerateFileUUID(filepath));
 }
@@ -5367,9 +5399,10 @@ void Serializer::SerializeScene(const std::filesystem::path& filepath, const std
 
 	out << YAML::EndMap;
 
-	std::ofstream fout(filepath);
-	fout << out.c_str();
-	fout.close();
+	WriteAtomically(filepath, std::ios::out, [&](std::ofstream& fout)
+	{
+		fout << out.c_str();
+	});
 
 	Logger::Log("Scene:" + filepath.string() + " has been saved!", BOLDGREEN);
 }
@@ -5588,9 +5621,10 @@ void Serializer::SerializeGraphicsSettings(const GraphicsSettings& graphicsSetti
 
 	out << YAML::EndMap;
 
-	std::ofstream fout(graphicsSettings.GetFilepath());
-	fout << out.c_str();
-	fout.close();
+	WriteAtomically(graphicsSettings.GetFilepath(), std::ios::out, [&](std::ofstream& fout)
+	{
+		fout << out.c_str();
+	});
 }
 
 GraphicsSettings Serializer::DeserializeGraphicsSettings(const std::filesystem::path& filepath)
@@ -5934,9 +5968,10 @@ void Serializer::SerializeTextureMeta(const Texture::Meta& meta)
 
 	out << YAML::EndMap;
 
-	std::ofstream fout(meta.filepath);
-	fout << out.c_str();
-	fout.close();
+	WriteAtomically(meta.filepath, std::ios::out, [&](std::ofstream& fout)
+	{
+		fout << out.c_str();
+	});
 }
 
 std::optional<Texture::Meta> Serializer::DeserializeTextureMeta(const std::filesystem::path& filepath)
@@ -6011,9 +6046,10 @@ void Serializer::SerializeThumbnailMeta(const std::filesystem::path& filepath, c
 		Logger::Error("Failed to save thumbnail meta, filepath is empty!");
 	}
 
-	std::ofstream out(filepath, std::ifstream::binary);
-	out.write((char*)&lastWriteTime, static_cast<std::streamsize>(sizeof(lastWriteTime)));
-	out.close();
+	WriteAtomically(filepath, std::ios::binary, [&](std::ofstream& out)
+	{
+		out.write((char*)&lastWriteTime, static_cast<std::streamsize>(sizeof(lastWriteTime)));
+	});
 }
 
 size_t Serializer::DeserializeThumbnailMeta(const std::filesystem::path& filepath)
@@ -6060,21 +6096,20 @@ void Serializer::SerializeAnimationTrack(
 		return;
 	}
 
-	std::ofstream out(filepath, std::ios::binary);
-
-	size_t keyframeCount = animationTrack.keyframes.size();
-	out.write(reinterpret_cast<const char*>(&keyframeCount), sizeof(size_t));
-
-	for (const auto& keyframe : animationTrack.keyframes)
+	WriteAtomically(filepath, std::ios::binary, [&](std::ofstream& out)
 	{
-		out.write(reinterpret_cast<const char*>(&keyframe.time), sizeof(float));
-		out.write(reinterpret_cast<const char*>(&keyframe.translation), sizeof(glm::vec3));
-		out.write(reinterpret_cast<const char*>(&keyframe.rotation), sizeof(glm::vec3));
-		out.write(reinterpret_cast<const char*>(&keyframe.scale), sizeof(glm::vec3));
-		out.write(reinterpret_cast<const char*>(&keyframe.interpType), sizeof(EntityAnimator::Keyframe::InterpolationType));
-	}
+		size_t keyframeCount = animationTrack.keyframes.size();
+		out.write(reinterpret_cast<const char*>(&keyframeCount), sizeof(size_t));
 
-	out.close();
+		for (const auto& keyframe : animationTrack.keyframes)
+		{
+			out.write(reinterpret_cast<const char*>(&keyframe.time), sizeof(float));
+			out.write(reinterpret_cast<const char*>(&keyframe.translation), sizeof(glm::vec3));
+			out.write(reinterpret_cast<const char*>(&keyframe.rotation), sizeof(glm::vec3));
+			out.write(reinterpret_cast<const char*>(&keyframe.scale), sizeof(glm::vec3));
+			out.write(reinterpret_cast<const char*>(&keyframe.interpType), sizeof(EntityAnimator::Keyframe::InterpolationType));
+		}
+	});
 }
 
 std::optional<EntityAnimator::AnimationTrack> Serializer::DeserializeAnimationTrack(const std::filesystem::path& filepath)
