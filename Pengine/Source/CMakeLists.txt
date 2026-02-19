@@ -85,6 +85,25 @@ set(CORE_SOURCES
 )
 source_group("Core" FILES ${CORE_SOURCES})
 
+set(RENDER_PASSES_SOURCES
+	Core/RenderPasses/Atmosphere.cpp
+	Core/RenderPasses/Bloom.cpp
+	Core/RenderPasses/ComputeCulling.cpp
+	Core/RenderPasses/CSM.cpp
+	Core/RenderPasses/Decal.cpp
+	Core/RenderPasses/Deferred.cpp
+	Core/RenderPasses/GBuffer.cpp
+	Core/RenderPasses/HiZ.cpp
+	Core/RenderPasses/PointLightShadows.cpp
+	Core/RenderPasses/PostProcess.cpp
+	Core/RenderPasses/SpotLightShadows.cpp
+	Core/RenderPasses/SSR.cpp
+	Core/RenderPasses/SSAO.cpp
+	Core/RenderPasses/SSS.cpp
+	Core/RenderPasses/Transparent.cpp
+)
+source_group("RenderPasses" FILES ${RENDER_PASSES_SOURCES})
+
 set(GRAPHICS_SOURCES
 	Graphics/BaseMaterial.cpp Graphics/BaseMaterial.h
 	Graphics/Buffer.cpp Graphics/Buffer.h
@@ -165,6 +184,7 @@ source_group("EventSystem" FILES ${EVENT_SYSTEM_SOURCES})
 add_library(${PROJECT_NAME} SHARED
 	${COMPONENTS_SOURCES}
 	${CORE_SOURCES}
+	${RENDER_PASSES_SOURCES}
 	${GRAPHICS_SOURCES}
 	${VULKAN_SOURCES}
 	${SPIRV_REFLECT_SOURCES}
