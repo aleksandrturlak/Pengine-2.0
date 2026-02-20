@@ -8,9 +8,9 @@ Basemat:
       TopologyMode: TriangleList
       Vertex: Shaders/AntiAliasingAndCompose.vert
       Fragment: Shaders/AntiAliasingAndCompose.frag
-      DescriptorSets:
+      UniformWriters:
         - Type: Renderer
-          RenderPass: AntiAliasingAndCompose
+          Name: AntiAliasingAndCompose
           Set: 0
       VertexInputBindingDescriptions:
         - Binding: 0

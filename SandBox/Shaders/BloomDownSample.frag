@@ -4,8 +4,6 @@ layout(location = 0) in vec2 uv;
 
 layout(location = 0) out vec4 outColor;
 
-#include "Shaders/Includes/Camera.h"
-
 layout(set = 0, binding = 0) uniform sampler2D sourceTexture;
 
 layout(set = 0, binding = 1) uniform MipBuffer

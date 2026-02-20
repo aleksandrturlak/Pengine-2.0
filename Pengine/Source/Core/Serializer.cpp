@@ -634,7 +634,7 @@ void Serializer::DeserializeDescriptorSets(
 	const std::string& passName,
 	std::map<Pipeline::DescriptorSetIndexType, std::map<std::string, uint32_t>>& descriptorSetIndicesByType)
 {
-	for (const auto& descriptorSetData : pipelineData["DescriptorSets"])
+	for (const auto& descriptorSetData : pipelineData["UniformWriters"])
 	{
 		Pipeline::DescriptorSetIndexType type{};
 		if (const auto& typeData = descriptorSetData["Type"])
@@ -675,7 +675,7 @@ void Serializer::DeserializeDescriptorSets(
 		}
 
 		std::string attachedPassName = passName;
-		if (const auto& passNameData = descriptorSetData["RenderPass"])
+		if (const auto& passNameData = descriptorSetData["Name"])
 		{
 			attachedPassName = passNameData.as<std::string>();
 		}

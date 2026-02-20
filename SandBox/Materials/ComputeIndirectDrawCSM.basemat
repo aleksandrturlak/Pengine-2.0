@@ -3,18 +3,15 @@ Basemat:
     - RenderPass: ComputeIndirectDrawCSM
       Type: Compute
       Compute: Shaders/ComputeIndirectDrawCSM.comp
-      DescriptorSets:
+      UniformWriters:
         - Type: Renderer
-          RenderPass: DefaultReflection
+          Name: Camera
           Set: 0
         - Type: Renderer
-          RenderPass: ComputeIndirectDrawCSM
+          Name: ComputeIndirectDrawCSMBuffers
           Set: 1
-        - Type: Renderer
-          RenderPass: ComputeIndirectDrawCSMBuffers
-          Set: 2
         - Type: Bindless
-          Set: 3
+          Set: 2
         - Type: Scene
-          RenderPass: BindlessEntities
-          Set: 4
+          Name: BindlessEntities
+          Set: 3

@@ -1,3 +1,6 @@
+#ifndef DIRECTIONAL_LIGHT_H
+#define DIRECTIONAL_LIGHT_H
+
 #include "Shaders/Includes/CommonPBR.h"
 
 struct DirectionalLight
@@ -45,3 +48,5 @@ vec3 CalculateDirectionalLight(
 
 	return ssao * ambient * albedo + (vec3(1.0f) - shadow) * (kD * albedo / PI + specular) * radiance * NdotL;
 }
+
+#endif

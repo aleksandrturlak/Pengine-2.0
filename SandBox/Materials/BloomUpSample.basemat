@@ -8,9 +8,9 @@ Basemat:
       TopologyMode: TriangleList
       Vertex: Shaders/BloomUpSample.vert
       Fragment: Shaders/BloomUpSample.frag
-      DescriptorSets:
+      UniformWriters:
         - Type: Renderer
-          RenderPass: Bloom
+          Name: Bloom
           Set: 0
       VertexInputBindingDescriptions:
         - Binding: 0

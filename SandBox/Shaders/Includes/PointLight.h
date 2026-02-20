@@ -1,3 +1,6 @@
+#ifndef POINT_LIGHT_H
+#define POINT_LIGHT_H
+
 struct PointLightFaceInfo
 {
 	mat4 viewProjectionMat4;
@@ -221,3 +224,5 @@ float CalculatePointLightShadow(
 
     return shadow;
 }
+
+#endif

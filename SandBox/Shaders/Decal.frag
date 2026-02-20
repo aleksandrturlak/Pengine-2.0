@@ -7,11 +7,8 @@ layout(location = 0) out vec4 outAlbedo;
 layout(location = 1) out vec4 outShading;
 layout(location = 2) out vec4 outEmissive;
 
-#include "Shaders/Includes/Camera.h"
-layout(set = 0, binding = 0) uniform GlobalBuffer
-{
-	Camera camera;
-};
+#include "Shaders/Includes/SetMacros/CameraSet.h"
+CAMERA_SET(0)
 
 layout(set = 1, binding = 0) uniform sampler2D bindlessTextures[10000];
 

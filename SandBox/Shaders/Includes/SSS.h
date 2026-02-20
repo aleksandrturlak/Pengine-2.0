@@ -1,3 +1,6 @@
+#ifndef SSS_H
+#define SSS_H
+
 struct SSS
 {
     int maxSteps;
@@ -57,3 +60,5 @@ vec3 CalculateScreenSpaceShadows(
 
     return vec3(occlusion);
 }
+
+#endif

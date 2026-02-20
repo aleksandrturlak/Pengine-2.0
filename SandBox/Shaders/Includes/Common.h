@@ -1,3 +1,6 @@
+#ifndef COMMON_H
+#define COMMON_H
+
 #extension GL_EXT_buffer_reference : require
 #extension GL_EXT_scalar_block_layout : require
 #extension GL_EXT_debug_printf : enable
@@ -133,3 +136,25 @@ struct EntityInfo
 	BoneBuffer boneBuffer;
 	uint flags; // valid, skinned, etc.
 };
+
+struct DrawIndirectCommand
+{
+	uint vertexCount;
+	uint instanceCount;
+	uint firstVertex;
+	uint firstInstance;
+};
+
+struct CSMInstanceData
+{
+	uint entityIndex;
+	int cascadeIndex;
+};
+
+vec3 IsBrightPixel(in vec3 color, in float threshold)
+{
+	const vec3 colorSRGB = pow(color, vec3(1.0f / 2.2f));
+    return dot(colorSRGB, vec3(0.2126f, 0.7152f, 0.0722f)) > threshold ? colorSRGB : vec3(0.0f);
+}
+
+#endif

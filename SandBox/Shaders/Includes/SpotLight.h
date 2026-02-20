@@ -1,3 +1,6 @@
+#ifndef SPOT_LIGHT_H
+#define SPOT_LIGHT_H
+
 struct SpotLight
 {
 	mat4 viewProjectionMat4;
@@ -178,3 +181,5 @@ float CalculateSpotLightShadow(
 
     return shadow;
 }
+
+#endif

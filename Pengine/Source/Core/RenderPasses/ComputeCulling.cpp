@@ -229,36 +229,88 @@ void RenderPassManager::CreateComputeIndirectDrawCSM()
 			shadowsSettings.splitFactor,
 			shadowsSettings.stabilizeCascades);
 
-		if (csmRenderer->GetLightSpaceMatrices().empty())
+		const int cascadeCount = csmRenderer->GetLightSpaceMatrices().size();
+
+		if (cascadeCount == 0)
 		{
 			return;
 		}
 
-		const std::shared_ptr<UniformWriter>& lightSpaceUniformWriter = GetOrCreateUniformWriter(
-			renderInfo.renderView, pipeline, Pipeline::DescriptorSetIndexType::RENDERER, ComputeIndirectDrawCSM, {}, true);
-		
-		const std::string lightSpaceMatricesBufferName = "LightSpaceMatrices";
-		const std::shared_ptr<Buffer> lightSpaceMatricesBuffer = GetOrCreateBuffer(
-			renderInfo.renderView,
-			lightSpaceUniformWriter,
-			lightSpaceMatricesBufferName,
-			{},
-			{ Buffer::Usage::UNIFORM_BUFFER },
-			MemoryType::CPU, true);
+		{
+			const Camera& camera = renderInfo.camera->GetComponent<Camera>();
+			const GraphicsSettings& graphicsSettings = renderInfo.scene->GetGraphicsSettings();
+			entt::registry& registry = renderInfo.scene->GetRegistry();
 
-		baseMaterial->WriteToBuffer(
-			lightSpaceMatricesBuffer,
-			lightSpaceMatricesBufferName,
-			"lightSpaceMatrices",
-			*csmRenderer->GetLightSpaceMatrices().data());
+			const std::shared_ptr<BaseMaterial> reflectionBaseMaterial = MaterialManager::GetInstance().LoadBaseMaterial(
+				std::filesystem::path("Materials") / "DefaultReflection.basemat");
+			const std::shared_ptr<Pipeline> reflectionPipeline = reflectionBaseMaterial->GetPipeline(DefaultReflection);
+			if (!reflectionPipeline)
+			{
+				FATAL_ERROR("DefaultReflection base material is broken! No pipeline found!");
+			}
 
-		const int cascadeCount = csmRenderer->GetLightSpaceMatrices().size();
-		baseMaterial->WriteToBuffer(
-			lightSpaceMatricesBuffer,
-			lightSpaceMatricesBufferName,
-			"cascadeCount",
-			cascadeCount);
-		lightSpaceMatricesBuffer->Flush();
+			const std::string csmBufferName = "CSMBuffer";
+			const std::shared_ptr<UniformWriter> lightsUniformWriter = GetOrCreateUniformWriter(
+				renderInfo.renderView, reflectionPipeline, Pipeline::DescriptorSetIndexType::RENDERER, "Camera");
+			const std::shared_ptr<Buffer> csmBuffer = GetOrCreateBuffer(
+				renderInfo.renderView,
+				lightsUniformWriter,
+				csmBufferName,
+				{},
+				{ Buffer::Usage::UNIFORM_BUFFER },
+				MemoryType::CPU,
+				true);
+
+			auto directionalLightView = registry.view<DirectionalLight>();
+			if (!directionalLightView.empty())
+			{
+				const entt::entity& entity = directionalLightView.back();
+				DirectionalLight& dl = registry.get<DirectionalLight>(entity);
+				const Transform& transform = registry.get<Transform>(entity);
+
+				const GraphicsSettings::Shadows::CSM& shadowSettings = graphicsSettings.shadows.csm;
+				const int isEnabled = shadowSettings.isEnabled;
+				reflectionBaseMaterial->WriteToBuffer(csmBuffer, csmBufferName, "csm.isEnabled", isEnabled);
+
+				CSMRenderer* csmRenderer = (CSMRenderer*)renderInfo.renderView->GetCustomData("CSMRenderer");
+				if (shadowSettings.isEnabled && csmRenderer && !csmRenderer->GetLightSpaceMatrices().empty())
+				{
+					constexpr size_t maxCascadeCount = 10;
+
+					std::vector<glm::vec4> shadowCascadeLevels(maxCascadeCount, glm::vec4{});
+					for (size_t i = 0; i < csmRenderer->GetDistances().size(); i++)
+					{
+						shadowCascadeLevels[i] = glm::vec4(csmRenderer->GetDistances()[i]);
+					}
+
+					reflectionBaseMaterial->WriteToBuffer(csmBuffer, csmBufferName, "csm.lightSpaceMatrices", *csmRenderer->GetLightSpaceMatrices().data());
+					reflectionBaseMaterial->WriteToBuffer(csmBuffer, csmBufferName, "csm.distances", *shadowCascadeLevels.data());
+
+					reflectionBaseMaterial->WriteToBuffer(csmBuffer, csmBufferName, "csm.cascadeCount", cascadeCount);
+					reflectionBaseMaterial->WriteToBuffer(csmBuffer, csmBufferName, "csm.fogFactor", shadowSettings.fogFactor);
+					reflectionBaseMaterial->WriteToBuffer(csmBuffer, csmBufferName, "csm.maxDistance", shadowSettings.maxDistance);
+					reflectionBaseMaterial->WriteToBuffer(csmBuffer, csmBufferName, "csm.pcfRange", shadowSettings.pcfRange);
+
+					const int filter = (int)shadowSettings.filter;
+					reflectionBaseMaterial->WriteToBuffer(csmBuffer, csmBufferName, "csm.filtering", filter);
+
+					const int visualize = shadowSettings.visualize;
+					reflectionBaseMaterial->WriteToBuffer(csmBuffer, csmBufferName, "csm.visualize", visualize);
+
+					std::vector<glm::vec4> biases(maxCascadeCount);
+					for (size_t i = 0; i < shadowSettings.biases.size(); i++)
+					{
+						biases[i] = glm::vec4(shadowSettings.biases[i]);
+					}
+					reflectionBaseMaterial->WriteToBuffer(csmBuffer, csmBufferName, "csm.biases", *biases.data());
+				}
+			}
+			else
+			{
+				const int hasDirectionalLight = 0;
+				reflectionBaseMaterial->WriteToBuffer(csmBuffer, csmBufferName, "csm.cascadeCount", hasDirectionalLight);
+			}
+		}
 
 		const std::shared_ptr<UniformWriter>& renderUniformWriter = GetOrCreateUniformWriter(
 			renderInfo.renderView, pipeline, Pipeline::DescriptorSetIndexType::RENDERER, "ComputeIndirectDrawCSMBuffers", {}, true);
@@ -316,4 +368,3 @@ void RenderPassManager::CreateComputeIndirectDrawCSM()
 
 	CreateComputePass(createInfo);
 }
-

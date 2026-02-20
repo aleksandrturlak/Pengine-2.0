@@ -3,7 +3,7 @@ Basemat:
     - RenderPass: ScaleTexture
       Type: Compute
       Compute: Shaders/ScaleTexture.comp
-      DescriptorSets:
+      UniformWriters:
         - Type: Object
-          RenderPass: ScaleTexture
+          Name: ScaleTexture
           Set: 0

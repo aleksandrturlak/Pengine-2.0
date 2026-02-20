@@ -11,11 +11,8 @@ layout(location = 5) out vec3 positionTangentSpace;
 layout(location = 6) out vec3 cameraPositionTangentSpace;
 layout(location = 7) flat out uint64_t materialBuffer;
 
-#include "Shaders/Includes/Camera.h"
-layout(set = 0, binding = 0) uniform GlobalBuffer
-{
-	Camera camera;
-};
+#include "Shaders/Includes/SetMacros/CameraSet.h"
+CAMERA_SET(0)
 
 layout(set = 1, binding = 0) uniform sampler2D bindlessTextures[10000];
 

@@ -189,36 +189,6 @@ void RenderPassManager::CreateCSM()
 				{
 					renderInfo.renderer->BindPipeline(pipeline, renderInfo.frame);
 
-					const std::shared_ptr<UniformWriter> renderUniformWriter = GetOrCreateUniformWriter(
-						renderInfo.renderView, pipeline, Pipeline::DescriptorSetIndexType::RENDERER, renderPassName);
-					const std::string lightSpaceMatricesBufferName = "LightSpaceMatrices";
-					lightSpaceMatricesBuffer = GetOrCreateBuffer(
-						renderInfo.renderView,
-						renderUniformWriter,
-						lightSpaceMatricesBufferName,
-						{},
-						{ Buffer::Usage::UNIFORM_BUFFER },
-						MemoryType::CPU,
-						true);
-
-					if (cascadeIndex == 0)
-					{
-						baseMaterial->WriteToBuffer(
-							lightSpaceMatricesBuffer,
-							lightSpaceMatricesBufferName,
-							"lightSpaceMatrices",
-							*csmRenderer->GetLightSpaceMatrices().data());
-
-						baseMaterial->WriteToBuffer(
-							lightSpaceMatricesBuffer,
-							lightSpaceMatricesBufferName,
-							"cascadeCount",
-							cascadeCount);
-						lightSpaceMatricesBuffer->Flush();
-
-						renderUniformWriter->WriteBufferToFrame("CSMInstanceDataBuffer", csmInstanceDataBuffer);
-					}
-
 					if (BindAndFlushUniformWriters(
 						pipeline,
 						nullptr,

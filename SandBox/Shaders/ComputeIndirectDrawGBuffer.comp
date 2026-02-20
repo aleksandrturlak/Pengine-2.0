@@ -4,19 +4,8 @@
 
 #include "Shaders/Includes/Common.h"
 
-#include "Shaders/Includes/Camera.h"
-layout(set = 0, binding = 0) uniform GlobalBuffer
-{
-	Camera camera;
-};
-
-struct DrawIndirectCommand
-{
-    uint vertexCount;
-    uint instanceCount;
-    uint firstVertex;
-    uint firstInstance;
-};
+#include "Shaders/Includes/SetMacros/CameraSet.h"
+CAMERA_SET(0)
 
 layout(set = 1, binding = 0, scalar) buffer IndirectDrawCommands
 {

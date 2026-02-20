@@ -8,9 +8,9 @@ Basemat:
       TopologyMode: TriangleList
       Vertex: Shaders/ToneMapping.vert
       Fragment: Shaders/ToneMapping.frag
-      DescriptorSets:
+      UniformWriters:
         - Type: Renderer
-          RenderPass: ToneMapping
+          Name: ToneMapping
           Set: 0
       VertexInputBindingDescriptions:
         - Binding: 0

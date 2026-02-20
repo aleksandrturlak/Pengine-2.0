@@ -9,9 +9,9 @@ Basemat:
       Vertex: Shaders/Atmosphere.vert
       Geometry: Shaders/Atmosphere.geom
       Fragment: Shaders/Atmosphere.frag
-      DescriptorSets:
+      UniformWriters:
         - Type: Scene
-          RenderPass: Atmosphere
+          Name: Atmosphere
           Set: 0
       VertexInputBindingDescriptions:
         - Binding: 0

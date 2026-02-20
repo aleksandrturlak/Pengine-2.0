@@ -3,15 +3,15 @@ Basemat:
     - RenderPass: ComputeIndirectDrawGBuffer
       Type: Compute
       Compute: Shaders/ComputeIndirectDrawGBuffer.comp
-      DescriptorSets:
+      UniformWriters:
         - Type: Renderer
-          RenderPass: DefaultReflection
+          Name: Camera
           Set: 0
         - Type: Renderer
-          RenderPass: ComputeIndirectDrawGBuffer
+          Name: ComputeIndirectDrawGBuffer
           Set: 1
         - Type: Bindless
           Set: 2
         - Type: Scene
-          RenderPass: BindlessEntities
+          Name: BindlessEntities
           Set: 3

@@ -4,11 +4,8 @@
 
 layout(location = 0) in vec3 positionA;
 
-#include "Shaders/Includes/Camera.h"
-layout(set = 0, binding = 0) uniform GlobalBuffer
-{
-	Camera camera;
-};
+#include "Shaders/Includes/SetMacros/CameraSet.h"
+CAMERA_SET(0)
 
 layout(set = 1, binding = 0) uniform sampler2D bindlessTextures[10000];
 

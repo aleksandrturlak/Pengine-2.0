@@ -3,18 +3,18 @@ Basemat:
     - RenderPass: Deferred
       Type: Compute
       Compute: Shaders/Deferred.comp
-      DescriptorSets:
+      UniformWriters:
         - Type: Renderer
-          RenderPass: DefaultReflection
+          Name: Camera
           Set: 0
         - Type: Renderer
-          RenderPass: Deferred
+          Name: Deferred
           Set: 1
         - Type: Renderer
-          RenderPass: Lights
+          Name: Lights
           Set: 2
         - Type: Renderer
-          RenderPass: DeferredOutput
+          Name: DeferredOutput
           Set: 3
       Uniforms:
         - Name: albedoTexture

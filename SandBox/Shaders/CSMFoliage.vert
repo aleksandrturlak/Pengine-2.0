@@ -3,40 +3,39 @@
 #extension GL_ARB_shader_viewport_layer_array : require
 
 #include "Shaders/Includes/Common.h"
-#include "Shaders/Includes/CSM.h"
+
 #include "Shaders/Includes/DefaultMaterial.h"
-
-struct CSMInstanceData
-{
-	uint entityIndex;
-	int cascadeIndex;
-};
-
 layout(buffer_reference, scalar) buffer MaterialBufferReference
 {
 	DefaultMaterial material;
 };
 
-layout(set = 0, binding = 0, scalar) buffer readonly BindlessEntities
+#include "Shaders/Includes/SetMacros/CameraSet.h"
+CAMERA_SET(0)
+
+layout(set = 1, binding = 0, scalar) buffer readonly BindlessEntities
 {
 	EntityInfo entities[MAX_BINDLESS_ENTITIES];
 };
 
-layout(set = 1, binding = 0) uniform LightSpaceMatrices
+layout(set = 2, binding = 0, scalar) buffer readonly IndirectDrawCommands
 {
-	mat4 lightSpaceMatrices[MAX_CASCADE_COUNT];
-	int cascadeCount;
+	DrawIndirectCommand drawCommands[MAX_INDIRECT_DRAW_COMMANDS];
 };
 
-layout(set = 1, binding = 1, scalar) buffer readonly CSMInstanceDataBuffer
+layout(set = 2, binding = 1) buffer readonly IndirectDrawCommandCount
+{
+	uint count[MAX_CASCADE_COUNT * MAX_PIPELINE_COUNT];
+};
+
+layout(set = 2, binding = 2) buffer readonly PipelineInfoBuffer
+{
+	uint pipelineCommandOffset[MAX_CASCADE_COUNT * MAX_PIPELINE_COUNT];
+};
+
+layout(set = 2, binding = 3, scalar) buffer readonly CSMInstanceDataBuffer
 {
 	CSMInstanceData instanceData[MAX_INDIRECT_DRAW_COMMANDS];
-};
-
-#include "Shaders/Includes/Camera.h"
-layout(set = 3, binding = 0) uniform GlobalBuffer
-{
-	Camera camera;
 };
 
 layout(location = 0) out vec2 uv;
@@ -98,7 +97,7 @@ void main()
 	localPosition.xyz += windDisplacement;
 
 	vec4 worldPosition = entityInfo.transform * localPosition;
-	gl_Position = lightSpaceMatrices[cascadeIndex] * worldPosition;
+	gl_Position = csm.lightSpaceMatrices[cascadeIndex] * worldPosition;
 	gl_Layer = cascadeIndex;
 	
 	uv = vertex.uv * material.uvTransform.xy + material.uvTransform.zw;

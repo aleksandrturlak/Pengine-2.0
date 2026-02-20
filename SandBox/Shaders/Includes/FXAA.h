@@ -1,3 +1,5 @@
+#ifndef FXAA_H
+#define FXAA_H
 
 #ifndef FXAA_REDUCE_MIN
     #define FXAA_REDUCE_MIN   (1.0/ 128.0)
@@ -64,3 +66,5 @@ vec3 FXAA(
         return rgbB;
     }
 }
+
+#endif

@@ -8,11 +8,8 @@ layout(location = 4) in mat4 transformA;
 
 layout(location = 0) out vec2 uv;
 
-#include "Shaders/Includes/Camera.h"
-layout(set = 0, binding = 0) uniform GlobalBuffer
-{
-	Camera camera;
-};
+#include "Shaders/Includes/SetMacros/CameraSet.h"
+CAMERA_SET(0)
 
 #include "Shaders/Includes/DefaultMaterial.h"
 layout(set = 1, binding = 0) uniform GBufferMaterial

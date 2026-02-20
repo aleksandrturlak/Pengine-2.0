@@ -1,58 +1,33 @@
 #version 450
 
-#include "Shaders/Includes/Camera.h"
-#include "Shaders/Includes/CSM.h"
-
-layout(set = 0, binding = 0) uniform GlobalBuffer
-{
-	Camera camera;
-};
-
-layout(set = 1, binding = 0) uniform LightSpaceMatrices
-{
-	mat4 lightSpaceMatrices[MAX_CASCADE_COUNT];
-	int cascadeCount;
-};
+#include "Shaders/Includes/SetMacros/CameraSet.h"
+CAMERA_SET(0)
 
 #include "Shaders/Includes/Common.h"
 
-struct DrawIndirectCommand
-{
-	uint vertexCount;
-	uint instanceCount;
-	uint firstVertex;
-	uint firstInstance;
-};
-
-struct CSMInstanceData
-{
-	uint entityIndex;
-	int cascadeIndex;
-};
-
-layout(set = 2, binding = 0, scalar) buffer IndirectDrawCommands
+layout(set = 1, binding = 0, scalar) buffer IndirectDrawCommands
 {
 	DrawIndirectCommand drawCommands[MAX_INDIRECT_DRAW_COMMANDS];
 };
 
-layout(set = 2, binding = 1) buffer IndirectDrawCommandCount
+layout(set = 1, binding = 1) buffer IndirectDrawCommandCount
 {
 	uint count[MAX_CASCADE_COUNT * MAX_PIPELINE_COUNT];
 };
 
-layout(set = 2, binding = 2) buffer PipelineInfoBuffer
+layout(set = 1, binding = 2) buffer PipelineInfoBuffer
 {
 	uint pipelineCommandOffset[MAX_CASCADE_COUNT * MAX_PIPELINE_COUNT];
 };
 
-layout(set = 2, binding = 3, scalar) buffer CSMInstanceDataBuffer
+layout(set = 1, binding = 3, scalar) buffer CSMInstanceDataBuffer
 {
 	CSMInstanceData instanceData[MAX_INDIRECT_DRAW_COMMANDS];
 };
 
-layout(set = 3, binding = 0) uniform sampler2D bindlessTextures[MAX_BINDLESS_TEXTURES];
+layout(set = 2, binding = 0) uniform sampler2D bindlessTextures[MAX_BINDLESS_TEXTURES];
 
-layout(set = 4, binding = 0, scalar) buffer readonly BindlessEntities
+layout(set = 3, binding = 0, scalar) buffer readonly BindlessEntities
 {
 	EntityInfo entities[MAX_BINDLESS_ENTITIES];
 };
@@ -176,9 +151,9 @@ void main()
 
 	uint pipelineId = entityInfo.materialInfoBuffer.baseMaterialInfoBuffer.pipelineIds[CSM_PASS];
 
-	for (int cascadeIndex = 0; cascadeIndex < cascadeCount; ++cascadeIndex)
+	for (int cascadeIndex = 0; cascadeIndex < csm.cascadeCount; ++cascadeIndex)
 	{
-		vec4 cascadeFrustumPlanes[6] = ExtractFrustumPlanes(lightSpaceMatrices[cascadeIndex]);
+		vec4 cascadeFrustumPlanes[6] = ExtractFrustumPlanes(csm.lightSpaceMatrices[cascadeIndex]);
 		
 		if (!IsAABBInsideFrustum(entityInfo.aabb.min, entityInfo.aabb.max, cascadeFrustumPlanes))
 		{

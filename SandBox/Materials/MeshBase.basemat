@@ -8,14 +8,14 @@ Basemat:
       TopologyMode: TriangleList
       Vertex: Shaders/Opaque.vert
       Fragment: Shaders/Opaque.frag
-      DescriptorSets:
+      UniformWriters:
         - Type: Renderer
-          RenderPass: DefaultReflection
+          Name: Camera
           Set: 0
         - Type: Bindless
           Set: 1
         - Type: Scene
-          RenderPass: BindlessEntities
+          Name: BindlessEntities
           Set: 2
         - Type: BufferDeviceAddress
           Set: 3
@@ -31,17 +31,17 @@ Basemat:
       PolygonMode: Fill
       Vertex: Shaders/Transparent.vert
       Fragment: Shaders/Transparent.frag
-      DescriptorSets:
+      UniformWriters:
         - Type: Renderer
-          RenderPass: DefaultReflection
+          Name: Camera
           Set: 0
         - Type: Bindless
           Set: 1
         - Type: Renderer
-          RenderPass: Deferred
+          Name: Deferred
           Set: 2
         - Type: Renderer
-          RenderPass: Lights
+          Name: Lights
           Set: 3
       VertexInputBindingDescriptions:
         - Binding: 0
@@ -82,81 +82,17 @@ Basemat:
       TopologyMode: TriangleList
       Vertex: Shaders/CSM.vert
       Fragment: Shaders/CSM.frag
-      DescriptorSets:
+      UniformWriters:
+        - Type: Renderer
+          Name: Camera
+          Set: 0
         - Type: Scene
-          RenderPass: BindlessEntities
-          Set: 0
-        - Type: Renderer
-          RenderPass: CSM
-          Set: 1
-        - Type: Bindless
-          Set: 2
-      ColorBlendStates:
-        []
-    - RenderPass: PointLightShadows
-      DepthTest: true
-      DepthWrite: true
-      DepthClamp: true
-      DepthCompare: LessOrEqual
-      CullMode: None
-      PolygonMode: Fill
-      TopologyMode: TriangleList
-      Vertex: Shaders/PointLightShadows.vert
-      Fragment: Shaders/PointLightShadows.frag
-      DescriptorSets:
-        - Type: Material
-          RenderPass: GBuffer
-          Set: 0
-        - Type: Bindless
+          Name: BindlessEntities
           Set: 1
         - Type: Renderer
-          RenderPass: Lights
+          Name: ComputeIndirectDrawCSMBuffers
           Set: 2
-      VertexInputBindingDescriptions:
-        - Binding: 0
-          InputRate: Vertex
-          Tag: Position
-          Names:
-            - positionA
-            - uvA
-        - Binding: 1
-          InputRate: Instance
-          Names:
-            - transformA
-            - lightIndexA
-            - faceIndexA
-      ColorBlendStates:
-        []
-    - RenderPass: SpotLightShadows
-      DepthTest: true
-      DepthWrite: true
-      DepthClamp: true
-      DepthCompare: LessOrEqual
-      CullMode: None
-      PolygonMode: Fill
-      TopologyMode: TriangleList
-      Vertex: Shaders/SpotLightShadows.vert
-      Fragment: Shaders/SpotLightShadows.frag
-      DescriptorSets:
-        - Type: Material
-          RenderPass: GBuffer
-          Set: 0
         - Type: Bindless
-          Set: 1
-        - Type: Renderer
-          RenderPass: Lights
-          Set: 2
-      VertexInputBindingDescriptions:
-        - Binding: 0
-          InputRate: Vertex
-          Tag: Position
-          Names:
-            - positionA
-            - uvA
-        - Binding: 1
-          InputRate: Instance
-          Names:
-            - transformA
-            - lightIndexA
+          Set: 3
       ColorBlendStates:
         []

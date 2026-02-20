@@ -13,12 +13,8 @@ layout(set = 0, binding = 1) uniform SSAO
     vec2 viewportScale;
 };
 
-#include "Shaders/Includes/Camera.h"
-
-layout(set = 1, binding = 0) uniform GlobalBuffer
-{
-    Camera camera;
-};
+#include "Shaders/Includes/SetMacros/CameraSet.h"
+CAMERA_SET(1)
 
 layout(set = 0, binding = 2) uniform sampler2D depthTexture;
 layout(set = 0, binding = 3) uniform sampler2D normalTexture;

@@ -3,9 +3,9 @@ Basemat:
     - RenderPass: HiZPyramid
       Type: Compute
       Compute: Shaders/HiZReduce.comp
-      DescriptorSets:
+      UniformWriters:
         - Type: Renderer
-          RenderPass: HiZPyramid
+          Name: HiZPyramid
           Set: 0
       Uniforms:
         - Name: sourceTexture

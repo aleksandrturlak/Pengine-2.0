@@ -1,3 +1,6 @@
+#ifndef HI_Z_OCCLUSION_CULLING_H
+#define HI_Z_OCCLUSION_CULLING_H
+
 bool ProjectAABBToScreen(
     in vec3 aabbMin,
     in vec3 aabbMax,
@@ -72,7 +75,7 @@ uint GetHiZMipLevel(
     
     float mip = log2(maxSize);
     
-    uint level = uint(ceil(mip));
+    uint level = uint(floor(mip));
     level = min(level, maxMipLevel);
     
     return level;
@@ -147,3 +150,5 @@ bool IsAABBOccludedByHiZ(
     
     return false;
 }
+
+#endif

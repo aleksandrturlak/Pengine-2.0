@@ -207,12 +207,12 @@ void RenderPassManager::PrepareUniformsPerViewportBeforeDraw(const RenderPass::R
 		FATAL_ERROR("DefaultReflection base material is broken! No pipeline found!");
 	}
 
-	const std::shared_ptr<UniformWriter> renderUniformWriter = GetOrCreateUniformWriter(renderInfo.renderView, pipeline, Pipeline::DescriptorSetIndexType::RENDERER, DefaultReflection);
-	const std::string globalBufferName = "GlobalBuffer";
-	const std::shared_ptr<Buffer> globalBuffer = GetOrCreateBuffer(
+	const std::shared_ptr<UniformWriter> renderUniformWriter = GetOrCreateUniformWriter(renderInfo.renderView, pipeline, Pipeline::DescriptorSetIndexType::RENDERER, "Camera");
+	const std::string cameraBufferName = "CameraBuffer";
+	const std::shared_ptr<Buffer> cameraBuffer = GetOrCreateBuffer(
 		renderInfo.renderView,
 		renderUniformWriter,
-		globalBufferName,
+		cameraBufferName,
 		{},
 		{ Buffer::Usage::UNIFORM_BUFFER },
 		MemoryType::CPU, true);
@@ -220,135 +220,135 @@ void RenderPassManager::PrepareUniformsPerViewportBeforeDraw(const RenderPass::R
 	const Camera& camera = renderInfo.camera->GetComponent<Camera>();
 	const Transform& cameraTransform = renderInfo.camera->GetComponent<Transform>();
 	const glm::mat4 viewProjectionMat4 = renderInfo.projection * camera.GetViewMat4();
-	const glm::mat4 previousViewProjectionMat4 = reflectionBaseMaterial->GetBufferValue<glm::mat4>(globalBuffer, globalBufferName, "camera.viewProjectionMat4");
+	const glm::mat4 previousViewProjectionMat4 = reflectionBaseMaterial->GetBufferValue<glm::mat4>(cameraBuffer, cameraBufferName, "camera.viewProjectionMat4");
 	reflectionBaseMaterial->WriteToBuffer(
-		globalBuffer,
-		globalBufferName,
+		cameraBuffer,
+		cameraBufferName,
 		"camera.viewProjectionMat4",
 		viewProjectionMat4);
 
 	reflectionBaseMaterial->WriteToBuffer(
-		globalBuffer,
-		globalBufferName,
+		cameraBuffer,
+		cameraBufferName,
 		"camera.previousViewProjectionMat4",
 		previousViewProjectionMat4);
 
 	const glm::mat4 viewMat4 = camera.GetViewMat4();
 	reflectionBaseMaterial->WriteToBuffer(
-		globalBuffer,
-		globalBufferName,
+		cameraBuffer,
+		cameraBufferName,
 		"camera.viewMat4",
 		viewMat4);
 
 	const glm::mat4 inverseViewMat4 = glm::inverse(camera.GetViewMat4());
 	reflectionBaseMaterial->WriteToBuffer(
-		globalBuffer,
-		globalBufferName,
+		cameraBuffer,
+		cameraBufferName,
 		"camera.inverseViewMat4",
 		inverseViewMat4);
 
 	reflectionBaseMaterial->WriteToBuffer(
-		globalBuffer,
-		globalBufferName,
+		cameraBuffer,
+		cameraBufferName,
 		"camera.projectionMat4",
 		renderInfo.projection);
 
 	const glm::mat4 inverseRotationMat4 = glm::inverse(cameraTransform.GetRotationMat4());
 	reflectionBaseMaterial->WriteToBuffer(
-		globalBuffer,
-		globalBufferName,
+		cameraBuffer,
+		cameraBufferName,
 		"camera.inverseRotationMat4",
 		inverseRotationMat4);
 
 	{
 		const std::array<glm::vec4, 6> frustumPlanes = Utils::GetFrustumPlanes(viewProjectionMat4);
 		uint32_t size, offset;
-		if (reflectionBaseMaterial->GetUniformDetails(globalBufferName, "camera.frustumPlanes", size, offset))
+		if (reflectionBaseMaterial->GetUniformDetails(cameraBufferName, "camera.frustumPlanes", size, offset))
 		{
-			globalBuffer->WriteToBuffer((void*)frustumPlanes.data(), size, offset);
+			cameraBuffer->WriteToBuffer((void*)frustumPlanes.data(), size, offset);
 		}
 	}
 
 	const glm::vec3 positionViewSpace = camera.GetViewMat4() * glm::vec4(cameraTransform.GetPosition(), 1.0f);
 	reflectionBaseMaterial->WriteToBuffer(
-		globalBuffer,
-		globalBufferName,
+		cameraBuffer,
+		cameraBufferName,
 		"camera.positionViewSpace",
 		positionViewSpace);
 
 	const glm::vec3 positionWorldSpace = cameraTransform.GetPosition();
 	reflectionBaseMaterial->WriteToBuffer(
-		globalBuffer,
-		globalBufferName,
+		cameraBuffer,
+		cameraBufferName,
 		"camera.positionWorldSpace",
 		positionWorldSpace);
 
 	const float time = Time::GetTime();
 	reflectionBaseMaterial->WriteToBuffer(
-		globalBuffer,
-		globalBufferName,
+		cameraBuffer,
+		cameraBufferName,
 		"camera.time",
 		time);
 
 	const float deltaTime = Time::GetDeltaTime();
 	reflectionBaseMaterial->WriteToBuffer(
-		globalBuffer,
-		globalBufferName,
+		cameraBuffer,
+		cameraBufferName,
 		"camera.deltaTime",
 		deltaTime);
 
 	const float zNear = camera.GetZNear();
 	reflectionBaseMaterial->WriteToBuffer(
-		globalBuffer,
-		globalBufferName,
+		cameraBuffer,
+		cameraBufferName,
 		"camera.zNear",
 		zNear);
 
 	const float zFar = camera.GetZFar();
 	reflectionBaseMaterial->WriteToBuffer(
-		globalBuffer,
-		globalBufferName,
+		cameraBuffer,
+		cameraBufferName,
 		"camera.zFar",
 		zFar);
 
 	const glm::vec2 viewportSize = renderInfo.viewportSize;
 	reflectionBaseMaterial->WriteToBuffer(
-		renderInfo.renderView->GetBuffer(globalBufferName),
-		globalBufferName,
+		cameraBuffer,
+		cameraBufferName,
 		"camera.viewportSize",
 		viewportSize);
 
 	const float aspectRation = viewportSize.x / viewportSize.y;
 	reflectionBaseMaterial->WriteToBuffer(
-		renderInfo.renderView->GetBuffer(globalBufferName),
-		globalBufferName,
+		cameraBuffer,
+		cameraBufferName,
 		"camera.aspectRatio",
 		aspectRation);
 
 	const float tanHalfFOV = tanf(camera.GetFov() / 2.0f);
 	reflectionBaseMaterial->WriteToBuffer(
-		renderInfo.renderView->GetBuffer(globalBufferName),
-		globalBufferName,
+		cameraBuffer,
+		cameraBufferName,
 		"camera.tanHalfFOV",
 		tanHalfFOV);
 
 	const Scene::WindSettings& windSettings = renderInfo.scene->GetWindSettings();
 	const glm::vec3 windDirection = glm::normalize(windSettings.direction);
 	reflectionBaseMaterial->WriteToBuffer(
-		renderInfo.renderView->GetBuffer(globalBufferName),
-		globalBufferName,
+		cameraBuffer,
+		cameraBufferName,
 		"camera.wind.direction",
 		windDirection);
 
 	reflectionBaseMaterial->WriteToBuffer(
-		renderInfo.renderView->GetBuffer(globalBufferName),
-		globalBufferName,
+		cameraBuffer,
+		cameraBufferName,
 		"camera.wind.strength",
 		windSettings.strength);
 
 	reflectionBaseMaterial->WriteToBuffer(
-		renderInfo.renderView->GetBuffer(globalBufferName),
-		globalBufferName,
+		cameraBuffer,
+		cameraBufferName,
 		"camera.wind.frequency",
 		windSettings.frequency);
 }
@@ -400,7 +400,6 @@ void RenderPassManager::Initialize()
 {
 	CreateGBuffer();
 	CreateCSM();
-	CreatePointLightShadows();
 	CreateSpotLightShadows();
 	CreateComputeIndirectDrawGBuffer();
 	CreateComputeIndirectDrawCSM();
@@ -787,10 +786,9 @@ void RenderPassManager::ProcessLights(const RenderPass::RenderCallbackInfo& rend
 	const GraphicsSettings& graphicsSettings = renderInfo.scene->GetGraphicsSettings();
 	entt::registry& registry = renderInfo.scene->GetRegistry();
 
-	// Brightness threshold
 	deferredBaseMaterial->WriteToBuffer(lightsBuffer, lightsBufferName, "brightnessThreshold", graphicsSettings.bloom.brightnessThreshold);
 
-	// Directional light + CSM
+	// Directional light.
 	auto directionalLightView = registry.view<DirectionalLight>();
 	if (!directionalLightView.empty())
 	{
@@ -809,53 +807,14 @@ void RenderPassManager::ProcessLights(const RenderPass::RenderCallbackInfo& rend
 
 		const int hasDirectionalLight = 1;
 		deferredBaseMaterial->WriteToBuffer(lightsBuffer, lightsBufferName, "hasDirectionalLight", hasDirectionalLight);
-
-		const GraphicsSettings::Shadows::CSM& shadowSettings = graphicsSettings.shadows.csm;
-		const int isEnabled = shadowSettings.isEnabled;
-		deferredBaseMaterial->WriteToBuffer(lightsBuffer, lightsBufferName, "csm.isEnabled", isEnabled);
-
-		CSMRenderer* csmRenderer = (CSMRenderer*)renderInfo.renderView->GetCustomData("CSMRenderer");
-		if (shadowSettings.isEnabled && csmRenderer && !csmRenderer->GetLightSpaceMatrices().empty())
-		{
-			constexpr size_t maxCascadeCount = 10;
-
-			std::vector<glm::vec4> shadowCascadeLevels(maxCascadeCount, glm::vec4{});
-			for (size_t i = 0; i < csmRenderer->GetDistances().size(); i++)
-			{
-				shadowCascadeLevels[i] = glm::vec4(csmRenderer->GetDistances()[i]);
-			}
-
-			deferredBaseMaterial->WriteToBuffer(lightsBuffer, lightsBufferName, "csm.lightSpaceMatrices", *csmRenderer->GetLightSpaceMatrices().data());
-			deferredBaseMaterial->WriteToBuffer(lightsBuffer, lightsBufferName, "csm.distances", *shadowCascadeLevels.data());
-
-			const int cascadeCount = csmRenderer->GetLightSpaceMatrices().size();
-			deferredBaseMaterial->WriteToBuffer(lightsBuffer, lightsBufferName, "csm.cascadeCount", cascadeCount);
-			deferredBaseMaterial->WriteToBuffer(lightsBuffer, lightsBufferName, "csm.fogFactor", shadowSettings.fogFactor);
-			deferredBaseMaterial->WriteToBuffer(lightsBuffer, lightsBufferName, "csm.maxDistance", shadowSettings.maxDistance);
-			deferredBaseMaterial->WriteToBuffer(lightsBuffer, lightsBufferName, "csm.pcfRange", shadowSettings.pcfRange);
-
-			const int filter = (int)shadowSettings.filter;
-			deferredBaseMaterial->WriteToBuffer(lightsBuffer, lightsBufferName, "csm.filtering", filter);
-
-			const int visualize = shadowSettings.visualize;
-			deferredBaseMaterial->WriteToBuffer(lightsBuffer, lightsBufferName, "csm.visualize", visualize);
-
-			std::vector<glm::vec4> biases(maxCascadeCount);
-			for (size_t i = 0; i < shadowSettings.biases.size(); i++)
-			{
-				biases[i] = glm::vec4(shadowSettings.biases[i]);
-			}
-			deferredBaseMaterial->WriteToBuffer(lightsBuffer, lightsBufferName, "csm.biases", *biases.data());
-		}
 	}
 	else
 	{
 		const int hasDirectionalLight = 0;
 		deferredBaseMaterial->WriteToBuffer(lightsBuffer, lightsBufferName, "hasDirectionalLight", hasDirectionalLight);
-		deferredBaseMaterial->WriteToBuffer(lightsBuffer, lightsBufferName, "csm.cascadeCount", hasDirectionalLight);
 	}
 
-	// Point lights
+	// Point lights.
 	{
 		const std::array<glm::vec4, 6> cameraFrustumPlanes = Utils::GetFrustumPlanes(renderInfo.projection * camera.GetViewMat4());
 		const glm::vec3 cameraPosition = camera.GetEntity()->GetComponent<Transform>().GetPosition();
@@ -926,7 +885,7 @@ void RenderPassManager::ProcessLights(const RenderPass::RenderCallbackInfo& rend
 		deferredBaseMaterial->WriteToBuffer(lightsBuffer, lightsBufferName, "pointLightShadows.isEnabled", pointLightShadowsEnabled);
 	}
 
-	// Spot lights
+	// Spot lights.
 	{
 		const std::array<glm::vec4, 6> cameraFrustumPlanes = Utils::GetFrustumPlanes(renderInfo.projection * camera.GetViewMat4());
 		const glm::vec3 cameraPosition = camera.GetEntity()->GetComponent<Transform>().GetPosition();
@@ -1002,7 +961,7 @@ void RenderPassManager::ProcessLights(const RenderPass::RenderCallbackInfo& rend
 		deferredBaseMaterial->WriteToBuffer(lightsBuffer, lightsBufferName, "spotLightShadows.isEnabled", spotLightShadowsEnabled);
 	}
 
-	// SSS
+	// SSS.
 	{
 		const GraphicsSettings::Shadows::SSS& sssSettings = graphicsSettings.shadows.sss;
 		constexpr float resolutionScales[] = { 0.25f, 0.5f, 0.75f, 1.0f };

@@ -3,9 +3,9 @@ Basemat:
     - RenderPass: SSSBlur
       Type: Compute
       Compute: Shaders/SSSBlur.comp
-      DescriptorSets:
+      UniformWriters:
         - Type: Renderer
-          RenderPass: SSSBlur
+          Name: SSSBlur
           Set: 0
       Uniforms:
         - Name: sourceTexture

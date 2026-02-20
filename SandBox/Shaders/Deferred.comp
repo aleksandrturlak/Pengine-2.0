@@ -10,18 +10,14 @@ layout(set = 1, binding = 6) uniform sampler2DArray CSMTexture;
 layout(set = 1, binding = 7) uniform sampler2D pointLightShadowMapTexture;
 layout(set = 1, binding = 8) uniform sampler2D spotLightShadowMapTexture;
 
-#include "Shaders/Includes/Camera.h"
-#include "Shaders/Includes/IsBrightPixel.h"
+#include "Shaders/Includes/SetMacros/CameraSet.h"
+CAMERA_SET(0)
+
+#include "Shaders/Includes/Common.h"
 #include "Shaders/Includes/DirectionalLight.h"
 #include "Shaders/Includes/PointLight.h"
 #include "Shaders/Includes/SpotLight.h"
-#include "Shaders/Includes/CSM.h"
 #include "Shaders/Includes/SSS.h"
-
-layout(set = 0, binding = 0) uniform GlobalBuffer
-{
-	Camera camera;
-};
 
 layout(set = 2, binding = 0) uniform Lights
 {
@@ -35,8 +31,6 @@ layout(set = 2, binding = 0) uniform Lights
 	int hasDirectionalLight;
 
 	float brightnessThreshold;
-
-	CSM csm;
 
 	PointLightShadows pointLightShadows;
     SpotLightShadows spotLightShadows;

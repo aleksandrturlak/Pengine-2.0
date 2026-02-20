@@ -8,30 +8,39 @@ layout(location = 0) in vec2 uv;
 layout(location = 1) flat in uint instanceIndex;
 
 #include "Shaders/Includes/Common.h"
+
 #include "Shaders/Includes/DefaultMaterial.h"
-
-struct CSMInstanceData
-{
-	uint entityIndex;
-	int cascadeIndex;
-};
-
 layout(buffer_reference, scalar) buffer DefaultMaterialBuffer
 {
 	DefaultMaterial material;
 };
 
-layout(set = 0, binding = 0, scalar) buffer readonly BindlessEntities
+layout(set = 1, binding = 0, scalar) buffer readonly BindlessEntities
 {
 	EntityInfo entities[MAX_BINDLESS_ENTITIES];
 };
 
-layout(set = 1, binding = 1, scalar) buffer readonly CSMInstanceDataBuffer
+layout(set = 2, binding = 0, scalar) buffer readonly IndirectDrawCommands
+{
+	DrawIndirectCommand drawCommands[MAX_INDIRECT_DRAW_COMMANDS];
+};
+
+layout(set = 2, binding = 1) buffer readonly IndirectDrawCommandCount
+{
+	uint count[MAX_CASCADE_COUNT * MAX_PIPELINE_COUNT];
+};
+
+layout(set = 2, binding = 2) buffer readonly PipelineInfoBuffer
+{
+	uint pipelineCommandOffset[MAX_CASCADE_COUNT * MAX_PIPELINE_COUNT];
+};
+
+layout(set = 2, binding = 3, scalar) buffer readonly CSMInstanceDataBuffer
 {
 	CSMInstanceData instanceData[MAX_INDIRECT_DRAW_COMMANDS];
 };
 
-layout(set = 2, binding = 0) uniform sampler2D bindlessTextures[MAX_BINDLESS_TEXTURES];
+layout(set = 3, binding = 0) uniform sampler2D bindlessTextures[MAX_BINDLESS_TEXTURES];
 
 void main()
 {

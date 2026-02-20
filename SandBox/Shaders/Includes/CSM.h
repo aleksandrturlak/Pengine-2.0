@@ -144,4 +144,5 @@ vec3 CalculateCSM(
 
     return vec3(shadow);
 }
-#endif // CSM_H
+
+#endif
