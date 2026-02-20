@@ -27,9 +27,9 @@ layout(set = 1, binding = 3, scalar) buffer CSMInstanceDataBuffer
 
 layout(set = 2, binding = 0) uniform sampler2D bindlessTextures[MAX_BINDLESS_TEXTURES];
 
-layout(set = 3, binding = 0, scalar) buffer readonly BindlessEntities
+layout(set = 3, binding = 0, scalar) buffer readonly EntityBuffer
 {
-	EntityInfo entities[MAX_BINDLESS_ENTITIES];
+	EntityInfo entities[MAX_ENTITIES];
 };
 
 bool IsAABBInsideFrustum(

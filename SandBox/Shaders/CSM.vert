@@ -13,9 +13,9 @@ layout(buffer_reference, scalar) buffer MaterialBufferReference
 #include "Shaders/Includes/SetMacros/CameraSet.h"
 CAMERA_SET(0)
 
-layout(set = 1, binding = 0, scalar) buffer readonly BindlessEntities
+layout(set = 1, binding = 0, scalar) buffer readonly EntityBuffer
 {
-	EntityInfo entities[MAX_BINDLESS_ENTITIES];
+	EntityInfo entities[MAX_ENTITIES];
 };
 
 layout(set = 2, binding = 0, scalar) buffer readonly IndirectDrawCommands

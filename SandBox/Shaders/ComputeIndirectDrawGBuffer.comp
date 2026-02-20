@@ -35,9 +35,9 @@ layout(set = 1, binding = 4) uniform HiZPyramidMipLevelCountBuffer
 
 layout(set = 2, binding = 0) uniform sampler2D bindlessTextures[MAX_BINDLESS_TEXTURES];
 
-layout(set = 3, binding = 0, scalar) buffer readonly BindlessEntities
+layout(set = 3, binding = 0, scalar) buffer readonly EntityBuffer
 {
-	EntityInfo entities[MAX_BINDLESS_ENTITIES];
+	EntityInfo entities[MAX_ENTITIES];
 };
 
 bool IsAABBInsideFrustum(
@@ -89,7 +89,7 @@ layout (local_size_x = 16, local_size_y = 1, local_size_z = 1) in;
 void main()
 {
     uint entityIndex = gl_GlobalInvocationID.x;
-    if (entityIndex >= MAX_BINDLESS_ENTITIES) return;
+    if (entityIndex >= MAX_ENTITIES) return;
 
     EntityInfo entityInfo = entities[entityIndex];
     if (!bool(entityInfo.flags & ENTITY_VALID)) return;

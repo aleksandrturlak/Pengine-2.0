@@ -4,10 +4,12 @@
 
 layout(location = 0) in vec3 positionA;
 
+#include "Shaders/Includes/Common.h"
+
 #include "Shaders/Includes/SetMacros/CameraSet.h"
 CAMERA_SET(0)
 
-layout(set = 1, binding = 0) uniform sampler2D bindlessTextures[10000];
+layout(set = 1, binding = 0) uniform sampler2D bindlessTextures[MAX_BINDLESS_TEXTURES];
 
 #include "Shaders/Includes/DefaultMaterial.h"
 layout(set = 2, binding = 0) buffer readonly Material
@@ -16,9 +18,9 @@ layout(set = 2, binding = 0) buffer readonly Material
 };
 
 #include "Shaders/Includes/Common.h"
-layout(set = 3, binding = 0, scalar) buffer readonly BindlessEntities
+layout(set = 3, binding = 0, scalar) buffer readonly EntityBuffer
 {
-	EntityInfo entities[20000];
+	EntityInfo entities[MAX_ENTITIES];
 };
 
 void main()

@@ -88,7 +88,7 @@ std::shared_ptr<Texture> BindlessUniformWriter::GetBindlessTexture(const int ind
 	return nullptr;
 }
 
-void BindlessUniformWriter::CreateBindlessEntitiesResources(
+void BindlessUniformWriter::CreateSceneResources(
 	std::shared_ptr<UniformWriter>& uniformWriter,
 	std::shared_ptr<Buffer>& buffer)
 {
@@ -109,13 +109,11 @@ void BindlessUniformWriter::CreateBindlessEntitiesResources(
 		createInfo.memoryType = MemoryType::CPU;
 		createInfo.isMultiBuffered = true;
 		buffer = Buffer::Create(createInfo);
-
-		Logger::Log(std::format("Bindless Entity Buffer Size: {} MB", (entitySize * entityCount * Vk::frameInFlightCount) / 1024.0f / 1024.0f));
 	}
 
 	const std::vector<ShaderReflection::ReflectDescriptorSetBinding> bindings = { *binding };
 	const auto entityUniformLayout = UniformLayout::Create(bindings);
 	uniformWriter = UniformWriter::Create(entityUniformLayout, true);
-	uniformWriter->WriteBufferToAllFrames("BindlessEntities", buffer);
+	uniformWriter->WriteBufferToAllFrames("EntityBuffer", buffer);
 	uniformWriter->Flush();
 }

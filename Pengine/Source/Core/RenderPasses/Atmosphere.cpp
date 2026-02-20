@@ -34,35 +34,6 @@
 
 using namespace Pengine;
 
-void RenderPassManager::CreateDefaultReflection()
-{
-	RenderPass::ClearDepth clearDepth{};
-	clearDepth.clearDepth = 0.0f;
-	clearDepth.clearStencil = 0;
-
-	glm::vec4 clearColor = { 1.0f, 1.0f, 1.0f, 1.0f };
-
-	RenderPass::AttachmentDescription color{};
-	color.textureCreateInfo.format = Format::R8G8B8A8_SRGB;
-	color.textureCreateInfo.aspectMask = Texture::AspectMask::COLOR;
-	color.textureCreateInfo.instanceSize = sizeof(uint8_t) * 4;
-	color.textureCreateInfo.isMultiBuffered = true;
-	color.textureCreateInfo.usage = { Texture::Usage::SAMPLED, Texture::Usage::TRANSFER_SRC, Texture::Usage::COLOR_ATTACHMENT };
-	color.textureCreateInfo.name = "DefaultReflectionColor";
-	color.textureCreateInfo.filepath = color.textureCreateInfo.name;
-	color.layout = Texture::Layout::COLOR_ATTACHMENT_OPTIMAL;
-
-	RenderPass::CreateInfo createInfo{};
-	createInfo.type = Pass::Type::GRAPHICS;
-	createInfo.name = DefaultReflection;
-	createInfo.clearColors = { clearColor };
-	createInfo.clearDepths = { clearDepth };
-	createInfo.attachmentDescriptions = { color };
-	createInfo.createFrameBuffer = false;
-
-	CreateRenderPass(createInfo);
-}
-
 void RenderPassManager::CreateAtmosphere()
 {
 	glm::vec4 clearColor = { 0.0f, 0.0f, 0.0f, 0.0f };

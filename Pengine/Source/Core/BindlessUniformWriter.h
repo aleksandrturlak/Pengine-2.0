@@ -41,7 +41,7 @@ namespace Pengine
 
 		std::shared_ptr<Texture> GetBindlessTexture(const int index);
 
-		void CreateBindlessEntitiesResources(
+		void CreateSceneResources(
 			std::shared_ptr<UniformWriter>& uniformWriter,
 			std::shared_ptr<Buffer>& buffer);
 

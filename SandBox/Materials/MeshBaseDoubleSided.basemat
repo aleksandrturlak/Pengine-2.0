@@ -15,7 +15,7 @@ Basemat:
         - Type: Bindless
           Set: 1
         - Type: Scene
-          Name: BindlessEntities
+          Name: Scene
           Set: 2
         - Type: BufferDeviceAddress
           Set: 3
@@ -87,7 +87,7 @@ Basemat:
           Name: Camera
           Set: 0
         - Type: Scene
-          Name: BindlessEntities
+          Name: Scene
           Set: 1
         - Type: Renderer
           Name: ComputeIndirectDrawCSMBuffers

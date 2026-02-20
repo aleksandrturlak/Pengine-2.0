@@ -195,6 +195,35 @@ bool RenderPassManager::BindAndFlushUniformWriters(
 	return true;
 }
 
+void RenderPassManager::CreateDefaultReflection()
+{
+	RenderPass::ClearDepth clearDepth{};
+	clearDepth.clearDepth = 0.0f;
+	clearDepth.clearStencil = 0;
+
+	glm::vec4 clearColor = { 1.0f, 1.0f, 1.0f, 1.0f };
+
+	RenderPass::AttachmentDescription color{};
+	color.textureCreateInfo.format = Format::R8G8B8A8_SRGB;
+	color.textureCreateInfo.aspectMask = Texture::AspectMask::COLOR;
+	color.textureCreateInfo.instanceSize = sizeof(uint8_t) * 4;
+	color.textureCreateInfo.isMultiBuffered = true;
+	color.textureCreateInfo.usage = { Texture::Usage::SAMPLED, Texture::Usage::TRANSFER_SRC, Texture::Usage::COLOR_ATTACHMENT };
+	color.textureCreateInfo.name = "DefaultReflectionColor";
+	color.textureCreateInfo.filepath = color.textureCreateInfo.name;
+	color.layout = Texture::Layout::COLOR_ATTACHMENT_OPTIMAL;
+
+	RenderPass::CreateInfo createInfo{};
+	createInfo.type = Pass::Type::GRAPHICS;
+	createInfo.name = DefaultReflection;
+	createInfo.clearColors = { clearColor };
+	createInfo.clearDepths = { clearDepth };
+	createInfo.attachmentDescriptions = { color };
+	createInfo.createFrameBuffer = false;
+
+	CreateRenderPass(createInfo);
+}
+
 void RenderPassManager::PrepareUniformsPerViewportBeforeDraw(const RenderPass::RenderCallbackInfo& renderInfo)
 {
 	PROFILER_SCOPE(__FUNCTION__);
@@ -478,10 +507,10 @@ void RenderPassManager::ProcessEntities(const RenderPass::RenderCallbackInfo& re
 
 	if (!multiPassData->entityUniformWriter)
 	{
-		BindlessUniformWriter::GetInstance().CreateBindlessEntitiesResources(
+		BindlessUniformWriter::GetInstance().CreateSceneResources(
 			multiPassData->entityUniformWriter,
 			multiPassData->entityBuffer);
-		renderInfo.scene->GetRenderView()->SetUniformWriter("BindlessEntities", multiPassData->entityUniformWriter);
+		renderInfo.scene->GetRenderView()->SetUniformWriter("Scene", multiPassData->entityUniformWriter);
 	}
 
 	void* data = multiPassData->entityBuffer->GetData();

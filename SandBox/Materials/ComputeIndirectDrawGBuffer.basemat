@@ -13,5 +13,5 @@ Basemat:
         - Type: Bindless
           Set: 2
         - Type: Scene
-          Name: BindlessEntities
+          Name: Scene
           Set: 3

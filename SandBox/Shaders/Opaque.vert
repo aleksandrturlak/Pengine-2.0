@@ -16,9 +16,9 @@ CAMERA_SET(0)
 
 layout(set = 1, binding = 0) uniform sampler2D bindlessTextures[MAX_BINDLESS_TEXTURES];
 
-layout(set = 2, binding = 0, scalar) buffer readonly BindlessEntities
+layout(set = 2, binding = 0, scalar) buffer readonly EntityBuffer
 {
-	EntityInfo entities[MAX_BINDLESS_ENTITIES];
+	EntityInfo entities[MAX_ENTITIES];
 };
 
 #include "Shaders/Includes/DefaultMaterial.h"
