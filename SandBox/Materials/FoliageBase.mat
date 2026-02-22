@@ -1,8 +1,25 @@
 Mat:
-  Basemat: 0xd4e01e5fd1e00c656d6ca62d11cf247e
-  Bindless:
-    - Uniforms:
-        - Name: Material
+  Basemat: 0xb57c31db19f778c9b4a037b877d49d20
+  Options:
+    - Name: Transparency
+      IsEnabled: false
+      Active:
+        - Transparent
+      Inactive:
+        - GBuffer
+  Pipelines:
+    - RenderPass: SpotLightShadows
+      Uniforms:
+        []
+    - RenderPass: PointLightShadows
+      Uniforms:
+        []
+    - RenderPass: CSM
+      Uniforms:
+        []
+    - RenderPass: GBuffer
+      Uniforms:
+        - Name: MaterialBuffer
           Values:
             - Name: material.albedoColor
               Value: [0.337254912, 0.337254912, 0.337254912, 1]
@@ -26,7 +43,7 @@ Mat:
               Value: 0
               Type: float
             - Name: material.alphaCutoff
-              Value: 0.00999999978
+              Value: 0.150000006
               Type: float
             - Name: material.maxParallaxLayers
               Value: 0
@@ -41,7 +58,7 @@ Mat:
               Value: 0
               Type: int
             - Name: material.useAlphaCutoff
-              Value: 0
+              Value: 1
               Type: int
             - Name: material.useParallaxOcclusion
               Value: 0

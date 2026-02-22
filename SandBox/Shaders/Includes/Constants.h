@@ -18,9 +18,10 @@
 
 // Render pass indices
 #define GBUFFER_PASS 0
-#define CSM_PASS 1
-#define POINT_SHADOW_PASS 2
-#define SPOT_SHADOW_PASS 3
-#define TRANSPARENT_PASS 4
+#define DECALS_PASS 1
+#define CSM_PASS 2
+#define POINT_SHADOW_PASS 3
+#define SPOT_SHADOW_PASS 4
+#define TRANSPARENT_PASS 5
 
 #endif

@@ -136,6 +136,7 @@ void RenderPassManager::CreateDecalPass()
 
 		struct DecalInstanceData
 		{
+			uint64_t materialBuffer;
 			glm::mat4 transform;
 			glm::mat4 inverseTransform;
 		};
@@ -207,6 +208,7 @@ void RenderPassManager::CreateDecalPass()
 					const Transform& transform = registry.get<Transform>(entity);
 					data.transform = transform.GetTransform();
 					data.inverseTransform = transform.GetInverseTransformMat4();
+					data.materialBuffer = material->GetMaterialInfoBuffer()->GetDeviceAddress().Get();
 					instanceDatas.emplace_back(data);
 				}
 

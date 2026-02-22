@@ -428,6 +428,7 @@ std::shared_ptr<Texture> RenderPassManager::ScaleTexture(
 void RenderPassManager::Initialize()
 {
 	CreateGBuffer();
+	CreateDecalPass();
 	CreateCSM();
 	CreatePointLightShadows();
 	CreateSpotLightShadows();
@@ -446,7 +447,6 @@ void RenderPassManager::Initialize()
 	CreateSSRBlur();
 	CreateAntiAliasingAndComposePass();
 	CreateUI();
-	CreateDecalPass();
 	CreateDefaultReflection();
 	CreateHiZPyramid();
 }

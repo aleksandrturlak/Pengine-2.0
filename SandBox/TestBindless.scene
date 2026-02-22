@@ -11,8 +11,8 @@ Scene:
     Name: Camera
     IsEnabled: true
     Transform:
-      Position: [-15.4238758, 9.38238239, -0.588085115]
-      Rotation: [-0.747372925, 4.16623354, 0]
+      Position: [-10.1697884, 1.39523637, 5.50831175]
+      Rotation: [-0.430261701, -1.04131866, 0]
       Scale: [1, 1, 1]
       FollowOwner: true
     Camera:
@@ -188,5 +188,18 @@ Scene:
       DrawBoundingSphere: false
       CastShadows: true
       CastSSS: false
+    Childs:
+      []
+  - UUID: 0x1dd819ae756aec3f0785033b4cfa0a93
+    Name: Decal
+    IsEnabled: true
+    Transform:
+      Position: [-6.41593122, -0.668011904, 2.98777604]
+      Rotation: [-2.16415691, -0, 0]
+      Scale: [1, 1, 1]
+      FollowOwner: true
+    Decal:
+      Material: 0x76812426c98dc467b8f82fff11dc35b0
+      ObjectVisibilityMask: 255
     Childs:
       []

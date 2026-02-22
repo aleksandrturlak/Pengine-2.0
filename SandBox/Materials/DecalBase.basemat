@@ -8,15 +8,17 @@ Basemat:
       TopologyMode: TriangleList
       Vertex: Shaders/Decal.vert
       Fragment: Shaders/Decal.frag
-      DescriptorSets:
+      UniformWriters:
         - Type: Renderer
-          RenderPass: DefaultReflection
+          Name: Camera
           Set: 0
         - Type: Bindless
           Set: 1
         - Type: Renderer
-          RenderPass: Decals
+          Name: Decals
           Set: 2
+        - Type: BufferDeviceAddress
+          Set: 3
       VertexInputBindingDescriptions:
         - Binding: 0
           InputRate: Vertex
@@ -26,7 +28,7 @@ Basemat:
         - Binding: 1
           InputRate: Instance
           Names:
-            - materialIndexA
+            - materialBufferA
             - transformA
             - inverseTransformA
       ColorBlendStates:
