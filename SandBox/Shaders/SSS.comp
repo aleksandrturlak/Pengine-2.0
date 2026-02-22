@@ -3,14 +3,13 @@
 layout(set = 0, binding = 0, r8) uniform writeonly image2D outColor;
 layout(set = 0, binding = 1) uniform sampler2D depthTexture;
 
-#include "Shaders/Includes/Camera.h"
+#include "Shaders/Includes/SetMacros/CameraSet.h"
+CAMERA_SET(1)
+
 #include "Shaders/Includes/SSS.h"
 #include "Shaders/Includes/DirectionalLight.h"
 #include "Shaders/Includes/PointLight.h"
 #include "Shaders/Includes/SpotLight.h"
-
-#include "Shaders/Includes/SetMacros/CameraSet.h"
-CAMERA_SET(1)
 
 layout(set = 2, binding = 0) uniform Lights
 {
