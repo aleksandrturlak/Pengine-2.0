@@ -15,7 +15,7 @@ layout(set = 1, binding = 0) uniform GBufferMaterial
 	DefaultMaterial material;
 };
 
-layout(set = 2, binding = 0) uniform sampler2D bindlessTextures[10000];
+layout(set = 2, binding = 0) uniform sampler2D bindlessTextures[MAX_BINDLESS_TEXTURES];
 
 void main()
 {

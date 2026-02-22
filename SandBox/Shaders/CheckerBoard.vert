@@ -14,11 +14,11 @@ layout(location = 7) flat out uint64_t materialBuffer;
 #include "Shaders/Includes/SetMacros/CameraSet.h"
 CAMERA_SET(0)
 
-layout(set = 1, binding = 0) uniform sampler2D bindlessTextures[10000];
+layout(set = 1, binding = 0) uniform sampler2D bindlessTextures[MAX_BINDLESS_TEXTURES];
 
 layout(set = 2, binding = 0, scalar) buffer readonly EntityBuffer
 {
-	EntityInfo entities[20000];
+	EntityInfo entities[MAX_ENTITIES];
 };
 
 #include "Shaders/Includes/DefaultMaterial.h"

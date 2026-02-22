@@ -19,7 +19,8 @@ layout(location = 3) out vec4 outEmissive;
 #include "Shaders/Includes/SetMacros/CameraSet.h"
 CAMERA_SET(0)
 
-layout(set = 1, binding = 0) uniform sampler2D bindlessTextures[10000];
+#include "Shaders/Includes/Constants.h"
+layout(set = 1, binding = 0) uniform sampler2D bindlessTextures[MAX_BINDLESS_TEXTURES];
 
 #include "Shaders/Includes/Common.h"
 #include "Shaders/Includes/DirectionalLight.h"

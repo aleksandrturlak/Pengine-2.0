@@ -10,7 +10,7 @@ layout(location = 2) out vec4 outEmissive;
 #include "Shaders/Includes/SetMacros/CameraSet.h"
 CAMERA_SET(0)
 
-layout(set = 1, binding = 0) uniform sampler2D bindlessTextures[10000];
+layout(set = 1, binding = 0) uniform sampler2D bindlessTextures[MAX_BINDLESS_TEXTURES];
 
 layout(set = 2, binding = 0) uniform sampler2D depthGBufferTexture;
 layout(set = 2, binding = 1, rg16f) uniform image2D normalGBufferTexture;

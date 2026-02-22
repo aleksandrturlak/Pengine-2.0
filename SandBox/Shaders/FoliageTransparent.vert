@@ -23,7 +23,7 @@ layout(location = 9) flat out int materialIndex;
 #include "Shaders/Includes/SetMacros/CameraSet.h"
 CAMERA_SET(0)
 
-layout(set = 1, binding = 0) uniform sampler2D bindlessTextures[10000];
+layout(set = 1, binding = 0) uniform sampler2D bindlessTextures[MAX_BINDLESS_TEXTURES];
 
 void main()
 {
