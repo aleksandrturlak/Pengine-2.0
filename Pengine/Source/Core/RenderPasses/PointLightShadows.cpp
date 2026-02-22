@@ -73,7 +73,43 @@ void RenderPassManager::CreatePointLightShadows()
 		PROFILER_SCOPE(PointLightShadows);
 
 		const std::string& renderPassName = renderInfo.renderPass->GetName();
+		
+		const GraphicsSettings::Shadows::PointLightShadows& pointLightShadowsSettings = renderInfo.scene->GetGraphicsSettings().shadows.pointLightShadows;
+		if (!pointLightShadowsSettings.isEnabled)
+		{
+			renderInfo.renderView->DeleteBuffer("InstanceBufferPointLightShadows");
+			renderInfo.renderView->DeleteBuffer("PointLightShadowMapIndicesBuffer");
+			renderInfo.renderView->DeleteFrameBuffer(renderPassName);
 
+			return;
+		}
+
+		std::shared_ptr<Buffer> pointLightShadowMapIndicesBuffer = renderInfo.renderView->GetBuffer("PointLightShadowMapIndicesBuffer");
+		if (!pointLightShadowMapIndicesBuffer)
+		{
+			const std::shared_ptr<BaseMaterial> reflectionBaseMaterial = MaterialManager::GetInstance().LoadBaseMaterial(
+			std::filesystem::path("Materials") / "DefaultReflection.basemat");
+			const std::shared_ptr<Pipeline> pipeline = reflectionBaseMaterial->GetPipeline(DefaultReflection);
+			if (!pipeline)
+			{
+				FATAL_ERROR("DefaultReflection base material is broken! No pipeline found!");
+			}
+
+			const std::shared_ptr<UniformWriter> renderUniformWriter = GetOrCreateUniformWriter(renderInfo.renderView, pipeline, Pipeline::DescriptorSetIndexType::RENDERER, "Camera");
+			pointLightShadowMapIndicesBuffer = GetOrCreateBuffer(
+				renderInfo.renderView,
+				renderUniformWriter,
+				"PointLightShadowMapIndicesBuffer",
+				{},
+				{ Buffer::Usage::UNIFORM_BUFFER },
+				MemoryType::CPU, true);
+		}
+		
+		std::vector<int> pointLightShadowMapIndicesData(32, -1);
+
+		MultiPassLightData* multiPassData = (MultiPassLightData*)renderInfo.scene->GetRenderView()->GetCustomData("MultiPassLightData");
+		assert(multiPassData);
+		
 		size_t renderableCount = 0;
 		const std::shared_ptr<Scene> scene = renderInfo.scene;
 		const Camera& camera = renderInfo.camera->GetComponent<Camera>();
@@ -82,8 +118,15 @@ void RenderPassManager::CreatePointLightShadows()
 
 		struct FaceInfo
 		{
+			struct EntityData
+			{
+				std::shared_ptr<Mesh> mesh;
+				uint32_t entityIndex;
+				int lod;
+			};
+
+			std::unordered_map<std::shared_ptr<BaseMaterial>, std::unordered_map<std::shared_ptr<class Material>, std::vector<EntityData>>> renderableEntities;
 			std::vector<entt::entity> entities;
-			RenderableEntities renderableEntities;
 			int faceIndex = -1;
 		};
 
@@ -96,36 +139,6 @@ void RenderPassManager::CreatePointLightShadows()
 
 		std::vector<LightInfo> lightInfos;
 
-		auto getPointLightViewMatrix = [](const glm::vec3& position, int faceIndex) -> glm::mat4
-		{
-			static const glm::vec3 directions[6] =
-			{
-				glm::vec3(-1.0f, 0.0f,  0.0f),  // -X (Left)
-				glm::vec3(1.0f,  0.0f,  0.0f),  // +X (Right)
-				glm::vec3(0.0f, -1.0f,  0.0f),  // -Y (Bottom)
-				glm::vec3(0.0f,  1.0f,  0.0f),  // +Y (Top)
-				glm::vec3(0.0f,  0.0f, -1.0f),  // -Z (Back)
-				glm::vec3(0.0f,  0.0f,  1.0f),  // +Z (Front)
-			};
-
-			static const glm::vec3 ups[6] =
-			{
-				glm::vec3(0.0f, -1.0f,  0.0f),  // -X (Left) - Y down for Vulkan
-				glm::vec3(0.0f, -1.0f,  0.0f),  // +X (Right) - Y down for Vulkan
-				glm::vec3(0.0f,  0.0f, -1.0f),  // -Y (Bottom) - Z down
-				glm::vec3(0.0f,  0.0f,  1.0f),  // +Y (Top) - Z up
-				glm::vec3(0.0f, -1.0f,  0.0f),  // -Z (Back) - Y down for Vulkan
-				glm::vec3(0.0f, -1.0f,  0.0f),  // +Z (Front) - Y down for Vulkan
-			};
-
-			assert(faceIndex < 6);
-
-			glm::vec3 target = position + directions[faceIndex];
-
-			return glm::lookAt(position, target, ups[faceIndex]);
-		};
-
-		const GraphicsSettings::Shadows::PointLightShadows& pointLightShadowsSettings = renderInfo.scene->GetGraphicsSettings().shadows.pointLightShadows;
 		const glm::ivec2 resolutions[4] = { { 1024, 1024 }, { 2048, 2048 }, { 3072, 3072 }, { 4096, 4096 } };
 		const glm::ivec2 shadowMapAtlasSize = resolutions[pointLightShadowsSettings.atlasQuality];
 
@@ -135,10 +148,9 @@ void RenderPassManager::CreatePointLightShadows()
 		const float facesPerRow = (float)shadowMapAtlasSize.x / (float)faceSize;
 		const int maxShadowMapCount = glm::floor((facesPerRow * facesPerRow) / 6.0f);
 
-		const auto view = registry.view<PointLight>();
-
 		struct LightInfoToSort
 		{
+			int indexToLights;
 			entt::entity entity;
 			glm::vec3 position;
 			float radius;
@@ -147,20 +159,32 @@ void RenderPassManager::CreatePointLightShadows()
 		const std::array<glm::vec4, 6> cameraFrustumPlanes = Utils::GetFrustumPlanes(renderInfo.projection * camera.GetViewMat4());
 
 		std::vector<LightInfoToSort> lights;
-		lights.reserve(view.size());
-
-		for (size_t i = 0; i < view.size(); i++)
+		lights.reserve(multiPassData->pointLights.size());
+		for (size_t i = 0; i < multiPassData->pointLights.size(); i++)
 		{
-			Transform& transform = registry.get<Transform>(view[i]);
+			if (lights.size() == 32)
+			{
+				break;
+			}
+
+			const auto& pointLight = multiPassData->pointLights[i];
+			Transform& transform = registry.get<Transform>(pointLight.entity);
 			if (!transform.GetEntity()->IsEnabled())
 			{
 				continue;
 			}
 
+			PointLight& pl = registry.get<PointLight>(pointLight.entity);
+			if (!pl.castShadows)
+			{
+				continue;
+			}
+
 			LightInfoToSort lightInfoToSort{};
-			lightInfoToSort.entity = view[i];
+			lightInfoToSort.indexToLights = i;
+			lightInfoToSort.entity = pointLight.entity;
 			lightInfoToSort.position = transform.GetPosition();
-			lightInfoToSort.radius = registry.get<PointLight>(view[i]).radius;
+			lightInfoToSort.radius = pl.radius;
 
 			if (Utils::IsSphereInsideFrustum(cameraFrustumPlanes, lightInfoToSort.position, lightInfoToSort.radius))
 			{
@@ -184,17 +208,11 @@ void RenderPassManager::CreatePointLightShadows()
 			return firstDistance2 < secondDistance2;
 		});
 
-		int lightIndex = 0;
 		int shadowMapIndex = 0;
 		for (const auto& light : lights)
 		{
-			if (lightIndex == 32)
-			{
-				break;
-			}
-
 			LightInfo& lightInfo = lightInfos.emplace_back();
-			lightInfo.lightIndex = lightIndex;
+			lightInfo.lightIndex = multiPassData->pointLights[light.indexToLights].index;
 
 			PointLight& pl = registry.get<PointLight>(light.entity);
 
@@ -207,71 +225,58 @@ void RenderPassManager::CreatePointLightShadows()
 				renderInfo.scene->GetVisualizer().DrawSphere(color, transform.GetTransform(), pl.radius, 10);
 			}
 
-			int plShadowMapIndex = -1;
-			if (pointLightShadowsSettings.isEnabled && pl.castShadows)
+			const glm::mat4 projectionMat4 = glm::perspective(
+				glm::radians(90.0f),
+				1.0f,
+				camera.GetZNear(),
+				pl.radius);
+
+			std::vector<SceneBVH::BVHNode> bvhNodes;
+			scene->GetBVH()->Traverse([&light, &bvhNodes](const SceneBVH::BVHNode& node)
 			{
-				if (shadowMapIndex < maxShadowMapCount)
+				if (!Utils::IntersectAABBvsSphere(node.aabb.min, node.aabb.max, light.position, light.radius))
 				{
-					plShadowMapIndex = shadowMapIndex;
-					shadowMapIndex++;
+					return false;
 				}
 
-				const glm::mat4 projectionMat4 = glm::perspective(
-					glm::radians(90.0f),
-					1.0f,
-					camera.GetZNear(),
-					pl.radius);
-
-				std::vector<SceneBVH::BVHNode> bvhNodes;
-				scene->GetBVH()->Traverse([&light, &bvhNodes](const SceneBVH::BVHNode& node)
+				if (node.IsLeaf() && node.entity->IsValid())
 				{
-					if (!Utils::IntersectAABBvsSphere(node.aabb.min, node.aabb.max, light.position, light.radius))
-					{
-						return false;
-					}
+					bvhNodes.emplace_back(node);
+				}
 
-					if (node.IsLeaf() && node.entity->IsValid())
-					{
-						bvhNodes.emplace_back(node);
-					}
+				return true;
+			});
 
-					return true;
-				});
+			for (size_t faceIndex = 0; faceIndex < 6; faceIndex++)
+			{
+				FaceInfo& faceInfo = lightInfo.faceInfos[faceIndex];
+				faceInfo.faceIndex = faceIndex;
+				faceInfo.entities.reserve(bvhNodes.size());
 
-				for (size_t faceIndex = 0; faceIndex < 6; faceIndex++)
+				const auto frustumPlanes = Utils::GetFrustumPlanes(multiPassData->pointLights[light.indexToLights].viewProjectionMat4[faceIndex]);
+
+				// NOTE: BVH Culling is a lot slower than this for loop checks.
+				for (const auto& node : bvhNodes)
 				{
-					const glm::mat4 viewProjectionMat4 = projectionMat4 * getPointLightViewMatrix(lightPositionWorldSpace, faceIndex);
-
-					FaceInfo& faceInfo = lightInfo.faceInfos[faceIndex];
-					faceInfo.faceIndex = faceIndex;
-					faceInfo.entities.reserve(bvhNodes.size());
-
-					const auto frustumPlanes = Utils::GetFrustumPlanes(viewProjectionMat4);
-
-					// NOTE: BVH Culling is a lot slower than this for loop checks.
-					for (const auto& node : bvhNodes)
+					if (Utils::isAABBInsideFrustum(frustumPlanes, node.aabb.min, node.aabb.max))
 					{
-						if (Utils::isAABBInsideFrustum(frustumPlanes, node.aabb.min, node.aabb.max))
-						{
-							faceInfo.entities.emplace_back(node.entity->GetHandle());
-						}
+						faceInfo.entities.emplace_back(node.entity->GetHandle());
 					}
 				}
 			}
 
-			lightInfo.shadowMapIndex = plShadowMapIndex;
-
-			lightIndex++;
+			int localShadowMapIndex = -1;
+			if (shadowMapIndex < maxShadowMapCount)
+			{
+				localShadowMapIndex = shadowMapIndex;
+				shadowMapIndex++;
+			}
+			
+			lightInfo.shadowMapIndex = localShadowMapIndex;
+			pointLightShadowMapIndicesData[multiPassData->pointLights[light.indexToLights].index] = lightInfo.shadowMapIndex;
 		}
 
-		if (!pointLightShadowsSettings.isEnabled)
-		{
-			renderInfo.renderView->DeleteUniformWriter(renderPassName);
-			renderInfo.renderView->DeleteBuffer("InstanceBufferPointLightShadows");
-			renderInfo.renderView->DeleteFrameBuffer(renderPassName);
-
-			return;
-		}
+		pointLightShadowMapIndicesBuffer->WriteToBuffer(pointLightShadowMapIndicesData.data(), pointLightShadowMapIndicesData.size() * sizeof(int));
 
 		std::shared_ptr<FrameBuffer> frameBuffer = renderInfo.renderView->GetFrameBuffer(renderPassName);
 		if (!frameBuffer)
@@ -317,37 +322,18 @@ void RenderPassManager::CreatePointLightShadows()
 					}
 					
 					const Transform& transform = registry.get<Transform>(entity);
-					auto lod = GetLod(
+					const int lod = GetLod(
 						cameraPosition,
 						transform.GetPosition(),
 						glm::length(transform.GetScale() * glm::max(glm::abs(r3d.mesh->GetBoundingBox().min), glm::abs(r3d.mesh->GetBoundingBox().max))),
 						r3d.mesh->GetLods());
 
-					// if (r3d.mesh->GetType() == Mesh::Type::SKINNED)
-					// {
-					// 	if (const auto skeletalAnimatorEntity = scene->FindEntityByUUID(r3d.skeletalAnimatorEntityUUID))
-					// 	{
-					// 		SkeletalAnimator* skeletalAnimator = registry.try_get<SkeletalAnimator>(skeletalAnimatorEntity->GetHandle());
-					// 		if (skeletalAnimator)
-					// 		{
-					// 			UpdateSkeletalAnimator(skeletalAnimator, r3d.material->GetBaseMaterial(), pipeline);
-					// 		}
-					// 	}
+					FaceInfo::EntityData entityData{};
+					entityData.entityIndex = r3d.entityIndex;
+					entityData.mesh = r3d.mesh;
+					entityData.lod = lod;
 
-					// 	EntitiesByMesh::Single single{};
-					// 	single.entity = entity;
-					// 	single.mesh = r3d.mesh;
-					// 	single.lod = lod;
-
-					// 	faceInfo.renderableEntities[r3d.material->GetBaseMaterial()][r3d.material].single.emplace_back(single);
-					// }
-					// else if (r3d.mesh->GetType() == Mesh::Type::STATIC)
-					{
-						auto& entities = faceInfo.renderableEntities[r3d.material->GetBaseMaterial()][r3d.material].instanced[r3d.mesh];
-						entities.resize(r3d.mesh->GetLods().size());
-						entities[lod].reserve(50);
-						entities[lod].emplace_back(entity);
-					}
+					faceInfo.renderableEntities[r3d.material->GetBaseMaterial()][r3d.material].emplace_back(entityData);
 
 					renderableCount++;
 				}
@@ -356,7 +342,7 @@ void RenderPassManager::CreatePointLightShadows()
 
 		struct InstanceData
 		{
-			glm::mat4 transform;
+			int entityIndex;
 			int lightIndex;
 			int faceIndex;
 		};
@@ -451,8 +437,7 @@ void RenderPassManager::CreatePointLightShadows()
 				submitInfo.scissors = getShadowMapFaceScissor(*submitInfo.viewport, lightInfo.shadowMapIndex, faceInfo.faceIndex);
 				renderInfo.renderer->BeginRenderPass(submitInfo, std::format("Face {}", faceInfo.faceIndex), { 1.0f, 1.0f, 0.0f });
 
-				// Render all base materials -> materials -> meshes | put gameobjects into the instance buffer.
-				for (const auto& [baseMaterial, meshesByMaterial] : faceInfo.renderableEntities)
+				for (const auto& [baseMaterial, entitiesByMaterial] : faceInfo.renderableEntities)
 				{
 					const std::shared_ptr<Pipeline> pipeline = baseMaterial->GetPipeline(renderPassName);
 					if (!pipeline)
@@ -460,7 +445,9 @@ void RenderPassManager::CreatePointLightShadows()
 						continue;
 					}
 
-					for (const auto& [material, gameObjectsByMeshes] : meshesByMaterial)
+					renderInfo.renderer->BindPipeline(pipeline, renderInfo.frame);
+
+					for (const auto& [material, entities] : entitiesByMaterial)
 					{
 						std::vector<NativeHandle> uniformWriterNativeHandles;
 						std::vector<std::shared_ptr<UniformWriter>> uniformWriters;
@@ -470,83 +457,39 @@ void RenderPassManager::CreatePointLightShadows()
 							continue;
 						}
 
-						for (const auto& [mesh, entitiesByLod] : gameObjectsByMeshes.instanced)
+						renderInfo.renderer->BindUniformWriters(pipeline, uniformWriterNativeHandles, 0, renderInfo.frame);
+
+						for (const auto& entity : entities)
 						{
-							for (size_t lod = 0; lod < entitiesByLod.size(); lod++)
-							{
-								if (entitiesByLod[lod].empty()) continue;
+							assert(entity.entityIndex != -1);
 
-								const size_t instanceDataOffset = instanceDatas.size();
-
-								for (const entt::entity& entity : entitiesByLod[lod])
-								{
-									InstanceData data{};
-									const Transform& transform = registry.get<Transform>(entity);
-									data.transform = transform.GetTransform();
-									data.lightIndex = lightInfo.lightIndex;
-									data.faceIndex = faceInfo.faceIndex;
-									instanceDatas.emplace_back(data);
-								}
-
-								std::vector<NativeHandle> vertexBuffers;
-								std::vector<size_t> vertexBufferOffsets;
-								GetVertexBuffers(pipeline, mesh, vertexBuffers, vertexBufferOffsets);
-
-								renderInfo.renderer->Render(
-									vertexBuffers,
-									vertexBufferOffsets,
-									mesh->GetIndexBuffer()->GetNativeHandle(),
-									mesh->GetLods()[lod].indexOffset * sizeof(uint32_t),
-									mesh->GetLods()[lod].indexCount,
-									pipeline,
-									instanceBuffer->GetNativeHandle(),
-									instanceDataOffset * instanceBuffer->GetInstanceSize(),
-									entitiesByLod[lod].size(),
-									uniformWriterNativeHandles,
-									renderInfo.frame);
-							}
-						}
-
-						for (const auto& single : gameObjectsByMeshes.single)
-						{
 							const size_t instanceDataOffset = instanceDatas.size();
-
+						
 							InstanceData data{};
-							const Transform& transform = registry.get<Transform>(single.entity);
-							data.transform = transform.GetTransform();
+							data.entityIndex = entity.entityIndex;
 							data.lightIndex = lightInfo.lightIndex;
 							data.faceIndex = faceInfo.faceIndex;
 							instanceDatas.emplace_back(data);
+							
+							std::vector<NativeHandle> vertexBuffers;
+							std::vector<size_t> vertexBufferOffsets;
+							renderInfo.renderer->BindVertexBuffers(
+								vertexBuffers,
+								vertexBufferOffsets,
+								NativeHandle::Invalid(),
+								0,
+								instanceBuffer->GetNativeHandle(),
+								instanceDataOffset * instanceBuffer->GetInstanceSize(),
+								renderInfo.frame);
 
-							SkeletalAnimator* skeletalAnimator = nullptr;
-							const Renderer3D& r3d = registry.get<Renderer3D>(single.entity);
-							if (const auto skeletalAnimatorEntity = scene->FindEntityByUUID(r3d.skeletalAnimatorEntityUUID))
-							{
-								skeletalAnimator = registry.try_get<SkeletalAnimator>(skeletalAnimatorEntity->GetHandle());
-							}
+							Mesh::Lod lod = entity.mesh->GetLods()[entity.lod];
 
-							// if (skeletalAnimator)
-							// {
-							// 	std::vector<NativeHandle> newUniformWriterNativeHandles = uniformWriterNativeHandles;
-							// 	newUniformWriterNativeHandles.emplace_back(skeletalAnimator->GetUniformWriter()->GetNativeHandle());
-
-							// 	std::vector<NativeHandle> vertexBuffers;
-							// 	std::vector<size_t> vertexBufferOffsets;
-							// 	GetVertexBuffers(pipeline, single.mesh, vertexBuffers, vertexBufferOffsets);
-
-							// 	renderInfo.renderer->Render(
-							// 		vertexBuffers,
-							// 		vertexBufferOffsets,
-							// 		single.mesh->GetIndexBuffer()->GetNativeHandle(),
-							// 		single.mesh->GetLods()[single.lod].indexOffset * sizeof(uint32_t),
-							// 		single.mesh->GetLods()[single.lod].indexCount,
-							// 		pipeline,
-							// 		instanceBuffer->GetNativeHandle(),
-							// 		instanceDataOffset * instanceBuffer->GetInstanceSize(),
-							// 		1,
-							// 		newUniformWriterNativeHandles,
-							// 		renderInfo.frame);
-							// }
+							renderInfo.renderer->Draw(
+								lod.indexCount,
+								1,
+								lod.indexOffset,
+								0,
+								renderInfo.frame);
 						}
 					}
 				}
@@ -570,4 +513,3 @@ void RenderPassManager::CreatePointLightShadows()
 
 	CreateRenderPass(createInfo);
 }
-

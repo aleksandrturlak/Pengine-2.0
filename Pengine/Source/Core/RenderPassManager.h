@@ -81,17 +81,25 @@ namespace Pengine
 		using MeshesByMaterial = std::unordered_map<std::shared_ptr<class Material>, EntitiesByMesh>;
 		using RenderableEntities = std::unordered_map<std::shared_ptr<class BaseMaterial>, MeshesByMaterial>;
 
-		// Multi-pass entity data - shared across all render passes
+		struct MultiPassLightData : public CustomData
+		{
+			struct PointLight
+			{
+				std::array<glm::mat4, 6> viewProjectionMat4;
+				entt::entity entity;
+				uint32_t index;
+			};
+
+			std::vector<PointLight> pointLights;
+		};
+
 		struct MultiPassEntityData : public CustomData
 		{
-			// Shared entity buffer for all passes
 			std::shared_ptr<Buffer> entityBuffer;
 			std::shared_ptr<UniformWriter> entityUniformWriter;
 			
-			// Total entity count across all passes (for compute shader dispatch)
 			uint32_t totalEntityCount = 0;
-			
-			// Per-pass pipeline grouping
+		
 			struct PassData
 			{
 				struct PipelineInfo

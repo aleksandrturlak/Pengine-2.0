@@ -17,8 +17,6 @@ struct PointLight
 	float radius;
 
 	vec3 positionWorldSpace;
-	int shadowMapIndex;
-
 	float bias;
 	
     int castSSS;
@@ -185,7 +183,8 @@ float CalculatePointLightShadow(
     in PointLight light,
 	in PointLightShadows pointLightShadows,
     in vec3 toLight,
-    float distanceToPoint)
+    float distanceToPoint,
+	int shadowMapIndex)
 {
 	float shadow = 0.0f;
 
@@ -200,12 +199,12 @@ float CalculatePointLightShadow(
 	vec3 direction = normalize(toLight);
 	uint faceIndex = GetFaceIndexFromDirection(direction);
 	
-	vec2 atlasUV = GetShadowFaceUVLinear(pointLightShadows, light.shadowMapIndex, faceIndex, direction);
+	vec2 atlasUV = GetShadowFaceUVLinear(pointLightShadows, shadowMapIndex, faceIndex, direction);
 
 	vec2 minUV;
 	vec2 maxUV;
 	GetFaceUVBounds(
-		light.shadowMapIndex,
+		shadowMapIndex,
 		int(faceIndex),
     	pointLightShadows.shadowMapAtlasSize,
     	pointLightShadows.faceSize,

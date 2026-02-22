@@ -67,9 +67,19 @@ namespace Pengine::Vk
 			const size_t instanceBufferOffset,
 			void* frame) override;
 
+		virtual void Draw(
+			const uint32_t vertexCount,
+			const uint32_t instanceCount,
+			const uint32_t firstVertex,
+			const uint32_t firstInstance,
+			void* frame) override;
+
 		virtual void DrawIndexed(
 			const uint32_t indexCount,
-			const uint32_t instanceCount,
+    		const uint32_t instanceCount,
+    		const uint32_t firstIndex,
+    		const int32_t vertexOffset,
+    		const uint32_t firstInstance,
 			void* frame) override;
 
 		virtual void DrawIndirectCount(

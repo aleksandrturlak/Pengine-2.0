@@ -57,7 +57,7 @@ void VulkanRenderer::Render(
 	}
 
 	BindVertexBuffers(vertexBuffers, vertexBufferOffsets, indexBuffer, indexBufferOffset, instanceBuffer, instanceBufferOffset, frame);
-	DrawIndexed(indexCount, count, frame);
+	DrawIndexed(indexCount, count, 0, 0, 0, frame);
 }
 
 void VulkanRenderer::Compute(
@@ -161,15 +161,33 @@ void VulkanRenderer::BindVertexBuffers(
 	vkCmdBindIndexBuffer(vkFrame->CommandBuffer, *(VkBuffer*)&indexBuffer, indexBufferOffset, VK_INDEX_TYPE_UINT32);
 }
 
+void VulkanRenderer::Draw(
+	const uint32_t vertexCount,
+	const uint32_t instanceCount,
+	const uint32_t firstVertex,
+	const uint32_t firstInstance,
+	void *frame)
+{
+	PROFILER_SCOPE(__FUNCTION__);
+
+	const VulkanFrameInfo* vkFrame = static_cast<VulkanFrameInfo*>(frame);
+	vkCmdDraw(vkFrame->CommandBuffer, vertexCount, instanceCount, firstVertex, firstInstance);
+	drawCallCount++;
+	triangleCount += (vertexCount / 3) * instanceCount;
+}
+
 void VulkanRenderer::DrawIndexed(
 	const uint32_t indexCount,
 	const uint32_t instanceCount,
+	const uint32_t firstIndex,
+	const int32_t vertexOffset,
+	const uint32_t firstInstance,
 	void* frame)
 {
 	PROFILER_SCOPE(__FUNCTION__);
 
 	const VulkanFrameInfo* vkFrame = static_cast<VulkanFrameInfo*>(frame);
-	vkCmdDrawIndexed(vkFrame->CommandBuffer, indexCount, instanceCount, 0, 0, 0);
+	vkCmdDrawIndexed(vkFrame->CommandBuffer, indexCount, instanceCount, firstIndex, vertexOffset, firstInstance);
 	drawCallCount++;
 	triangleCount += (indexCount / 3) * instanceCount;
 }

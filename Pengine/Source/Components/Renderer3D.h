@@ -28,6 +28,11 @@ namespace Pengine
 
 		UUID skeletalAnimatorEntityUUID = UUID(0, 0);
 
+		/**
+		 * Index of an entity in EntityBuffer that will be used to index on GPU.
+		 */
+		uint32_t entityIndex = -1;
+
 		~Renderer3D();
 	};
 

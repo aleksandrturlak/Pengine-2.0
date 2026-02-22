@@ -429,6 +429,7 @@ void RenderPassManager::Initialize()
 {
 	CreateGBuffer();
 	CreateCSM();
+	CreatePointLightShadows();
 	CreateSpotLightShadows();
 	CreateComputeIndirectDrawGBuffer();
 	CreateComputeIndirectDrawCSM();
@@ -532,13 +533,17 @@ void RenderPassManager::ProcessEntities(const RenderPass::RenderCallbackInfo& re
 
 	std::unordered_set<BaseMaterial*> updatedBaseMaterials;
 
+	const auto view = scene->GetRegistry().view<Renderer3D>(); 
+
 	uint32_t entityIndex = 0;
-	scene->GetRegistry().view<Renderer3D>().each([&](auto entity, Renderer3D& r3d)
+	view.each([&](entt::entity entity, Renderer3D& r3d)
 	{
 		// TODO: Put on GPU!
 		// if ((r3d.objectVisibilityMask & camera.GetObjectVisibilityMask()) == 0)
 		// 	return;
 
+		r3d.entityIndex = -1;
+		
 		if (!r3d.material || !r3d.mesh || !r3d.isEnabled)
 			return;
 
@@ -627,6 +632,8 @@ void RenderPassManager::ProcessEntities(const RenderPass::RenderCallbackInfo& re
 				passData.entityCount++;
 			}
 		}
+
+		r3d.entityIndex = entityIndex;
 
 		multiPassData->entityBuffer->WriteToBuffer(
 			&entityInfo,
@@ -734,11 +741,6 @@ std::shared_ptr<Buffer> RenderPassManager::GetOrCreateBuffer(
 	std::shared_ptr<Buffer> buffer = renderView->GetBuffer(setBufferName.empty() ? bufferName : setBufferName);
 	if (buffer)
 	{
-		if (uniformWriter)
-		{
-			uniformWriter->WriteBufferToAllFrames(bufferName, buffer);
-			uniformWriter->Flush();
-		}
 		return buffer;
 	}
 
@@ -798,7 +800,14 @@ void RenderPassManager::ProcessLights(const RenderPass::RenderCallbackInfo& rend
 	{
 		return;
 	}
-
+	
+	MultiPassLightData* multiPassData = (MultiPassLightData*)renderInfo.scene->GetRenderView()->GetCustomData("MultiPassLightData");
+	if (!multiPassData)
+	{
+		multiPassData = new MultiPassLightData();
+		renderInfo.scene->GetRenderView()->SetCustomData("MultiPassLightData", multiPassData);
+	}
+	
 	const std::string lightsBufferName = "Lights";
 	const std::shared_ptr<UniformWriter> lightsUniformWriter = GetOrCreateUniformWriter(
 		renderInfo.renderView, deferredPipeline, Pipeline::DescriptorSetIndexType::RENDERER, lightsBufferName);
@@ -845,55 +854,32 @@ void RenderPassManager::ProcessLights(const RenderPass::RenderCallbackInfo& rend
 
 	// Point lights.
 	{
-		const std::array<glm::vec4, 6> cameraFrustumPlanes = Utils::GetFrustumPlanes(renderInfo.projection * camera.GetViewMat4());
-		const glm::vec3 cameraPosition = camera.GetEntity()->GetComponent<Transform>().GetPosition();
-
-		struct LightInfoToSort
-		{
-			entt::entity entity;
-			glm::vec3 position;
-			float radius;
-		};
-
-		std::vector<LightInfoToSort> lights;
-		auto pointLightView = registry.view<PointLight>();
-		lights.reserve(pointLightView.size());
-
-		for (size_t i = 0; i < pointLightView.size(); i++)
-		{
-			Transform& transform = registry.get<Transform>(pointLightView[i]);
-			if (!transform.GetEntity()->IsEnabled())
-				continue;
-
-			LightInfoToSort info{};
-			info.entity = pointLightView[i];
-			info.position = transform.GetPosition();
-			info.radius = registry.get<PointLight>(pointLightView[i]).radius;
-
-			if (Utils::IsSphereInsideFrustum(cameraFrustumPlanes, info.position, info.radius))
-				lights.emplace_back(info);
-		}
-
-		std::sort(lights.begin(), lights.end(),
-			[&cameraPosition](const LightInfoToSort& first, const LightInfoToSort& second)
-			{
-				float d1 = glm::distance2(cameraPosition, first.position) - (first.radius * first.radius);
-				float d2 = glm::distance2(cameraPosition, second.position) - (second.radius * second.radius);
-				return d1 < d2;
-			});
+		const auto pointLightView = registry.view<PointLight>();
+		
+		std::vector<MultiPassLightData::PointLight>& pointLights = multiPassData->pointLights;
+		pointLights.clear();
+		pointLights.reserve(pointLightView.size());
 
 		int lightIndex = 0;
-		for (const auto& light : lights)
+		for (const auto& entity : pointLightView)
 		{
 			if (lightIndex == 32)
 				break;
 
-			PointLight& pl = registry.get<PointLight>(light.entity);
+			const Transform& transform = registry.get<Transform>(entity);
+			if (!transform.GetEntity()->IsEnabled())
+				continue;
 
-			const glm::vec3 positionWorldSpace = light.position;
-			const glm::vec3 positionViewSpace = camera.GetViewMat4() * glm::vec4(light.position, 1.0f);
+			MultiPassLightData::PointLight pointLight{};;
+			pointLight.entity = entity;
+			pointLight.index = lightIndex;
+			pointLights.emplace_back(pointLight);
+
+			const PointLight& pl = registry.get<PointLight>(entity);
+
+			const glm::vec3 positionWorldSpace = transform.GetPosition();
+			const glm::vec3 positionViewSpace = camera.GetViewMat4() * glm::vec4(positionWorldSpace, 1.0f);
 			const int castSSS = pl.castSSS;
-			const int shadowMapIndex = -1;
 
 			deferredBaseMaterial->WriteToBuffer(lightsBuffer, lightsBufferName, std::format("pointLights[{}].positionWorldSpace", lightIndex), positionWorldSpace);
 			deferredBaseMaterial->WriteToBuffer(lightsBuffer, lightsBufferName, std::format("pointLights[{}].positionViewSpace", lightIndex), positionViewSpace);
@@ -902,16 +888,65 @@ void RenderPassManager::ProcessLights(const RenderPass::RenderCallbackInfo& rend
 			deferredBaseMaterial->WriteToBuffer(lightsBuffer, lightsBufferName, std::format("pointLights[{}].intensity", lightIndex), pl.intensity);
 			deferredBaseMaterial->WriteToBuffer(lightsBuffer, lightsBufferName, std::format("pointLights[{}].radius", lightIndex), pl.radius);
 			deferredBaseMaterial->WriteToBuffer(lightsBuffer, lightsBufferName, std::format("pointLights[{}].bias", lightIndex), pl.bias);
-			deferredBaseMaterial->WriteToBuffer(lightsBuffer, lightsBufferName, std::format("pointLights[{}].shadowMapIndex", lightIndex), shadowMapIndex);
+			
+			auto getPointLightViewMatrix = [](const glm::vec3& position, int faceIndex) -> glm::mat4
+			{
+				static const glm::vec3 directions[6] =
+				{
+					glm::vec3(-1.0f, 0.0f,  0.0f),  // -X (Left)
+					glm::vec3(1.0f,  0.0f,  0.0f),  // +X (Right)
+					glm::vec3(0.0f, -1.0f,  0.0f),  // -Y (Bottom)
+					glm::vec3(0.0f,  1.0f,  0.0f),  // +Y (Top)
+					glm::vec3(0.0f,  0.0f, -1.0f),  // -Z (Back)
+					glm::vec3(0.0f,  0.0f,  1.0f),  // +Z (Front)
+				};
+
+				static const glm::vec3 ups[6] =
+				{
+					glm::vec3(0.0f, -1.0f,  0.0f),  // -X (Left) - Y down for Vulkan
+					glm::vec3(0.0f, -1.0f,  0.0f),  // +X (Right) - Y down for Vulkan
+					glm::vec3(0.0f,  0.0f, -1.0f),  // -Y (Bottom) - Z down
+					glm::vec3(0.0f,  0.0f,  1.0f),  // +Y (Top) - Z up
+					glm::vec3(0.0f, -1.0f,  0.0f),  // -Z (Back) - Y down for Vulkan
+					glm::vec3(0.0f, -1.0f,  0.0f),  // +Z (Front) - Y down for Vulkan
+				};
+
+				assert(faceIndex < 6);
+
+				glm::vec3 target = position + directions[faceIndex];
+
+				return glm::lookAt(position, target, ups[faceIndex]);
+			};
+
+			const glm::mat4 projectionMat4 = glm::perspective(
+				glm::radians(90.0f),
+				1.0f,
+				camera.GetZNear(),
+				pl.radius);
+
+			for (size_t faceIndex = 0; faceIndex < 6; faceIndex++)
+			{
+				pointLight.viewProjectionMat4[faceIndex] = projectionMat4 * getPointLightViewMatrix(positionWorldSpace, faceIndex);
+				deferredBaseMaterial->WriteToBuffer(lightsBuffer, lightsBufferName, std::format("pointLights[{}].pointLightFaceInfos[{}].viewProjectionMat4", lightIndex, faceIndex), pointLight.viewProjectionMat4[faceIndex]);
+			}
 
 			lightIndex++;
 		}
 
-		const int pointLightsCount = lightIndex;
+		const int pointLightsCount = pointLights.size();
 		deferredBaseMaterial->WriteToBuffer(lightsBuffer, lightsBufferName, "pointLightsCount", pointLightsCount);
 
-		const int pointLightShadowsEnabled = 0;
+		const GraphicsSettings::Shadows::PointLightShadows& pointLightShadowsSettings = renderInfo.scene->GetGraphicsSettings().shadows.pointLightShadows;
+		const glm::ivec2 resolutions[4] = { { 1024, 1024 }, { 2048, 2048 }, { 3072, 3072 }, { 4096, 4096 } };
+		const glm::ivec2 shadowMapAtlasSize = resolutions[pointLightShadowsSettings.atlasQuality];
+
+		const int faceSizes[4] = { 128, 256, 512, 1024 };
+		const int faceSize = faceSizes[pointLightShadowsSettings.faceQuality];
+
+		const int pointLightShadowsEnabled = pointLightShadowsSettings.isEnabled;
 		deferredBaseMaterial->WriteToBuffer(lightsBuffer, lightsBufferName, "pointLightShadows.isEnabled", pointLightShadowsEnabled);
+		deferredBaseMaterial->WriteToBuffer(lightsBuffer, lightsBufferName, "pointLightShadows.shadowMapAtlasSize", shadowMapAtlasSize.x);
+		deferredBaseMaterial->WriteToBuffer(lightsBuffer, lightsBufferName, "pointLightShadows.faceSize", faceSize);
 	}
 
 	// Spot lights.

@@ -237,10 +237,15 @@ void VulkanDevice::CreateLogicalDevice()
 	deviceFeatures.independentBlend = VK_TRUE;
 	deviceFeatures.fragmentStoresAndAtomics = VK_TRUE;
 	deviceFeatures.shaderInt64 = VK_TRUE;
+
+	VkPhysicalDeviceMaintenance6Features vulkanMaintenance6Features{};
+	vulkanMaintenance6Features.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_MAINTENANCE_6_FEATURES;
+	vulkanMaintenance6Features.maintenance6 = true;
 	
 	VkPhysicalDeviceVulkan11Features vulkan11Features{};
 	vulkan11Features.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_1_FEATURES;
 	vulkan11Features.shaderDrawParameters = VK_TRUE;
+	vulkan11Features.pNext = &vulkanMaintenance6Features;
 
 	VkPhysicalDeviceVulkan12Features vulkan12Features{};
 	vulkan12Features.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_2_FEATURES;

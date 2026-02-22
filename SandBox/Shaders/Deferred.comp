@@ -114,14 +114,15 @@ void main()
 			if (distanceToPoint < pointLight.radius)
 			{
 				float shadow = 0.0f;
-				if (pointLightShadows.isEnabled == 1 && pointLight.shadowMapIndex > -1)
+				if (bool(pointLightShadows.isEnabled) && pointLightShadowMapIndices[i] > -1)
 				{
 					shadow = CalculatePointLightShadow(
 						pointLightShadowMapTexture,
 						pointLight,
 						pointLightShadows,
 						toLightWorldSpace,
-						distanceToPoint);
+						distanceToPoint,
+						pointLightShadowMapIndices[i]);
 
 					if (pointLight.castSSS == 1)
 					{
