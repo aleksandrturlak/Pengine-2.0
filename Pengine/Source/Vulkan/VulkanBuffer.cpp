@@ -150,6 +150,12 @@ VulkanBuffer::VulkanBuffer(const CreateInfo& createInfo)
 			bufferData.m_Buffer,
 			bufferData.m_VmaAllocation,
 			bufferData.m_VmaAllocationInfo);
+
+		VkBufferDeviceAddressInfo addressInfo{};
+		addressInfo.sType = VK_STRUCTURE_TYPE_BUFFER_DEVICE_ADDRESS_INFO;
+		addressInfo.buffer = bufferData.m_Buffer;
+
+		bufferData.m_DeviceAddress = vkGetBufferDeviceAddress(GetVkDevice()->GetDevice(), &addressInfo);
 	}
 }
 
@@ -269,21 +275,6 @@ void VulkanBuffer::Flush()
 void VulkanBuffer::ClearWrites()
 {
 	m_IsChanged.assign(m_IsChanged.size(), false);
-}
-
-NativeHandle VulkanBuffer::GetNativeHandle() const
-{
-	return NativeHandle(size_t(GetBuffer()));
-}
-
-NativeHandle VulkanBuffer::GetDeviceAddress() const
-{
-	VkBufferDeviceAddressInfo addressInfo{};
-	addressInfo.sType = VK_STRUCTURE_TYPE_BUFFER_DEVICE_ADDRESS_INFO;
-	addressInfo.buffer = GetBuffer();
-
-	VkDeviceAddress deviceAddress = vkGetBufferDeviceAddress(GetVkDevice()->GetDevice(), &addressInfo);
-    return NativeHandle(size_t(deviceAddress));
 }
 
 VkDescriptorBufferInfo VulkanBuffer::GetDescriptorInfo(

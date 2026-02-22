@@ -11,8 +11,8 @@ Scene:
     Name: Camera
     IsEnabled: true
     Transform:
-      Position: [-9.40852261, 1.14472103, 14.3399734]
-      Rotation: [-0.343569785, -0.433940381, 0]
+      Position: [-15.4238758, 9.38238239, -0.588085115]
+      Rotation: [-0.747372925, 4.16623354, 0]
       Scale: [1, 1, 1]
       FollowOwner: true
     Camera:
@@ -25,20 +25,6 @@ Scene:
       ObjectVisibilityMask: 255
       ShadowVisibilityMask: 255
       Viewport: Main
-    Childs:
-      []
-  - UUID: 0x1e2eac84b03180f3df9e7aa0c9b82207
-    Name: DirectionalLight
-    IsEnabled: true
-    Transform:
-      Position: [0, 0, 0]
-      Rotation: [1.13446403, 0, 0]
-      Scale: [1, 1, 1]
-      FollowOwner: true
-    DirectionalLight:
-      Color: [1, 1, 1]
-      Intensity: 5
-      Ambient: 0.100000001
     Childs:
       []
   - UUID: 0xc12e5c7fe76cf10fdeabc27b534f3cdf
@@ -166,3 +152,41 @@ Scene:
       Rotation: [1.05487238e-07, 0.677687883, -0.069963336]
       Scale: [1.10000014, 1.10000062, 1.10000002]
       FollowOwner: true
+  - UUID: 0x2008e15d612c5e5c42e60eaff31a42ac
+    Name: SpotLight
+    IsEnabled: true
+    Transform:
+      Position: [-4.77820015, 3.13462615, 15.8837643]
+      Rotation: [-0.625550032, 0.0599770211, -0.0432695933]
+      Scale: [0.999996424, 0.999999106, 0.999999046]
+      FollowOwner: true
+    SpotLight:
+      Color: [0.168776393, 0.631736398, 1]
+      Intensity: 100
+      Radius: 50
+      Bias: 0.100000001
+      InnerCutOff: 0.785398185
+      OuterCutOff: 0.785398185
+      DrawBoundingSphere: false
+      CastShadows: true
+      CastSSS: false
+    Childs:
+      []
+  - UUID: 0x94231f7b6a2ba837c84e93364b268deb
+    Name: PointLight
+    IsEnabled: true
+    Transform:
+      Position: [-0.583627403, 4.73392963, -3.03864384]
+      Rotation: [0, -0, 0]
+      Scale: [1, 1, 1]
+      FollowOwner: true
+    PointLight:
+      Color: [1, 0.181434572, 0.181434572]
+      Intensity: 100
+      Radius: 20
+      Bias: 0.100000001
+      DrawBoundingSphere: false
+      CastShadows: true
+      CastSSS: false
+    Childs:
+      []

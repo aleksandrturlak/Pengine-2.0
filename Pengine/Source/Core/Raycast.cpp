@@ -150,8 +150,8 @@ std::map<Raycast::Hit, std::shared_ptr<Entity>> Raycast::RaycastScene(
 
 	for (const auto& [hit, entity] : sceneBvhHits)
 	{
-		const Transform& transform = scene->GetRegistry().get<Transform>(entity->GetHandle());
-		const Renderer3D& r3d = scene->GetRegistry().get<Renderer3D>(entity->GetHandle());
+		const Transform& transform = scene->GetRegistry().get<Transform>(entity);
+		const Renderer3D& r3d = scene->GetRegistry().get<Renderer3D>(entity);
 
 		Hit localHitMesh{};
 

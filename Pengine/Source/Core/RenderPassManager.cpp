@@ -518,22 +518,26 @@ void RenderPassManager::ProcessEntities(const RenderPass::RenderCallbackInfo& re
 	memset(data, 0, multiPassData->entityBuffer->GetSize());
 	multiPassData->entityBuffer->WriteToBuffer(0, 0);
 
-	const std::vector<std::string> renderPasses =
+	static const std::string renderPasses[] =
 	{
 		GBuffer,
 		CSM,
 		// Add more passes here: PointLightShadows, SpotLightShadows, Transparent, etc.
 	};
+	constexpr size_t renderPassCount = std::size(renderPasses);
+
+	std::shared_ptr<Pass> cachedPasses[renderPassCount];
+	for (size_t i = 0; i < renderPassCount; ++i)
+	{
+		cachedPasses[i] = RenderPassManager::GetInstance().GetPass(renderPasses[i]);
+		multiPassData->passesByName[renderPasses[i]] = MultiPassEntityData::PassData{};
+	}
 
 	multiPassData->totalEntityCount = 0;
-	for (const auto& passName : renderPasses)
-	{
-		multiPassData->passesByName[passName] = MultiPassEntityData::PassData{};
-	}
 
 	std::unordered_set<BaseMaterial*> updatedBaseMaterials;
 
-	const auto view = scene->GetRegistry().view<Renderer3D>(); 
+	const auto view = scene->GetRegistry().view<Renderer3D>();
 
 	uint32_t entityIndex = 0;
 	view.each([&](entt::entity entity, Renderer3D& r3d)
@@ -543,53 +547,61 @@ void RenderPassManager::ProcessEntities(const RenderPass::RenderCallbackInfo& re
 		// 	return;
 
 		r3d.entityIndex = -1;
-		
-		if (!r3d.material || !r3d.mesh || !r3d.isEnabled)
+		r3d.aabb = {};
+
+		if (!r3d.mesh)
 			return;
 
 		const Transform& transform = scene->GetRegistry().get<Transform>(entity);
+		
+		BindlessUniformWriter::EntityInfo entityInfo{};
+		entityInfo.transform = transform.GetTransform();
+
+		entityInfo.aabb = r3d.aabb = Utils::LocalToWorldAABB(
+			{ r3d.mesh->GetBoundingBox().min, r3d.mesh->GetBoundingBox().max },
+			entityInfo.transform);
+
+		if (!r3d.material || !r3d.isEnabled)
+			return;
+
 		if (!transform.GetEntity()->IsEnabled())
 			return;
 
-		BindlessUniformWriter::EntityInfo entityInfo{};
 		entityInfo.flags = (uint32_t)BindlessUniformWriter::EntityFlagBits::VALID;
-		entityInfo.transform = transform.GetTransform();
-		entityInfo.aabb = Utils::LocalToWorldAABB(
-			{r3d.mesh->GetBoundingBox().min, r3d.mesh->GetBoundingBox().max},
-			entityInfo.transform);
 		entityInfo.meshInfoBuffer = r3d.mesh->GetMeshInfoBuffer()->GetDeviceAddress().Get();
-
 		entityInfo.materialInfoBuffer = r3d.material->GetMaterialInfoBuffer()->GetDeviceAddress().Get();
 
-		if (const auto skeletalAnimatorEntity = scene->FindEntityByUUID(r3d.skeletalAnimatorEntityUUID))
+		if (r3d.mesh->GetType() == Mesh::Type::SKINNED)
 		{
-			if (auto* skeletalAnimator = scene->GetRegistry().try_get<SkeletalAnimator>(skeletalAnimatorEntity->GetHandle()))
+			entityInfo.flags |= (uint32_t)BindlessUniformWriter::EntityFlagBits::SKINNED;
+		}
+		
+		if (r3d.skeletalAnimatorEntityUUID.IsValid())
+		{
+			if (const auto skeletalAnimatorEntity = scene->FindEntityByUUID(r3d.skeletalAnimatorEntityUUID))
 			{
-				entityInfo.boneBuffer = skeletalAnimator->GetBuffer()->GetDeviceAddress().Get();
-				if (r3d.mesh->GetType() == Mesh::Type::SKINNED)
-					entityInfo.flags |= (uint32_t)BindlessUniformWriter::EntityFlagBits::SKINNED;
+				if (auto* skeletalAnimator = scene->GetRegistry().try_get<SkeletalAnimator>(skeletalAnimatorEntity->GetHandle()))
+				{
+					entityInfo.boneBuffer = skeletalAnimator->GetBuffer()->GetDeviceAddress().Get();
+				}
 			}
 		}
 
 		BaseMaterial* baseMaterial = r3d.material->GetBaseMaterial().get();
-		bool needsBaseMaterialUpdate = updatedBaseMaterials.find(baseMaterial) == updatedBaseMaterials.end();
-		if (needsBaseMaterialUpdate)
+
+		const auto [_, isNewBaseMaterial] = updatedBaseMaterials.insert(baseMaterial);
+		if (isNewBaseMaterial)
 		{
 			BaseMaterial::BaseMaterialInfoBuffer baseMaterialInfo{};
-			for (size_t i = 0; i < MAX_PIPELINE_COUNT_PER_MATERIAL; i++)
+
+			for (size_t passIndex = 0; passIndex < renderPassCount; ++passIndex)
 			{
-				baseMaterialInfo.pipelineIds[i] = 0;
-			}
-			
-			for (size_t passIndex = 0; passIndex < renderPasses.size(); ++passIndex)
-			{
-				const auto& passName = renderPasses[passIndex];
-				auto pipeline = baseMaterial->GetPipeline(passName);
+				auto pipeline = baseMaterial->GetPipeline(renderPasses[passIndex]);
 
 				if (!pipeline)
 					continue;
 
-				auto& passData = multiPassData->passesByName[passName];
+				auto& passData = multiPassData->passesByName[renderPasses[passIndex]];
 				auto& pipelineInfo = passData.pipelineInfos[pipeline];
 
 				if (pipelineInfo.id == -1)
@@ -598,34 +610,30 @@ void RenderPassManager::ProcessEntities(const RenderPass::RenderCallbackInfo& re
 					passData.sortedPipelines[pipelineInfo.id] = pipeline;
 				}
 
-				std::shared_ptr<Pass> pass = RenderPassManager::GetInstance().GetPass(passName);
-				if (pass)
+				if (cachedPasses[passIndex])
 				{
-					baseMaterialInfo.pipelineIds[pass->GetId()] = pipelineInfo.id;
+					baseMaterialInfo.pipelineIds[cachedPasses[passIndex]->GetId()] = pipelineInfo.id;
 				}
 
 				pipelineInfo.maxDrawCount++;
 				passData.entityCount++;
 			}
-			
+
 			baseMaterial->GetBaseMaterialInfoBuffer()->WriteToBuffer(
 				&baseMaterialInfo,
 				sizeof(BaseMaterial::BaseMaterialInfoBuffer),
 				0);
-			
-			updatedBaseMaterials.insert(baseMaterial);
 		}
 		else
 		{
-			for (size_t passIndex = 0; passIndex < renderPasses.size(); ++passIndex)
+			for (size_t passIndex = 0; passIndex < renderPassCount; ++passIndex)
 			{
-				const auto& passName = renderPasses[passIndex];
-				auto pipeline = baseMaterial->GetPipeline(passName);
+				auto pipeline = baseMaterial->GetPipeline(renderPasses[passIndex]);
 
 				if (!pipeline)
 					continue;
 
-				auto& passData = multiPassData->passesByName[passName];
+				auto& passData = multiPassData->passesByName[renderPasses[passIndex]];
 				auto& pipelineInfo = passData.pipelineInfos[pipeline];
 
 				pipelineInfo.maxDrawCount++;

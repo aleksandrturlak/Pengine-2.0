@@ -219,7 +219,7 @@ void RenderPassManager::CreateSpotLightShadows()
 					return false;
 				}
 
-				if (node.IsLeaf() && node.entity->IsValid())
+				if (node.IsLeaf())
 				{
 					bvhNodes.emplace_back(node);
 				}
@@ -232,7 +232,7 @@ void RenderPassManager::CreateSpotLightShadows()
 			{
 				if (Utils::IntersectAABBvsSphere(node.aabb.min, node.aabb.max, light.position, light.radius))
 				{
-					lightInfo.entities.emplace_back(node.entity->GetHandle());
+					lightInfo.entities.emplace_back(node.entity);
 				}
 			}
 
@@ -267,24 +267,28 @@ void RenderPassManager::CreateSpotLightShadows()
 		{
 			for (const entt::entity& entity : lightInfo.entities)
 			{
-				const Renderer3D& r3d = registry.get<Renderer3D>(entity);
-
-				if (!r3d.castShadows)
+				const Renderer3D* r3d = registry.try_get<Renderer3D>(entity);
+				if (!r3d)
 				{
 					continue;
 				}
 
-				if ((r3d.shadowVisibilityMask & camera.GetShadowVisibilityMask()) == 0)
+				if (!r3d->castShadows)
 				{
 					continue;
 				}
 
-				if (!r3d.material || !r3d.material->IsPipelineEnabled(renderPassName))
+				if ((r3d->shadowVisibilityMask & camera.GetShadowVisibilityMask()) == 0)
 				{
 					continue;
 				}
 
-				const std::shared_ptr<Pipeline> pipeline = r3d.material->GetBaseMaterial()->GetPipeline(renderPassName);
+				if (!r3d->material || !r3d->material->IsPipelineEnabled(renderPassName))
+				{
+					continue;
+				}
+
+				const std::shared_ptr<Pipeline> pipeline = r3d->material->GetBaseMaterial()->GetPipeline(renderPassName);
 				if (!pipeline)
 				{
 					continue;
@@ -294,16 +298,15 @@ void RenderPassManager::CreateSpotLightShadows()
 				auto lod = GetLod(
 					cameraPosition,
 					transform.GetPosition(),
-					glm::length(transform.GetScale() * glm::max(glm::abs(r3d.mesh->GetBoundingBox().min), glm::abs(r3d.mesh->GetBoundingBox().max))),
-					r3d.mesh->GetLods());
+					glm::length(transform.GetScale() * glm::max(glm::abs(r3d->mesh->GetBoundingBox().min), glm::abs(r3d->mesh->GetBoundingBox().max))),
+					r3d->mesh->GetLods());
 
-				
 				LightInfo::EntityData entityData{};
-				entityData.entityIndex = r3d.entityIndex;
-				entityData.mesh = r3d.mesh;
+				entityData.entityIndex = r3d->entityIndex;
+				entityData.mesh = r3d->mesh;
 				entityData.lod = lod;
 
-				lightInfo.renderableEntities[r3d.material->GetBaseMaterial()][r3d.material].emplace_back(entityData);
+				lightInfo.renderableEntities[r3d->material->GetBaseMaterial()][r3d->material].emplace_back(entityData);
 
 				renderableCount++;
 			}

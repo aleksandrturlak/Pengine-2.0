@@ -19,7 +19,7 @@ namespace Pengine
 			AABB aabb;
 			uint32_t left = -1;
 			uint32_t right = -1;
-			std::shared_ptr<Entity> entity;
+			entt::entity entity;
 			int subtreeSize = 0;
 
 			[[nodiscard]] bool IsLeaf() const { return left == -1 && right == -1; }
@@ -40,7 +40,7 @@ namespace Pengine
 
 		std::vector<entt::entity> CullAgainstSphere(const glm::vec3& position, float radius);
 
-		std::multimap<Pengine::Raycast::Hit, std::shared_ptr<Entity>> Raycast(
+		std::multimap<Pengine::Raycast::Hit, entt::entity> Raycast(
 			const glm::vec3& start,
 			const glm::vec3& direction,
 			const float length) const;
@@ -68,7 +68,7 @@ namespace Pengine
 
 		int Partition(const int binCount, int start, int end, int axis, float scale, float minAxis, int bestSplit);
 
-		uint32_t BuildRecursive(int start, int end, std::atomic<int>& parallel);
+		uint32_t BuildRecursive(int start, int end, std::atomic<uint32_t>& nextInterior, std::atomic<int>& parallelBudget);
 
 		//BVHNode* FindLeaf(BVHNode* node, std::shared_ptr<Entity> entity) const;
 

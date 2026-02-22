@@ -1,6 +1,7 @@
 #pragma once
 
 #include "../Core/Core.h"
+#include "../Core/BoundingBox.h"
 #include "../Core/UUID.h"
 
 namespace Pengine
@@ -32,6 +33,11 @@ namespace Pengine
 		 * Index of an entity in EntityBuffer that will be used to index on GPU.
 		 */
 		uint32_t entityIndex = -1;
+
+		/**
+		 * Recalculated every frame in ProcessEntities.
+		 */
+		AABB aabb;
 
 		~Renderer3D();
 	};

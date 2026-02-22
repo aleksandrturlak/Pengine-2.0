@@ -49,9 +49,9 @@ namespace Pengine::Vk
 
 		[[nodiscard]] virtual size_t GetInstanceSize() const override { return m_InstanceSize; }
 
-		[[nodiscard]] virtual NativeHandle GetNativeHandle() const override;
+		[[nodiscard]] virtual NativeHandle GetNativeHandle() const override { return NativeHandle(size_t(GetBuffer())); }
 
-		[[nodiscard]] virtual NativeHandle GetDeviceAddress() const override;
+		[[nodiscard]] virtual NativeHandle GetDeviceAddress() const override { return NativeHandle(size_t(m_BufferDatas[frameInFlightIndex * IsMultiBuffered()].m_DeviceAddress)); }
 		
 		[[nodiscard]] VkDescriptorBufferInfo GetDescriptorInfo(
 			const uint32_t frameIndex,
@@ -79,6 +79,7 @@ namespace Pengine::Vk
 		{
 			VkBuffer m_Buffer = VK_NULL_HANDLE;
 			VmaAllocation m_VmaAllocation = VK_NULL_HANDLE;
+			VkDeviceAddress m_DeviceAddress{};
 			VmaAllocationInfo m_VmaAllocationInfo{};
 		};
 

@@ -1469,7 +1469,11 @@ void Editor::CameraComponent(const std::shared_ptr<Entity>& entity, Window& wind
 	
 	if (ImGui::Button("X"))
 	{
-		entity->RemoveComponent<Camera>();
+		std::shared_ptr<NextFrameEvent> event = std::make_shared<NextFrameEvent>([entity]()
+		{
+			entity->RemoveComponent<Camera>();
+		}, Event::Type::OnNextFrame, this);
+		EventSystem::GetInstance().SendEvent(event);
 	}
 	ImGui::SameLine();
 	if (ImGui::CollapsingHeader("Camera"))
@@ -2594,7 +2598,11 @@ void Editor::Renderer3DComponent(const std::shared_ptr<Entity>& entity)
 	ImGui::PushID("Renderer3D X");
 	if (ImGui::Button("X"))
 	{
-		entity->RemoveComponent<Renderer3D>();
+		std::shared_ptr<NextFrameEvent> event = std::make_shared<NextFrameEvent>([entity]()
+		{
+			entity->RemoveComponent<Renderer3D>();
+		}, Event::Type::OnNextFrame, this);
+		EventSystem::GetInstance().SendEvent(event);
 	}
 	ImGui::PopID();
 	
@@ -2722,7 +2730,11 @@ void Editor::PointLightComponent(const std::shared_ptr<Entity>& entity)
 	ImGui::PushID("PointLight X");
 	if (ImGui::Button("X"))
 	{
-		entity->RemoveComponent<PointLight>();
+		std::shared_ptr<NextFrameEvent> event = std::make_shared<NextFrameEvent>([entity]()
+		{
+			entity->RemoveComponent<PointLight>();
+		}, Event::Type::OnNextFrame, this);
+		EventSystem::GetInstance().SendEvent(event);
 	}
 	ImGui::PopID();
 
@@ -2754,7 +2766,11 @@ void Editor::SpotLightComponent(const std::shared_ptr<Pengine::Entity>& entity)
 	ImGui::PushID("SpotLight X");
 	if (ImGui::Button("X"))
 	{
-		entity->RemoveComponent<SpotLight>();
+		std::shared_ptr<NextFrameEvent> event = std::make_shared<NextFrameEvent>([entity]()
+		{
+			entity->RemoveComponent<SpotLight>();
+		}, Event::Type::OnNextFrame, this);
+		EventSystem::GetInstance().SendEvent(event);
 	}
 	ImGui::PopID();
 
@@ -2788,7 +2804,11 @@ void Editor::DirectionalLightComponent(const std::shared_ptr<Entity>& entity)
 	ImGui::PushID("DirectionalLight X");
 	if (ImGui::Button("X"))
 	{
-		entity->RemoveComponent<DirectionalLight>();
+		std::shared_ptr<NextFrameEvent> event = std::make_shared<NextFrameEvent>([entity]()
+		{
+			entity->RemoveComponent<DirectionalLight>();
+		}, Event::Type::OnNextFrame, this);
+		EventSystem::GetInstance().SendEvent(event);
 	}
 	ImGui::PopID();
 	
@@ -2816,7 +2836,11 @@ void Editor::SkeletalAnimatorComponent(const std::shared_ptr<Entity>& entity)
 	ImGui::PushID("SkeletalAnimator X");
 	if (ImGui::Button("X"))
 	{
-		entity->RemoveComponent<SkeletalAnimator>();
+		std::shared_ptr<NextFrameEvent> event = std::make_shared<NextFrameEvent>([entity]()
+		{
+			entity->RemoveComponent<SkeletalAnimator>();
+		}, Event::Type::OnNextFrame, this);
+		EventSystem::GetInstance().SendEvent(event);
 	}
 	ImGui::PopID();
 
@@ -2919,7 +2943,11 @@ void Editor::EntityAnimatorComponent(const std::shared_ptr<Entity>& entity)
 	ImGui::PushID("EntityAnimator X");
 	if (ImGui::Button("X"))
 	{
-		entity->RemoveComponent<EntityAnimator>();
+		std::shared_ptr<NextFrameEvent> event = std::make_shared<NextFrameEvent>([entity]()
+		{
+			entity->RemoveComponent<EntityAnimator>();
+		}, Event::Type::OnNextFrame, this);
+		EventSystem::GetInstance().SendEvent(event);
 	}
 	ImGui::PopID();
 
@@ -2977,7 +3005,11 @@ void Editor::CanvasComponent(const std::shared_ptr<Entity>& entity)
 	ImGui::PushID("Canvas X");
 	if (ImGui::Button("X"))
 	{
-		entity->RemoveComponent<Canvas>();
+		std::shared_ptr<NextFrameEvent> event = std::make_shared<NextFrameEvent>([entity]()
+		{
+			entity->RemoveComponent<Canvas>();
+		}, Event::Type::OnNextFrame, this);
+		EventSystem::GetInstance().SendEvent(event);
 	}
 	ImGui::PopID();
 
@@ -3037,7 +3069,11 @@ void Editor::PhysicsBoxComponent(const std::shared_ptr<Entity>& entity)
 	ImGui::PushID("RigidBody X");
 	if (ImGui::Button("X"))
 	{
-		entity->RemoveComponent<RigidBody>();
+		std::shared_ptr<NextFrameEvent> event = std::make_shared<NextFrameEvent>([entity]()
+		{
+			entity->RemoveComponent<RigidBody>();
+		}, Event::Type::OnNextFrame, this);
+		EventSystem::GetInstance().SendEvent(event);
 	}
 	ImGui::PopID();
 
@@ -3174,7 +3210,11 @@ void Editor::DecalComponent(const std::shared_ptr<Pengine::Entity>& entity)
 	ImGui::PushID("Decal X");
 	if (ImGui::Button("X"))
 	{
-		entity->RemoveComponent<Decal>();
+		std::shared_ptr<NextFrameEvent> event = std::make_shared<NextFrameEvent>([entity]()
+		{
+			entity->RemoveComponent<Decal>();
+		}, Event::Type::OnNextFrame, this);
+		EventSystem::GetInstance().SendEvent(event);
 	}
 	ImGui::PopID();
 

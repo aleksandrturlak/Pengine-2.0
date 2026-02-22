@@ -230,7 +230,7 @@ void RenderPassManager::CreatePointLightShadows()
 					return false;
 				}
 
-				if (node.IsLeaf() && node.entity->IsValid())
+				if (node.IsLeaf())
 				{
 					bvhNodes.emplace_back(node);
 				}
@@ -251,7 +251,7 @@ void RenderPassManager::CreatePointLightShadows()
 				{
 					if (Utils::isAABBInsideFrustum(frustumPlanes, node.aabb.min, node.aabb.max))
 					{
-						faceInfo.entities.emplace_back(node.entity->GetHandle());
+						faceInfo.entities.emplace_back(node.entity);
 					}
 				}
 			}
@@ -289,24 +289,28 @@ void RenderPassManager::CreatePointLightShadows()
 			{
 				for (const entt::entity& entity : faceInfo.entities)
 				{
-					const Renderer3D& r3d = registry.get<Renderer3D>(entity);
-
-					if (!r3d.castShadows)
+					const Renderer3D* r3d = registry.try_get<Renderer3D>(entity);
+					if (!r3d)
 					{
 						continue;
 					}
 
-					if ((r3d.shadowVisibilityMask & camera.GetShadowVisibilityMask()) == 0)
+					if (!r3d->castShadows)
 					{
 						continue;
 					}
 
-					if (!r3d.material || !r3d.material->IsPipelineEnabled(renderPassName))
+					if ((r3d->shadowVisibilityMask & camera.GetShadowVisibilityMask()) == 0)
 					{
 						continue;
 					}
 
-					const std::shared_ptr<Pipeline> pipeline = r3d.material->GetBaseMaterial()->GetPipeline(renderPassName);
+					if (!r3d->material || !r3d->material->IsPipelineEnabled(renderPassName))
+					{
+						continue;
+					}
+
+					const std::shared_ptr<Pipeline> pipeline = r3d->material->GetBaseMaterial()->GetPipeline(renderPassName);
 					if (!pipeline)
 					{
 						continue;
@@ -316,15 +320,15 @@ void RenderPassManager::CreatePointLightShadows()
 					const int lod = GetLod(
 						cameraPosition,
 						transform.GetPosition(),
-						glm::length(transform.GetScale() * glm::max(glm::abs(r3d.mesh->GetBoundingBox().min), glm::abs(r3d.mesh->GetBoundingBox().max))),
-						r3d.mesh->GetLods());
+						glm::length(transform.GetScale() * glm::max(glm::abs(r3d->mesh->GetBoundingBox().min), glm::abs(r3d->mesh->GetBoundingBox().max))),
+						r3d->mesh->GetLods());
 
 					FaceInfo::EntityData entityData{};
-					entityData.entityIndex = r3d.entityIndex;
-					entityData.mesh = r3d.mesh;
+					entityData.entityIndex = r3d->entityIndex;
+					entityData.mesh = r3d->mesh;
 					entityData.lod = lod;
 
-					faceInfo.renderableEntities[r3d.material->GetBaseMaterial()][r3d.material].emplace_back(entityData);
+					faceInfo.renderableEntities[r3d->material->GetBaseMaterial()][r3d->material].emplace_back(entityData);
 
 					renderableCount++;
 				}
