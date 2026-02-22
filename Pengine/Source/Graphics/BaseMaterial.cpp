@@ -124,8 +124,14 @@ bool BaseMaterial::GetUniformDetails(
 			{
 				if (squareBracketOpenOffset != std::string::npos)
 				{
-					searchingName = valueName.substr(0, squareBracketOpenOffset);
-
+					if (dotOffset < squareBracketOpenOffset)
+					{
+						searchingName = valueName.substr(0, dotOffset);
+					}
+					else
+					{
+						searchingName = valueName.substr(0, squareBracketOpenOffset);
+					}
 				}
 				else
 				{
