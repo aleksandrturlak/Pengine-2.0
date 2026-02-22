@@ -9,18 +9,13 @@
 #include "../Time.h"
 #include "../FrustumCulling.h"
 #include "../Raycast.h"
-#include "../UIRenderer.h"
 #include "../Profiler.h"
 #include "../Timer.h"
 
-#include "../../Components/Canvas.h"
 #include "../../Components/Camera.h"
-#include "../../Components/Decal.h"
 #include "../../Components/DirectionalLight.h"
-#include "../../Components/PointLight.h"
 #include "../../Components/SpotLight.h"
 #include "../../Components/Renderer3D.h"
-#include "../../Components/SkeletalAnimator.h"
 #include "../../Components/Transform.h"
 #include "../../Graphics/Device.h"
 #include "../../Graphics/Renderer.h"
@@ -74,6 +69,42 @@ void RenderPassManager::CreateSpotLightShadows()
 
 		const std::string& renderPassName = renderInfo.renderPass->GetName();
 
+		const GraphicsSettings::Shadows::SpotLightShadows& spotLightShadowsSettings = renderInfo.scene->GetGraphicsSettings().shadows.spotLightShadows;
+		if (!spotLightShadowsSettings.isEnabled)
+		{
+			renderInfo.renderView->DeleteBuffer("InstanceBufferSpotLightShadows");
+			renderInfo.renderView->DeleteBuffer("SpotLightShadowMapIndicesBuffer");
+			renderInfo.renderView->DeleteFrameBuffer(renderPassName);
+
+			return;
+		}
+
+		std::shared_ptr<Buffer> spotLightShadowMapIndicesBuffer = renderInfo.renderView->GetBuffer("SpotLightShadowMapIndicesBuffer");
+		if (!spotLightShadowMapIndicesBuffer)
+		{
+			const std::shared_ptr<BaseMaterial> reflectionBaseMaterial = MaterialManager::GetInstance().LoadBaseMaterial(
+			std::filesystem::path("Materials") / "DefaultReflection.basemat");
+			const std::shared_ptr<Pipeline> pipeline = reflectionBaseMaterial->GetPipeline(DefaultReflection);
+			if (!pipeline)
+			{
+				FATAL_ERROR("DefaultReflection base material is broken! No pipeline found!");
+			}
+
+			const std::shared_ptr<UniformWriter> renderUniformWriter = GetOrCreateUniformWriter(renderInfo.renderView, pipeline, Pipeline::DescriptorSetIndexType::RENDERER, "Camera");
+			spotLightShadowMapIndicesBuffer = GetOrCreateBuffer(
+				renderInfo.renderView,
+				renderUniformWriter,
+				"SpotLightShadowMapIndicesBuffer",
+				{},
+				{ Buffer::Usage::UNIFORM_BUFFER },
+				MemoryType::CPU, true);
+		}
+
+		std::vector<int> spotLightShadowMapIndicesData(32, -1);
+
+		MultiPassLightData* multiPassData = (MultiPassLightData*)renderInfo.scene->GetRenderView()->GetCustomData("MultiPassLightData");
+		assert(multiPassData);
+		
 		size_t renderableCount = 0;
 		const std::shared_ptr<Scene> scene = renderInfo.scene;
 		const Camera& camera = renderInfo.camera->GetComponent<Camera>();
@@ -82,15 +113,21 @@ void RenderPassManager::CreateSpotLightShadows()
 
 		struct LightInfo
 		{
+			struct EntityData
+			{
+				std::shared_ptr<Mesh> mesh;
+				uint32_t entityIndex;
+				int lod;
+			};
+
+			std::unordered_map<std::shared_ptr<BaseMaterial>, std::unordered_map<std::shared_ptr<class Material>, std::vector<EntityData>>> renderableEntities;
 			std::vector<entt::entity> entities;
-			RenderableEntities renderableEntities;
 			int lightIndex = -1;
 			int shadowMapIndex = -1;
 		};
 
 		std::vector<LightInfo> lightInfos;
 
-		const GraphicsSettings::Shadows::SpotLightShadows& spotLightShadowsSettings = renderInfo.scene->GetGraphicsSettings().shadows.spotLightShadows;
 		const glm::ivec2 resolutions[4] = { { 1024, 1024 }, { 2048, 2048 }, { 3072, 3072 }, { 4096, 4096 } };
 		const glm::ivec2 shadowMapAtlasSize = resolutions[spotLightShadowsSettings.atlasQuality];
 
@@ -100,10 +137,9 @@ void RenderPassManager::CreateSpotLightShadows()
 		const float facesPerRow = (float)shadowMapAtlasSize.x / (float)faceSize;
 		const int maxShadowMapCount = glm::floor(facesPerRow * facesPerRow);
 
-		const auto view = registry.view<SpotLight>();
-
 		struct LightInfoToSort
 		{
+			int indexToLights;
 			entt::entity entity;
 			glm::vec3 position;
 			float radius;
@@ -112,20 +148,29 @@ void RenderPassManager::CreateSpotLightShadows()
 		const std::array<glm::vec4, 6> cameraFrustumPlanes = Utils::GetFrustumPlanes(renderInfo.projection * camera.GetViewMat4());
 
 		std::vector<LightInfoToSort> lights;
-		lights.reserve(view.size());
+		lights.reserve(multiPassData->spotLights.size());
 
-		for (size_t i = 0; i < view.size(); i++)
+		for (size_t i = 0; i < multiPassData->spotLights.size(); i++)
 		{
-			Transform& transform = registry.get<Transform>(view[i]);
-			if (!transform.GetEntity()->IsEnabled())
+			if (lights.size() == 32)
+			{
+				break;
+			}
+
+			const auto& spotLight = multiPassData->spotLights[i];
+			const Transform& transform = registry.get<Transform>(spotLight.entity);
+
+			const SpotLight& sl = registry.get<SpotLight>(spotLight.entity);
+			if (!sl.castShadows)
 			{
 				continue;
 			}
 
 			LightInfoToSort lightInfoToSort{};
-			lightInfoToSort.entity = view[i];
+			lightInfoToSort.indexToLights = i;
+			lightInfoToSort.entity = spotLight.entity;
 			lightInfoToSort.position = transform.GetPosition();
-			lightInfoToSort.radius = registry.get<SpotLight>(view[i]).radius;
+			lightInfoToSort.radius = sl.radius;
 
 			if (Utils::IsSphereInsideFrustum(cameraFrustumPlanes, lightInfoToSort.position, lightInfoToSort.radius))
 			{
@@ -149,83 +194,60 @@ void RenderPassManager::CreateSpotLightShadows()
 			return firstDistance2 < secondDistance2;
 		});
 
-		int lightIndex = 0;
 		int shadowMapIndex = 0;
 		for (const auto& light : lights)
 		{
-			if (lightIndex == 32)
-			{
-				break;
-			}
-
 			LightInfo& lightInfo = lightInfos.emplace_back();
-			lightInfo.lightIndex = lightIndex;
+			lightInfo.lightIndex = multiPassData->spotLights[light.indexToLights].index;
 
 			SpotLight& sl = registry.get<SpotLight>(light.entity);
-			Transform& transform = registry.get<Transform>(light.entity);
 
 			if (sl.drawBoundingSphere)
 			{
+				const Transform& transform = registry.get<Transform>(light.entity);
 				constexpr glm::vec3 color = glm::vec3(0.0f, 1.0f, 0.0f);
 				renderInfo.scene->GetVisualizer().DrawSphere(color, transform.GetTransform(), sl.radius, 10);
 			}
 
-			int slShadowMapIndex = -1;
-			if (spotLightShadowsSettings.isEnabled && sl.castShadows)
+			const auto frustumPlanes = Utils::GetFrustumPlanes(multiPassData->spotLights[light.indexToLights].viewProjectionMat4);
+
+			std::vector<SceneBVH::BVHNode> bvhNodes;
+			scene->GetBVH()->Traverse([&frustumPlanes, &bvhNodes](const SceneBVH::BVHNode& node)
 			{
-				if (shadowMapIndex < maxShadowMapCount)
+				if (!Utils::isAABBInsideFrustum(frustumPlanes, node.aabb.min, node.aabb.max))
 				{
-					slShadowMapIndex = shadowMapIndex;
-					shadowMapIndex++;
+					return false;
 				}
 
-				const glm::mat4 viewProjectionMat4 = glm::perspective(
-					sl.outerCutOff * 2.0f,
-					1.0f,
-					camera.GetZNear(),
-					sl.radius) * transform.GetInverseTransformMat4();
-
-				const auto frustumPlanes = Utils::GetFrustumPlanes(viewProjectionMat4);
-
-				std::vector<SceneBVH::BVHNode> bvhNodes;
-				scene->GetBVH()->Traverse([&frustumPlanes, &bvhNodes](const SceneBVH::BVHNode& node)
+				if (node.IsLeaf() && node.entity->IsValid())
 				{
-					if (!Utils::isAABBInsideFrustum(frustumPlanes, node.aabb.min, node.aabb.max))
-					{
-						return false;
-					}
+					bvhNodes.emplace_back(node);
+				}
 
-					if (node.IsLeaf() && node.entity->IsValid())
-					{
-						bvhNodes.emplace_back(node);
-					}
+				return true;
+			});
 
-					return true;
-				});
-
-				// NOTE: BVH Culling is a lot slower than this for loop checks.
-				for (const auto& node : bvhNodes)
+			// NOTE: BVH Culling is a lot slower than this for loop checks.
+			for (const auto& node : bvhNodes)
+			{
+				if (Utils::IntersectAABBvsSphere(node.aabb.min, node.aabb.max, light.position, light.radius))
 				{
-					if (Utils::IntersectAABBvsSphere(node.aabb.min, node.aabb.max, light.position, light.radius))
-					{
-						lightInfo.entities.emplace_back(node.entity->GetHandle());
-					}
+					lightInfo.entities.emplace_back(node.entity->GetHandle());
 				}
 			}
 
-			lightInfo.shadowMapIndex = slShadowMapIndex;
+			int localShadowMapIndex = -1;
+			if (shadowMapIndex < maxShadowMapCount)
+			{
+				localShadowMapIndex = shadowMapIndex;
+				shadowMapIndex++;
+			}
 
-			lightIndex++;
+			lightInfo.shadowMapIndex = localShadowMapIndex;
+			spotLightShadowMapIndicesData[multiPassData->spotLights[light.indexToLights].index] = lightInfo.shadowMapIndex;
 		}
 
-		if (!spotLightShadowsSettings.isEnabled)
-		{
-			renderInfo.renderView->DeleteUniformWriter(renderPassName);
-			renderInfo.renderView->DeleteBuffer("InstanceBufferSpotLightShadows");
-			renderInfo.renderView->DeleteFrameBuffer(renderPassName);
-
-			return;
-		}
+		spotLightShadowMapIndicesBuffer->WriteToBuffer(spotLightShadowMapIndicesData.data(), spotLightShadowMapIndicesData.size() * sizeof(int));
 
 		std::shared_ptr<FrameBuffer> frameBuffer = renderInfo.renderView->GetFrameBuffer(renderPassName);
 		if (!frameBuffer)
@@ -275,31 +297,13 @@ void RenderPassManager::CreateSpotLightShadows()
 					glm::length(transform.GetScale() * glm::max(glm::abs(r3d.mesh->GetBoundingBox().min), glm::abs(r3d.mesh->GetBoundingBox().max))),
 					r3d.mesh->GetLods());
 
-				// if (r3d.mesh->GetType() == Mesh::Type::SKINNED)
-				// {
-				// 	if (const auto skeletalAnimatorEntity = scene->FindEntityByUUID(r3d.skeletalAnimatorEntityUUID))
-				// 	{
-				// 		SkeletalAnimator* skeletalAnimator = registry.try_get<SkeletalAnimator>(skeletalAnimatorEntity->GetHandle());
-				// 		if (skeletalAnimator)
-				// 		{
-				// 			UpdateSkeletalAnimator(skeletalAnimator, r3d.material->GetBaseMaterial(), pipeline);
-				// 		}
-				// 	}
+				
+				LightInfo::EntityData entityData{};
+				entityData.entityIndex = r3d.entityIndex;
+				entityData.mesh = r3d.mesh;
+				entityData.lod = lod;
 
-				// 	EntitiesByMesh::Single single{};
-				// 	single.entity = entity;
-				// 	single.mesh = r3d.mesh;
-				// 	single.lod = lod;
-
-				// 	lightInfo.renderableEntities[r3d.material->GetBaseMaterial()][r3d.material].single.emplace_back(single);
-				// }
-				// else if (r3d.mesh->GetType() == Mesh::Type::STATIC)
-				{
-					auto& entities = lightInfo.renderableEntities[r3d.material->GetBaseMaterial()][r3d.material].instanced[r3d.mesh];
-					entities.resize(r3d.mesh->GetLods().size());
-					entities[lod].reserve(50);
-					entities[lod].emplace_back(entity);
-				}
+				lightInfo.renderableEntities[r3d.material->GetBaseMaterial()][r3d.material].emplace_back(entityData);
 
 				renderableCount++;
 			}
@@ -307,7 +311,7 @@ void RenderPassManager::CreateSpotLightShadows()
 
 		struct InstanceData
 		{
-			glm::mat4 transform;
+			int entityIndex;
 			int lightIndex;
 		};
 
@@ -396,8 +400,7 @@ void RenderPassManager::CreateSpotLightShadows()
 			submitInfo.scissors = getShadowMapFaceScissor(*submitInfo.viewport, lightInfo.shadowMapIndex);
 			renderInfo.renderer->BeginRenderPass(submitInfo, "SpotLight", { 1.0f, 1.0f, 0.0f });
 
-			// Render all base materials -> materials -> meshes | put gameobjects into the instance buffer.
-			for (const auto& [baseMaterial, meshesByMaterial] : lightInfo.renderableEntities)
+			for (const auto& [baseMaterial, entitiesByMaterial] : lightInfo.renderableEntities)
 			{
 				const std::shared_ptr<Pipeline> pipeline = baseMaterial->GetPipeline(renderPassName);
 				if (!pipeline)
@@ -405,7 +408,9 @@ void RenderPassManager::CreateSpotLightShadows()
 					continue;
 				}
 
-				for (const auto& [material, gameObjectsByMeshes] : meshesByMaterial)
+				renderInfo.renderer->BindPipeline(pipeline, renderInfo.frame);
+
+				for (const auto& [material, entities] : entitiesByMaterial)
 				{
 					std::vector<NativeHandle> uniformWriterNativeHandles;
 					std::vector<std::shared_ptr<UniformWriter>> uniformWriters;
@@ -415,81 +420,38 @@ void RenderPassManager::CreateSpotLightShadows()
 						continue;
 					}
 
-					for (const auto& [mesh, entitiesByLod] : gameObjectsByMeshes.instanced)
+					renderInfo.renderer->BindUniformWriters(pipeline, uniformWriterNativeHandles, 0, renderInfo.frame);
+
+					for (const auto& entity : entities)
 					{
-						for (size_t lod = 0; lod < entitiesByLod.size(); lod++)
-						{
-							if (entitiesByLod[lod].empty()) continue;
+						assert(entity.entityIndex != -1);
 
-							const size_t instanceDataOffset = instanceDatas.size();
-
-							for (const entt::entity& entity : entitiesByLod[lod])
-							{
-								InstanceData data{};
-								const Transform& transform = registry.get<Transform>(entity);
-								data.transform = transform.GetTransform();
-								data.lightIndex = lightInfo.lightIndex;
-								instanceDatas.emplace_back(data);
-							}
-
-							std::vector<NativeHandle> vertexBuffers;
-							std::vector<size_t> vertexBufferOffsets;
-							GetVertexBuffers(pipeline, mesh, vertexBuffers, vertexBufferOffsets);
-
-							renderInfo.renderer->Render(
-								vertexBuffers,
-								vertexBufferOffsets,
-								mesh->GetIndexBuffer()->GetNativeHandle(),
-								mesh->GetLods()[lod].indexOffset * sizeof(uint32_t),
-								mesh->GetLods()[lod].indexCount,
-								pipeline,
-								instanceBuffer->GetNativeHandle(),
-								instanceDataOffset * instanceBuffer->GetInstanceSize(),
-								entitiesByLod[lod].size(),
-								uniformWriterNativeHandles,
-								renderInfo.frame);
-						}
-					}
-
-					for (const auto& single : gameObjectsByMeshes.single)
-					{
 						const size_t instanceDataOffset = instanceDatas.size();
-
+					
 						InstanceData data{};
-						const Transform& transform = registry.get<Transform>(single.entity);
-						data.transform = transform.GetTransform();
+						data.entityIndex = entity.entityIndex;
 						data.lightIndex = lightInfo.lightIndex;
 						instanceDatas.emplace_back(data);
+						
+						std::vector<NativeHandle> vertexBuffers;
+						std::vector<size_t> vertexBufferOffsets;
+						renderInfo.renderer->BindVertexBuffers(
+							vertexBuffers,
+							vertexBufferOffsets,
+							NativeHandle::Invalid(),
+							0,
+							instanceBuffer->GetNativeHandle(),
+							instanceDataOffset * instanceBuffer->GetInstanceSize(),
+							renderInfo.frame);
 
-						SkeletalAnimator* skeletalAnimator = nullptr;
-						const Renderer3D& r3d = registry.get<Renderer3D>(single.entity);
-						if (const auto skeletalAnimatorEntity = scene->FindEntityByUUID(r3d.skeletalAnimatorEntityUUID))
-						{
-							skeletalAnimator = registry.try_get<SkeletalAnimator>(skeletalAnimatorEntity->GetHandle());
-						}
+						Mesh::Lod lod = entity.mesh->GetLods()[entity.lod];
 
-						// if (skeletalAnimator)
-						// {
-						// 	std::vector<NativeHandle> newUniformWriterNativeHandles = uniformWriterNativeHandles;
-						// 	uniformWriterNativeHandles.emplace_back(skeletalAnimator->GetUniformWriter()->GetNativeHandle());
-
-						// 	std::vector<NativeHandle> vertexBuffers;
-						// 	std::vector<size_t> vertexBufferOffsets;
-						// 	GetVertexBuffers(pipeline, single.mesh, vertexBuffers, vertexBufferOffsets);
-
-						// 	renderInfo.renderer->Render(
-						// 		vertexBuffers,
-						// 		vertexBufferOffsets,
-						// 		single.mesh->GetIndexBuffer()->GetNativeHandle(),
-						// 		single.mesh->GetLods()[single.lod].indexOffset * sizeof(uint32_t),
-						// 		single.mesh->GetLods()[single.lod].indexCount,
-						// 		pipeline,
-						// 		instanceBuffer->GetNativeHandle(),
-						// 		instanceDataOffset * instanceBuffer->GetInstanceSize(),
-						// 		1,
-						// 		newUniformWriterNativeHandles,
-						// 		renderInfo.frame);
-						// }
+						renderInfo.renderer->Draw(
+							lod.indexCount,
+							1,
+							lod.indexOffset,
+							0,
+							renderInfo.frame);
 					}
 				}
 			}

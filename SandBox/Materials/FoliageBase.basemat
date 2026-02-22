@@ -79,3 +79,33 @@ Basemat:
             - faceIndexA
       ColorBlendStates:
         []
+    - RenderPass: SpotLightShadows
+      DepthTest: true
+      DepthWrite: true
+      DepthClamp: true
+      DepthCompare: LessOrEqual
+      CullMode: None
+      PolygonMode: Fill
+      TopologyMode: TriangleList
+      Vertex: Shaders/SpotLightShadowsFoliage.vert
+      Fragment: Shaders/SpotLightShadows.frag
+      UniformWriters:
+        - Type: Renderer
+          Name: Camera
+          Set: 0
+        - Type: Renderer
+          Name: Lights
+          Set: 1
+        - Type: Scene
+          Name: Scene
+          Set: 2
+        - Type: Bindless
+          Set: 3
+      VertexInputBindingDescriptions:
+        - Binding: 0
+          InputRate: Instance
+          Names:
+            - entityIndexA
+            - lightIndexA
+      ColorBlendStates:
+        []

@@ -90,7 +90,15 @@ namespace Pengine
 				uint32_t index;
 			};
 
+			struct SpotLight
+			{
+				glm::mat4 viewProjectionMat4;
+				entt::entity entity;
+				uint32_t index;
+			};
+
 			std::vector<PointLight> pointLights;
+			std::vector<SpotLight> spotLights;
 		};
 
 		struct MultiPassEntityData : public CustomData

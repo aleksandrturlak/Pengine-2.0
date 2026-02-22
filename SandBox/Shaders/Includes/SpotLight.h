@@ -12,15 +12,13 @@ struct SpotLight
 	float radius;
 
 	vec3 positionWorldSpace;
-	int shadowMapIndex;
+    int castSSS;
 
     vec3 directionViewSpace;
 	float bias;
 
     float innerCutOff;
     float outerCutOff;
-
-    int castSSS;
 };
 
 struct SpotLightShadows
@@ -130,7 +128,8 @@ float CalculateSpotLightShadow(
 	in SpotLightShadows spotLightShadows,
     in vec3 positionWorldSpace,
     in vec3 positionViewSpace,
-    float distanceToPoint)
+    float distanceToPoint,
+    int shadowMapIndex)
 {
 	float shadow = 0.0f;
 
@@ -158,12 +157,12 @@ float CalculateSpotLightShadow(
 	
     projectedCoords = (projectedCoords + 1.0f) / 2.0f;
     vec2 baseUV = ((projectedCoords.xy * float(spotLightShadows.faceSize)) / float(spotLightShadows.shadowMapAtlasSize));
-	vec2 atlasUV = baseUV + GetShadowFaceUVLinear(spotLightShadows, light.shadowMapIndex);
+	vec2 atlasUV = baseUV + GetShadowFaceUVLinear(spotLightShadows, shadowMapIndex);
 
 	vec2 minUV;
 	vec2 maxUV;
 	GetFaceUVBounds(
-		light.shadowMapIndex,
+		shadowMapIndex,
     	spotLightShadows.shadowMapAtlasSize,
     	spotLightShadows.faceSize,
     	minUV,

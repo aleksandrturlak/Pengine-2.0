@@ -161,7 +161,7 @@ void main()
 			if (distanceToPoint < spotLight.radius)
 			{
 				float shadow = 0.0f;
-				if (spotLightShadows.isEnabled == 1 && spotLight.shadowMapIndex > -1)
+				if (bool(spotLightShadows.isEnabled) && spotLightShadowMapIndices[i] > -1)
 				{
 					shadow = CalculateSpotLightShadow(
 						spotLightShadowMapTexture,
@@ -169,7 +169,8 @@ void main()
 						spotLightShadows,
 						positionWorldSpace,
 						positionViewSpace,
-						distanceToPoint);
+						distanceToPoint,
+						spotLightShadowMapIndices[i]);
 
 					if (spotLight.castSSS == 1)
 					{

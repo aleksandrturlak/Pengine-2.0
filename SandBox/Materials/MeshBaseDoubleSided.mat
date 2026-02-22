@@ -8,9 +8,6 @@ Mat:
       Inactive:
         - GBuffer
   Pipelines:
-    - RenderPass: SpotLightShadows
-      Uniforms:
-        []
     - RenderPass: PointLightShadows
       Uniforms:
         []
@@ -37,7 +34,7 @@ Mat:
               Value: 0
               Type: float
             - Name: material.roughnessFactor
-              Value: 1
+              Value: 0.112000003
               Type: float
             - Name: material.aoFactor
               Value: 1

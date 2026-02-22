@@ -870,10 +870,9 @@ void RenderPassManager::ProcessLights(const RenderPass::RenderCallbackInfo& rend
 			if (!transform.GetEntity()->IsEnabled())
 				continue;
 
-			MultiPassLightData::PointLight pointLight{};;
+			MultiPassLightData::PointLight pointLight{};
 			pointLight.entity = entity;
 			pointLight.index = lightIndex;
-			pointLights.emplace_back(pointLight);
 
 			const PointLight& pl = registry.get<PointLight>(entity);
 
@@ -930,6 +929,8 @@ void RenderPassManager::ProcessLights(const RenderPass::RenderCallbackInfo& rend
 				deferredBaseMaterial->WriteToBuffer(lightsBuffer, lightsBufferName, std::format("pointLights[{}].pointLightFaceInfos[{}].viewProjectionMat4", lightIndex, faceIndex), pointLight.viewProjectionMat4[faceIndex]);
 			}
 
+			pointLights.emplace_back(pointLight);
+
 			lightIndex++;
 		}
 
@@ -951,57 +952,32 @@ void RenderPassManager::ProcessLights(const RenderPass::RenderCallbackInfo& rend
 
 	// Spot lights.
 	{
-		const std::array<glm::vec4, 6> cameraFrustumPlanes = Utils::GetFrustumPlanes(renderInfo.projection * camera.GetViewMat4());
-		const glm::vec3 cameraPosition = camera.GetEntity()->GetComponent<Transform>().GetPosition();
-
-		struct LightInfoToSort
-		{
-			entt::entity entity;
-			glm::vec3 position;
-			float radius;
-		};
-
-		std::vector<LightInfoToSort> lights;
 		auto spotLightView = registry.view<SpotLight>();
-		lights.reserve(spotLightView.size());
 
-		for (size_t i = 0; i < spotLightView.size(); i++)
-		{
-			Transform& transform = registry.get<Transform>(spotLightView[i]);
-			if (!transform.GetEntity()->IsEnabled())
-				continue;
-
-			LightInfoToSort info{};
-			info.entity = spotLightView[i];
-			info.position = transform.GetPosition();
-			info.radius = registry.get<SpotLight>(spotLightView[i]).radius;
-
-			if (Utils::IsSphereInsideFrustum(cameraFrustumPlanes, info.position, info.radius))
-				lights.emplace_back(info);
-		}
-
-		std::sort(lights.begin(), lights.end(),
-			[&cameraPosition](const LightInfoToSort& first, const LightInfoToSort& second)
-			{
-				float d1 = glm::distance2(cameraPosition, first.position) - (first.radius * first.radius);
-				float d2 = glm::distance2(cameraPosition, second.position) - (second.radius * second.radius);
-				return d1 < d2;
-			});
+		std::vector<MultiPassLightData::SpotLight>& spotLights = multiPassData->spotLights;
+		spotLights.clear();
+		spotLights.reserve(spotLightView.size());
 
 		int lightIndex = 0;
-		for (const auto& light : lights)
+		for (const auto& entity : spotLightView)
 		{
 			if (lightIndex == 32)
 				break;
 
-			SpotLight& sl = registry.get<SpotLight>(light.entity);
-			Transform& transform = registry.get<Transform>(light.entity);
+			const Transform& transform = registry.get<Transform>(entity);
+			if (!transform.GetEntity()->IsEnabled())
+				continue;
 
-			const glm::vec3 positionWorldSpace = light.position;
-			const glm::vec3 positionViewSpace = camera.GetViewMat4() * glm::vec4(light.position, 1.0f);
+			MultiPassLightData::SpotLight spotLight{};
+			spotLight.entity = entity;
+			spotLight.index = lightIndex;
+
+			const SpotLight& sl = registry.get<SpotLight>(entity);
+
+			const glm::vec3 positionWorldSpace = transform.GetPosition();
+			const glm::vec3 positionViewSpace = camera.GetViewMat4() * glm::vec4(positionWorldSpace, 1.0f);
 			const glm::vec3 directionViewSpace = glm::mat3(camera.GetViewMat4()) * transform.GetForward();
 			const int castSSS = sl.castSSS;
-			const int shadowMapIndex = -1;
 
 			deferredBaseMaterial->WriteToBuffer(lightsBuffer, lightsBufferName, std::format("spotLights[{}].positionWorldSpace", lightIndex), positionWorldSpace);
 			deferredBaseMaterial->WriteToBuffer(lightsBuffer, lightsBufferName, std::format("spotLights[{}].positionViewSpace", lightIndex), positionViewSpace);
@@ -1013,7 +989,15 @@ void RenderPassManager::ProcessLights(const RenderPass::RenderCallbackInfo& rend
 			deferredBaseMaterial->WriteToBuffer(lightsBuffer, lightsBufferName, std::format("spotLights[{}].bias", lightIndex), sl.bias);
 			deferredBaseMaterial->WriteToBuffer(lightsBuffer, lightsBufferName, std::format("spotLights[{}].innerCutOff", lightIndex), sl.innerCutOff);
 			deferredBaseMaterial->WriteToBuffer(lightsBuffer, lightsBufferName, std::format("spotLights[{}].outerCutOff", lightIndex), sl.outerCutOff);
-			deferredBaseMaterial->WriteToBuffer(lightsBuffer, lightsBufferName, std::format("spotLights[{}].shadowMapIndex", lightIndex), shadowMapIndex);
+
+			const glm::mat4 viewProjectionMat4 = glm::perspective(
+				sl.outerCutOff * 2.0f,
+				1.0f,
+				camera.GetZNear(),
+				sl.radius) * transform.GetInverseTransformMat4();
+			deferredBaseMaterial->WriteToBuffer(lightsBuffer, lightsBufferName, std::format("spotLights[{}].viewProjectionMat4", lightIndex), viewProjectionMat4);
+
+			spotLights.emplace_back(spotLight);
 
 			lightIndex++;
 		}
@@ -1021,8 +1005,17 @@ void RenderPassManager::ProcessLights(const RenderPass::RenderCallbackInfo& rend
 		const int spotLightsCount = lightIndex;
 		deferredBaseMaterial->WriteToBuffer(lightsBuffer, lightsBufferName, "spotLightsCount", spotLightsCount);
 
-		const int spotLightShadowsEnabled = 0;
+		const GraphicsSettings::Shadows::SpotLightShadows& spotLightShadowsSettings = renderInfo.scene->GetGraphicsSettings().shadows.spotLightShadows;
+		const glm::ivec2 resolutions[4] = { { 1024, 1024 }, { 2048, 2048 }, { 3072, 3072 }, { 4096, 4096 } };
+		const glm::ivec2 shadowMapAtlasSize = resolutions[spotLightShadowsSettings.atlasQuality];
+
+		const int faceSizes[4] = { 128, 256, 512, 1024 };
+		const int faceSize = faceSizes[spotLightShadowsSettings.faceQuality];
+		
+		const int spotLightShadowsEnabled = spotLightShadowsSettings.isEnabled;
 		deferredBaseMaterial->WriteToBuffer(lightsBuffer, lightsBufferName, "spotLightShadows.isEnabled", spotLightShadowsEnabled);
+		deferredBaseMaterial->WriteToBuffer(lightsBuffer, lightsBufferName, "spotLightShadows.shadowMapAtlasSize", shadowMapAtlasSize.x);
+		deferredBaseMaterial->WriteToBuffer(lightsBuffer, lightsBufferName, "spotLightShadows.faceSize", faceSize);
 	}
 
 	// SSS.

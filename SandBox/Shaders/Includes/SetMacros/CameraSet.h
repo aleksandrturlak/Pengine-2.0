@@ -21,5 +21,10 @@ layout(set = setIndex, binding = 2, scalar) uniform PointLightShadowMapIndicesBu
 {                                                                                    \
 	int pointLightShadowMapIndices[32];                                              \
 };                                                                                   \
+                                                                                     \
+layout(set = setIndex, binding = 3, scalar) uniform SpotLightShadowMapIndicesBuffer  \
+{                                                                                    \
+	int spotLightShadowMapIndices[32];                                               \
+};                                                                                   \
 
 #endif

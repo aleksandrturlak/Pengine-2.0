@@ -9,18 +9,13 @@
 #include "../Time.h"
 #include "../FrustumCulling.h"
 #include "../Raycast.h"
-#include "../UIRenderer.h"
 #include "../Profiler.h"
 #include "../Timer.h"
 
-#include "../../Components/Canvas.h"
 #include "../../Components/Camera.h"
-#include "../../Components/Decal.h"
 #include "../../Components/DirectionalLight.h"
 #include "../../Components/PointLight.h"
-#include "../../Components/SpotLight.h"
 #include "../../Components/Renderer3D.h"
-#include "../../Components/SkeletalAnimator.h"
 #include "../../Components/Transform.h"
 #include "../../Graphics/Device.h"
 #include "../../Graphics/Renderer.h"
@@ -168,13 +163,9 @@ void RenderPassManager::CreatePointLightShadows()
 			}
 
 			const auto& pointLight = multiPassData->pointLights[i];
-			Transform& transform = registry.get<Transform>(pointLight.entity);
-			if (!transform.GetEntity()->IsEnabled())
-			{
-				continue;
-			}
+			const Transform& transform = registry.get<Transform>(pointLight.entity);
 
-			PointLight& pl = registry.get<PointLight>(pointLight.entity);
+			const PointLight& pl = registry.get<PointLight>(pointLight.entity);
 			if (!pl.castShadows)
 			{
 				continue;
