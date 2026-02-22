@@ -1,6 +1,7 @@
 #pragma once
 
 #include "../Core/Core.h"
+#include "../Graphics/BarrierBatch.h"
 #include "../Graphics/Buffer.h"
 #include "../Graphics/FrameBuffer.h"
 #include "../Graphics/RenderPass.h"
@@ -118,11 +119,7 @@ namespace Pengine
 			const glm::uvec3& groupCount,
 			void* frame) = 0;
 
-		virtual void MemoryBarrierFragmentReadWrite(void* frame) = 0;
-
-		virtual void MemoryBarrierVertexReadWrite(void* frame) = 0;
-
-		virtual void MemoryBufferBarrierVertexReadWrite(NativeHandle buffer, void* frame) = 0;
+		virtual void PipelineBarrier(const BarrierBatch& batch, void* frame) = 0;
 
 		virtual void BeginCommandLabel(
 			const std::string& name,

@@ -94,11 +94,7 @@ namespace Pengine::Vk
 			const glm::uvec3& groupCount,
 			void* frame) override;
 
-		virtual void MemoryBarrierFragmentReadWrite(void* frame) override;
-
-		virtual void MemoryBarrierVertexReadWrite(void* frame) override;
-		
-		virtual void MemoryBufferBarrierVertexReadWrite(NativeHandle buffer, void* frame) override;
+		virtual void PipelineBarrier(const BarrierBatch& batch, void* frame) override;
 
 		virtual void BeginCommandLabel(
 			const std::string& name,

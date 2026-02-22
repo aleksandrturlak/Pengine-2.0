@@ -246,7 +246,11 @@ void RenderPassManager::CreateSSRBlur()
 			groupCount += glm::uvec2(1, 1);
 			renderInfo.renderer->Compute(pipeline, { groupCount.x, groupCount.y, 1 }, uniformWriterNativeHandles, renderInfo.frame);
 
-			renderInfo.renderer->MemoryBarrierFragmentReadWrite(renderInfo.frame);
+			renderInfo.renderer->PipelineBarrier(
+				BarrierBatch{}
+					.Stages(PipelineStage::ComputeShader, PipelineStage::Transfer)
+					.Memory(Access::ShaderWrite, Access::TransferRead),
+				renderInfo.frame);
 
 			ssrBlurTexture->GenerateMipMaps(renderInfo.frame);
 

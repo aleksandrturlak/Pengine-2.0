@@ -197,7 +197,11 @@ void RenderPassManager::CreateBloom()
 			{
 				const std::string mipLevelString = std::to_string(mipLevel);
 
-				renderInfo.renderer->MemoryBarrierFragmentReadWrite(renderInfo.frame);
+				renderInfo.renderer->PipelineBarrier(
+					BarrierBatch{}
+						.Stages(PipelineStage::FragmentShader, PipelineStage::FragmentShader)
+						.Memory(Access::ShaderRead | Access::ShaderWrite, Access::ShaderRead | Access::ShaderWrite),
+					renderInfo.frame);
 
 				const std::shared_ptr<FrameBuffer> frameBuffer = renderInfo.renderView->GetFrameBuffer("BloomFrameBuffers(" + mipLevelString + ")");
 
@@ -275,7 +279,11 @@ void RenderPassManager::CreateBloom()
 				const std::string srcMipLevelString = std::to_string(mipLevel);
 				const std::string dstMipLevelString = std::to_string(mipLevel - 1);
 
-				renderInfo.renderer->MemoryBarrierFragmentReadWrite(renderInfo.frame);
+				renderInfo.renderer->PipelineBarrier(
+					BarrierBatch{}
+						.Stages(PipelineStage::FragmentShader, PipelineStage::FragmentShader)
+						.Memory(Access::ShaderRead | Access::ShaderWrite, Access::ShaderRead | Access::ShaderWrite),
+					renderInfo.frame);
 
 				RenderPass::SubmitInfo submitInfo{};
 				submitInfo.frame = renderInfo.frame;

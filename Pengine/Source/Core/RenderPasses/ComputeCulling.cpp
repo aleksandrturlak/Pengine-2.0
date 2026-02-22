@@ -136,8 +136,12 @@ void RenderPassManager::CreateComputeIndirectDrawGBuffer()
 			uint32_t groupCount = (multiPassData->totalEntityCount + 15) / 16;
 			renderInfo.renderer->Compute(pipeline, { groupCount, 1, 1 }, uniformWriterNativeHandles, renderInfo.frame);
 			
-			renderInfo.renderer->MemoryBufferBarrierVertexReadWrite(indirectDrawCommandsBuffer->GetNativeHandle(), renderInfo.frame);
-			renderInfo.renderer->MemoryBufferBarrierVertexReadWrite(indirectDrawCommandCountBuffer->GetNativeHandle(), renderInfo.frame);
+			renderInfo.renderer->PipelineBarrier(
+				BarrierBatch{}
+					.Stages(PipelineStage::ComputeShader, PipelineStage::DrawIndirect)
+					.Buffer(indirectDrawCommandsBuffer->GetNativeHandle(), Access::ShaderWrite, Access::IndirectCommandRead)
+					.Buffer(indirectDrawCommandCountBuffer->GetNativeHandle(), Access::ShaderWrite, Access::IndirectCommandRead),
+				renderInfo.frame);
 
 			renderInfo.renderer->EndCommandLabel(renderInfo.frame);
 		}
@@ -359,8 +363,12 @@ void RenderPassManager::CreateComputeIndirectDrawCSM()
 			uint32_t groupCount = (multiPassData->totalEntityCount + 15) / 16;
 			renderInfo.renderer->Compute(pipeline, { groupCount, 1, 1 }, uniformWriterNativeHandles, renderInfo.frame);
 
-			renderInfo.renderer->MemoryBufferBarrierVertexReadWrite(indirectDrawCommandsBuffer->GetNativeHandle(), renderInfo.frame);
-			renderInfo.renderer->MemoryBufferBarrierVertexReadWrite(indirectDrawCommandCountBuffer->GetNativeHandle(), renderInfo.frame);
+			renderInfo.renderer->PipelineBarrier(
+				BarrierBatch{}
+					.Stages(PipelineStage::ComputeShader, PipelineStage::DrawIndirect)
+					.Buffer(indirectDrawCommandsBuffer->GetNativeHandle(), Access::ShaderWrite, Access::IndirectCommandRead)
+					.Buffer(indirectDrawCommandCountBuffer->GetNativeHandle(), Access::ShaderWrite, Access::IndirectCommandRead),
+				renderInfo.frame);
 
 			renderInfo.renderer->EndCommandLabel(renderInfo.frame);
 		}
