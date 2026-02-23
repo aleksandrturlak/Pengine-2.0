@@ -30,6 +30,8 @@ namespace Pengine
 
 			BlendMode blendMode = BlendMode::Override;
 
+			bool playInPlace = false;  // Zero root bone XZ translation (suppress horizontal root motion).
+
 			// Empty = affect all bones. Non-empty = only these skeleton bone IDs.
 			std::vector<uint32_t> boneMask;
 

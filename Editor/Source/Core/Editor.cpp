@@ -2953,6 +2953,8 @@ void Editor::SkeletalAnimatorComponent(const std::shared_ptr<Entity>& entity)
 					layer.blendMode = static_cast<SkeletalAnimator::AnimationLayer::BlendMode>(blendMode);
 				}
 
+				ImGui::Checkbox("Play In Place", &layer.playInPlace);
+
 				if (skeletalAnimator.GetSkeleton())
 				{
 					if (ImGui::CollapsingHeader("Bone Mask"))
@@ -4264,6 +4266,7 @@ void Editor::Thumbnails::ShutDown()
 
 void Editor::Thumbnails::UpdateThumbnails()
 {
+	return;
 	/*if (m_ThumbnailAtlas.GetAtlas(0))
 	{
 		ImGui::Begin("Thumbnail Atlas");

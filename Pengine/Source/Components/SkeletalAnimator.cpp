@@ -234,6 +234,7 @@ namespace Pengine
 		const Skeleton::Bone& node = m_Skeleton->GetBones()[boneId];
 
 		BonePose pose{};
+		const bool isRootBone = (node.parentId == static_cast<uint32_t>(-1));
 
 		for (const AnimationLayer& layer : m_Layers)
 		{
@@ -282,6 +283,12 @@ namespace Pengine
 				layerPos   = glm::mix(layerPos, nextPos, t);
 				layerRot   = glm::normalize(glm::slerp(layerRot, nextRot, t));
 				layerScale = glm::mix(layerScale, nextScale, t);
+			}
+
+			if (layer.playInPlace && isRootBone)
+			{
+				layerPos.x = 0.0f;
+				layerPos.z = 0.0f;
 			}
 
 			if (layer.blendMode == AnimationLayer::BlendMode::Override)
