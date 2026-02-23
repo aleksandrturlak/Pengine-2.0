@@ -1,12 +1,12 @@
 #pragma once
 
 #include "../Core/Core.h"
+#include "../Graphics/SkeletalAnimation.h"
 
 namespace Pengine
 {
 
 	class Skeleton;
-	class SkeletalAnimation;
 	class UniformWriter;
 	class Buffer;
 	class Entity;
@@ -18,6 +18,8 @@ namespace Pengine
 		SkeletalAnimator(const SkeletalAnimator& skeletalAnimator);
 
 		void UpdateAnimation(std::shared_ptr<Entity> entity, const float deltaTime, const glm::mat4& parentTransform);
+
+		void RebuildBoneEntityCache(std::shared_ptr<Entity> entity);
 
 		[[nodiscard]] float GetSpeed() const { return m_Speed; }
 
@@ -35,11 +37,11 @@ namespace Pengine
 
 		[[nodiscard]] std::shared_ptr<Skeleton> GetSkeleton() const { return m_Skeleton; }
 
-		void SetSkeleton(std::shared_ptr<Skeleton> skeleton) { m_Skeleton = skeleton; }
+		void SetSkeleton(std::shared_ptr<Skeleton> skeleton);
 
 		[[nodiscard]] std::shared_ptr<SkeletalAnimation> GetSkeletalAnimation() const { return m_SkeletalAnimation; }
 
-		void SetSkeletalAnimation(std::shared_ptr<SkeletalAnimation> skeletalAnimation) { m_SkeletalAnimation = skeletalAnimation; m_IsBlending = false; }
+		void SetSkeletalAnimation(std::shared_ptr<SkeletalAnimation> skeletalAnimation);
 
 		[[nodiscard]] std::shared_ptr<SkeletalAnimation> GetNextSkeletalAnimation() const { return m_NextSkeletalAnimation; }
 
@@ -56,9 +58,22 @@ namespace Pengine
 		void SetApplySkeletonTransform(bool applySkeletonTransform) { m_ApplySkeletonTransform = applySkeletonTransform; }
 
 	private:
-		void CalculateBoneTransform(std::shared_ptr<Entity> entity, const uint32_t boneId, const glm::mat4& parentTransform);
+		static std::shared_ptr<Buffer> CreateBoneBuffer(uint32_t boneCount);
+
+		void RebuildAnimationBoneCache();
+
+		void CalculateBoneTransform(uint32_t boneId, const glm::mat4& parentTransform);
 
 		std::vector<glm::mat4> m_FinalBoneMatrices;
+
+		// Per-bone pointers into animation data, indexed by skeleton bone ID.
+		// Rebuilt whenever skeleton/animation assignments change.
+		std::vector<const SkeletalAnimation::Bone*> m_CurrentAnimBones;
+		std::vector<const SkeletalAnimation::Bone*> m_NextAnimBones;
+
+		// Entity handles cached per bone ID to avoid per-frame hierarchy search.
+		// Rebuilt by calling RebuildBoneEntityCache() after hierarchy is ready.
+		std::unordered_map<uint32_t, std::weak_ptr<Entity>> m_BoneEntityCache;
 
 		std::shared_ptr<Skeleton> m_Skeleton;
 		std::shared_ptr<SkeletalAnimation> m_SkeletalAnimation;

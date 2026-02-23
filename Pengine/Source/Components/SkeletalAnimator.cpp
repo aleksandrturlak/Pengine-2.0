@@ -1,7 +1,6 @@
 #include "SkeletalAnimator.h"
 
 #include "../Graphics/Buffer.h"
-#include "../Graphics/SkeletalAnimation.h"
 #include "../Graphics/Skeleton.h"
 #include "../Components/Transform.h"
 #include "../Core/Logger.h"
@@ -12,17 +11,21 @@
 namespace Pengine
 {
 
-	SkeletalAnimator::SkeletalAnimator()
+	std::shared_ptr<Buffer> SkeletalAnimator::CreateBoneBuffer(uint32_t boneCount)
 	{
-		m_FinalBoneMatrices.resize(100, glm::mat4(1.0f));
-
 		Buffer::CreateInfo createInfo{};
 		createInfo.instanceSize = sizeof(glm::mat4);
-		createInfo.instanceCount = 100;
+		createInfo.instanceCount = boneCount;
 		createInfo.usages = { Buffer::Usage::STORAGE_BUFFER };
 		createInfo.memoryType = MemoryType::CPU;
 		createInfo.isMultiBuffered = true;
-		m_Buffer = Buffer::Create(createInfo);
+		return Buffer::Create(createInfo);
+	}
+
+	SkeletalAnimator::SkeletalAnimator()
+	{
+		m_FinalBoneMatrices.resize(100, glm::mat4(1.0f));
+		m_Buffer = CreateBoneBuffer(100);
 	}
 
 	SkeletalAnimator::SkeletalAnimator(const SkeletalAnimator& skeletalAnimator)
@@ -30,27 +33,26 @@ namespace Pengine
 		m_CurrentTime = skeletalAnimator.GetCurrentTime();
 		m_Speed = skeletalAnimator.GetSpeed();
 		m_SkeletalAnimation = skeletalAnimator.GetSkeletalAnimation();
+		m_NextSkeletalAnimation = skeletalAnimator.GetNextSkeletalAnimation();
 		m_Skeleton = skeletalAnimator.GetSkeleton();
 		m_FinalBoneMatrices.resize(100, glm::mat4(1.0f));
-
-		Buffer::CreateInfo createInfo{};
-		createInfo.instanceSize = sizeof(glm::mat4);
-		createInfo.instanceCount = 100;
-		createInfo.usages = { Buffer::Usage::STORAGE_BUFFER };
-		createInfo.memoryType = MemoryType::CPU;
-		createInfo.isMultiBuffered = true;
-		m_Buffer = Buffer::Create(createInfo);
+		m_Buffer = CreateBoneBuffer(100);
 	}
 
-    void SkeletalAnimator::UpdateAnimation(std::shared_ptr<Entity> entity, const float deltaTime, const glm::mat4& parentTransform)
+	void SkeletalAnimator::UpdateAnimation(std::shared_ptr<Entity> entity, const float deltaTime, const glm::mat4& parentTransform)
 	{
 		if (!m_SkeletalAnimation || !m_Skeleton)
 		{
 			return;
 		}
 
+		if (m_BoneEntityCache.empty())
+		{
+			RebuildBoneEntityCache(entity);
+		}
+
 		m_CurrentTime += deltaTime * m_Speed;
-		
+
 		if (m_NextSkeletalAnimation)
 		{
 			m_NextTime += deltaTime * m_Speed;
@@ -66,6 +68,7 @@ namespace Pengine
 					m_NextTime = 0.0f;
 					m_SkeletalAnimation = m_NextSkeletalAnimation;
 					m_NextSkeletalAnimation = nullptr;
+					RebuildAnimationBoneCache();
 				}
 			}
 		}
@@ -76,9 +79,9 @@ namespace Pengine
 			m_NextTime = fmod(m_NextTime, m_NextSkeletalAnimation->GetDuration());
 		}
 
-		for (const uint32_t& rootBoneId : m_Skeleton->GetRootBoneIds())
+		for (const uint32_t rootBoneId : m_Skeleton->GetRootBoneIds())
 		{
-			CalculateBoneTransform(entity, rootBoneId, parentTransform);
+			CalculateBoneTransform(rootBoneId, parentTransform);
 		}
 
 		m_Buffer->WriteToBuffer(
@@ -87,13 +90,34 @@ namespace Pengine
 		m_Buffer->Flush();
 	}
 
+	void SkeletalAnimator::SetSkeleton(std::shared_ptr<Skeleton> skeleton)
+	{
+		m_Skeleton = std::move(skeleton);
+
+		if (m_Skeleton)
+		{
+			const uint32_t boneCount = static_cast<uint32_t>(m_Skeleton->GetBones().size());
+			m_FinalBoneMatrices.assign(boneCount, glm::mat4(1.0f));
+			m_Buffer = CreateBoneBuffer(boneCount);
+			RebuildAnimationBoneCache();
+		}
+	}
+
+	void SkeletalAnimator::SetSkeletalAnimation(std::shared_ptr<SkeletalAnimation> skeletalAnimation)
+	{
+		m_SkeletalAnimation = std::move(skeletalAnimation);
+		m_IsBlending = false;
+		RebuildAnimationBoneCache();
+	}
+
 	void SkeletalAnimator::SetNextSkeletalAnimation(std::shared_ptr<SkeletalAnimation> skeletalAnimation, float transitionTime)
 	{
-		m_NextSkeletalAnimation = skeletalAnimation;
+		m_NextSkeletalAnimation = std::move(skeletalAnimation);
 		m_TransitionTime = transitionTime;
 		m_TransitionTimer = 0.0f;
 		m_NextTime = 0.0f;
 		m_IsBlending = false;
+		RebuildAnimationBoneCache();
 	}
 
 	void SkeletalAnimator::BlendSkeletalAnimations(
@@ -101,82 +125,141 @@ namespace Pengine
 		std::shared_ptr<SkeletalAnimation> secondSkeletalAnimation,
 		float value)
 	{
-		m_SkeletalAnimation = firstSkeletalAnimation;
-		m_NextSkeletalAnimation = secondSkeletalAnimation;
+		m_SkeletalAnimation = std::move(firstSkeletalAnimation);
+		m_NextSkeletalAnimation = std::move(secondSkeletalAnimation);
 		m_TransitionTime = 1.0f;
 		m_TransitionTimer = value;
 		m_IsBlending = true;
+		RebuildAnimationBoneCache();
 	}
 
-	void SkeletalAnimator::CalculateBoneTransform(std::shared_ptr<Entity> entity, const uint32_t boneId, const glm::mat4& parentTransform)
+	void SkeletalAnimator::RebuildBoneEntityCache(std::shared_ptr<Entity> entity)
+	{
+		m_BoneEntityCache.clear();
+
+		if (!m_Skeleton || !entity)
+		{
+			return;
+		}
+
+		for (const Skeleton::Bone& bone : m_Skeleton->GetBones())
+		{
+			if (auto boneEntity = entity->FindEntityInHierarchy(bone.name))
+			{
+				m_BoneEntityCache[bone.id] = boneEntity;
+			}
+		}
+	}
+
+	void SkeletalAnimator::RebuildAnimationBoneCache()
+	{
+		if (!m_Skeleton)
+		{
+			m_CurrentAnimBones.clear();
+			m_NextAnimBones.clear();
+			return;
+		}
+
+		const auto& bones = m_Skeleton->GetBones();
+		const uint32_t boneCount = static_cast<uint32_t>(bones.size());
+
+		m_CurrentAnimBones.assign(boneCount, nullptr);
+		m_NextAnimBones.assign(boneCount, nullptr);
+
+		if (m_SkeletalAnimation)
+		{
+			const auto& bonesByName = m_SkeletalAnimation->GetBonesByName();
+			for (const Skeleton::Bone& bone : bones)
+			{
+				if (auto it = bonesByName.find(bone.name); it != bonesByName.end())
+				{
+					m_CurrentAnimBones[bone.id] = &it->second;
+				}
+			}
+		}
+
+		if (m_NextSkeletalAnimation)
+		{
+			const auto& bonesByName = m_NextSkeletalAnimation->GetBonesByName();
+			for (const Skeleton::Bone& bone : bones)
+			{
+				if (auto it = bonesByName.find(bone.name); it != bonesByName.end())
+				{
+					m_NextAnimBones[bone.id] = &it->second;
+				}
+			}
+		}
+	}
+
+	void SkeletalAnimator::CalculateBoneTransform(const uint32_t boneId, const glm::mat4& parentTransform)
 	{
 		const Skeleton::Bone& node = m_Skeleton->GetBones()[boneId];
-		std::string nodeName = node.name;
 
 		glm::vec3 currentPosition = glm::vec3(0.0f);
 		glm::quat currentRotation = glm::quat(glm::vec3(0.0f));
 		glm::vec3 currentScale = glm::vec3(1.0f);
-		if (m_SkeletalAnimation->GetBonesByName().contains(nodeName))
+
+		if (const SkeletalAnimation::Bone* bone = m_CurrentAnimBones[boneId])
 		{
-			const SkeletalAnimation::Bone& bone = m_SkeletalAnimation->GetBonesByName().at(nodeName);
-			bone.Update(m_CurrentTime, currentPosition, currentRotation, currentScale);
+			bone->Update(m_CurrentTime, currentPosition, currentRotation, currentScale);
 		}
 
-		if (m_NextSkeletalAnimation && m_NextSkeletalAnimation->GetBonesByName().contains(nodeName))
+		if (const SkeletalAnimation::Bone* nextBone = m_NextAnimBones[boneId])
 		{
-			const SkeletalAnimation::Bone& bone = m_NextSkeletalAnimation->GetBonesByName().at(nodeName);
-
 			glm::vec3 nextPosition;
 			glm::quat nextRotation;
 			glm::vec3 nextScale;
-			bone.Update(m_NextTime, nextPosition, nextRotation, nextScale);
+			nextBone->Update(m_NextTime, nextPosition, nextRotation, nextScale);
 
-			currentPosition = glm::mix(currentPosition, nextPosition, m_TransitionTimer / m_TransitionTime);
-			currentRotation = glm::normalize(glm::slerp(currentRotation, nextRotation, m_TransitionTimer / m_TransitionTime));
-			currentScale = glm::mix(currentScale, nextScale, m_TransitionTimer / m_TransitionTime);
+			const float blendFactor = m_TransitionTimer / m_TransitionTime;
+			currentPosition = glm::mix(currentPosition, nextPosition, blendFactor);
+			currentRotation = glm::normalize(glm::slerp(currentRotation, nextRotation, blendFactor));
+			currentScale = glm::mix(currentScale, nextScale, blendFactor);
 		}
 
-		glm::mat4 nodeTransform = glm::translate(glm::mat4(1.0f), currentPosition) * glm::toMat4(currentRotation) * glm::scale(glm::mat4(1.0f), currentScale);
-		glm::mat4 globalTransform;
-		if (m_ApplySkeletonTransform) globalTransform = parentTransform * node.transform * nodeTransform;
-		else globalTransform = parentTransform * nodeTransform;
-		
+		const glm::mat4 nodeTransform = glm::translate(glm::mat4(1.0f), currentPosition) * glm::toMat4(currentRotation) * glm::scale(glm::mat4(1.0f), currentScale);
+		const glm::mat4 globalTransform = m_ApplySkeletonTransform
+			? parentTransform * node.transform * nodeTransform
+			: parentTransform * nodeTransform;
+
 		m_FinalBoneMatrices[node.id] = globalTransform * node.offset;
 
-		// TODO: Very slow, maybe optimize!
-		if (const auto& boneEntity = entity->FindEntityInHierarchy(node.name))
+		if (auto it = m_BoneEntityCache.find(node.id); it != m_BoneEntityCache.end())
 		{
-			Transform& boneEntityTransform = boneEntity->GetComponent<Transform>();
+			if (const auto boneEntity = it->second.lock())
+			{
+				Transform& boneEntityTransform = boneEntity->GetComponent<Transform>();
 
-			if (m_ApplySkeletonTransform)
-			{
-				glm::vec3 newPosition = glm::vec3(0.0f);
-				glm::vec3 newRotation = glm::vec3(0.0f);
-				glm::vec3 newScale = glm::vec3(1.0f);
-				Utils::DecomposeTransform(globalTransform, newPosition, newRotation, newScale);
-				boneEntityTransform.Translate(newPosition);
-				boneEntityTransform.Rotate(newRotation);
-				boneEntityTransform.Scale(newScale);
-			}
-			else
-			{
-				boneEntityTransform.Translate(currentPosition);
-				boneEntityTransform.Rotate(glm::eulerAngles(currentRotation));
-				boneEntityTransform.Scale(currentScale);
-			}
+				if (m_ApplySkeletonTransform)
+				{
+					glm::vec3 newPosition = glm::vec3(0.0f);
+					glm::vec3 newRotation = glm::vec3(0.0f);
+					glm::vec3 newScale = glm::vec3(1.0f);
+					Utils::DecomposeTransform(globalTransform, newPosition, newRotation, newScale);
+					boneEntityTransform.Translate(newPosition);
+					boneEntityTransform.Rotate(newRotation);
+					boneEntityTransform.Scale(newScale);
+				}
+				else
+				{
+					boneEntityTransform.Translate(currentPosition);
+					boneEntityTransform.Rotate(glm::eulerAngles(currentRotation));
+					boneEntityTransform.Scale(currentScale);
+				}
 
-			if (GetDrawDebugSkeleton() && boneEntity->HasParent())
-			{
-				boneEntity->GetScene()->GetVisualizer().DrawLine(
-					boneEntityTransform.GetPosition(),
-					boneEntity->GetParent()->GetComponent<Transform>().GetPosition(),
-					{ 1.0f, 0.0f, 1.0f });
+				if (GetDrawDebugSkeleton() && boneEntity->HasParent())
+				{
+					boneEntity->GetScene()->GetVisualizer().DrawLine(
+						boneEntityTransform.GetPosition(),
+						boneEntity->GetParent()->GetComponent<Transform>().GetPosition(),
+						{ 1.0f, 0.0f, 1.0f });
+				}
 			}
 		}
 
-		for (int i = 0; i < node.childIds.size(); i++)
+		for (const uint32_t childId : node.childIds)
 		{
-			CalculateBoneTransform(entity, m_Skeleton->GetBones()[node.childIds[i]].id, globalTransform);
+			CalculateBoneTransform(m_Skeleton->GetBones()[childId].id, globalTransform);
 		}
 	}
 
