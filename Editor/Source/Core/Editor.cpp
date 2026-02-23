@@ -37,6 +37,7 @@
 #include "Components/SpotLight.h"
 #include "Components/Renderer3D.h"
 #include "Components/SkeletalAnimator.h"
+#include "Graphics/Skeleton.h"
 #include "Components/EntityAnimator.h"
 #include "Components/Transform.h"
 #include "Components/Canvas.h"
@@ -2875,46 +2876,115 @@ void Editor::SkeletalAnimatorComponent(const std::shared_ptr<Entity>& entity)
 			ImGui::EndDragDropTarget();
 		}
 
-		ImGui::Text("Animation:");
-		ImGui::SameLine();
-		if (skeletalAnimator.GetSkeletalAnimation())
+		ImGui::Separator();
+
+		if (ImGui::Button("Add Layer"))
 		{
-			ImGui::Button(skeletalAnimator.GetSkeletalAnimation()->GetName().c_str());
-		}
-		else
-		{
-			ImGui::Button(none);
+			skeletalAnimator.AddLayer(SkeletalAnimator::AnimationLayer{});
 		}
 
-		if (ImGui::BeginDragDropTarget())
+		int32_t layerToRemove = -1;
+		for (uint32_t i = 0; i < skeletalAnimator.GetLayerCount(); ++i)
 		{
-			if (const ImGuiPayload* payload = ImGui::AcceptDragDropPayload("ASSETS_BROWSER_ITEM"))
+			SkeletalAnimator::AnimationLayer& layer = skeletalAnimator.GetLayer(i);
+
+			ImGui::PushID(static_cast<int>(i));
+
+			ImGui::PushID(std::format("RemoveLayer{}", i).c_str());
+			if (ImGui::SmallButton("X"))
 			{
-				std::wstring filepath((const wchar_t*)payload->Data);
-				filepath.resize(payload->DataSize / sizeof(wchar_t));
+				layerToRemove = static_cast<int32_t>(i);
+			}
+			ImGui::PopID();
 
-				if (Utils::GetFileFormat(filepath) == FileFormats::Anim())
+			ImGui::SameLine();
+
+			const std::string layerLabel = "Layer " + std::to_string(i) +
+				(layer.animation ? " [" + layer.animation->GetName() + "]" : " [empty]");
+
+			const bool layerOpen = ImGui::CollapsingHeader(layerLabel.c_str());
+
+			if (layerOpen)
+			{
+				Indent indent;
+
+				ImGui::Text("Animation:");
+				ImGui::SameLine();
+				ImGui::Button(layer.animation ? layer.animation->GetName().c_str() : none);
+				if (ImGui::BeginDragDropTarget())
 				{
-					skeletalAnimator.SetSkeletalAnimation(MeshManager::GetInstance().LoadSkeletalAnimation(filepath));
+					if (const ImGuiPayload* payload = ImGui::AcceptDragDropPayload("ASSETS_BROWSER_ITEM"))
+					{
+						std::wstring filepath((const wchar_t*)payload->Data);
+						filepath.resize(payload->DataSize / sizeof(wchar_t));
+						if (Utils::GetFileFormat(filepath) == FileFormats::Anim())
+						{
+							skeletalAnimator.SetLayerAnimation(i, MeshManager::GetInstance().LoadSkeletalAnimation(filepath));
+						}
+					}
+					ImGui::EndDragDropTarget();
+				}
+
+				float weight = layer.weight;
+				if (ImGui::SliderFloat("Weight", &weight, 0.0f, 1.0f))
+				{
+					skeletalAnimator.SetLayerWeight(i, weight);
+				}
+
+				float speed = layer.speed;
+				if (ImGui::SliderFloat("Speed", &speed, 0.0f, 5.0f))
+				{
+					skeletalAnimator.SetLayerSpeed(i, speed);
+				}
+
+				if (layer.animation)
+				{
+					float currentTime = layer.currentTime;
+					if (ImGui::SliderFloat("Current Time", &currentTime, 0.0f, static_cast<float>(layer.animation->GetDuration())))
+					{
+						layer.currentTime = currentTime;
+					}
+				}
+
+				const char* blendModes[] = { "Override", "Additive" };
+				int blendMode = static_cast<int>(layer.blendMode);
+				if (ImGui::Combo("Blend Mode", &blendMode, blendModes, 2))
+				{
+					layer.blendMode = static_cast<SkeletalAnimator::AnimationLayer::BlendMode>(blendMode);
+				}
+
+				if (skeletalAnimator.GetSkeleton())
+				{
+					if (ImGui::CollapsingHeader("Bone Mask"))
+					{
+						Indent maskIndent;
+						ImGui::TextDisabled("Empty mask = all bones affected");
+						const auto& bones = skeletalAnimator.GetSkeleton()->GetBones();
+						for (const Skeleton::Bone& bone : bones)
+						{
+							bool inMask = std::find(layer.boneMask.begin(), layer.boneMask.end(), bone.id) != layer.boneMask.end();
+							if (ImGui::Checkbox(bone.name.c_str(), &inMask))
+							{
+								if (inMask)
+								{
+									layer.boneMask.push_back(bone.id);
+								}
+								else
+								{
+									layer.boneMask.erase(std::remove(layer.boneMask.begin(), layer.boneMask.end(), bone.id), layer.boneMask.end());
+								}
+							}
+						}
+					}
 				}
 			}
 
-			ImGui::EndDragDropTarget();
+			ImGui::PopID();
 		}
 
-		float speed = skeletalAnimator.GetSpeed();
-		if (ImGui::SliderFloat("Animation Speed", &speed, 0.0f, 5.0f))
+		if (layerToRemove >= 0)
 		{
-			skeletalAnimator.SetSpeed(speed);
-		}
-
-		if (skeletalAnimator.GetSkeletalAnimation())
-		{
-			float currentTime = skeletalAnimator.GetCurrentTime();
-			if (ImGui::SliderFloat("Animation Current Time", &currentTime, 0.0f, skeletalAnimator.GetSkeletalAnimation()->GetDuration()))
-			{
-				skeletalAnimator.SetCurrentTime(currentTime);
-			}
+			skeletalAnimator.RemoveLayer(static_cast<uint32_t>(layerToRemove));
 		}
 
 		bool applySkeletonTransform = skeletalAnimator.GetApplySkeletonTransform();

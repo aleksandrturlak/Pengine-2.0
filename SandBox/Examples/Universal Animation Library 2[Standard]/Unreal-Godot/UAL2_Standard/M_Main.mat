@@ -8,9 +8,6 @@ Mat:
       Inactive:
         - GBuffer
   Pipelines:
-    - RenderPass: SpotLightShadows
-      Uniforms:
-        []
     - RenderPass: PointLightShadows
       Uniforms:
         []

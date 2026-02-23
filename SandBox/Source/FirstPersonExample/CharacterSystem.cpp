@@ -64,7 +64,7 @@ public:
 		FirstPersonCharacter& character = registry.get<FirstPersonCharacter>(entity);
 		SkeletalAnimator& skeletalAnimator = registry.get<SkeletalAnimator>(entity);
 
-		skeletalAnimator.SetNextSkeletalAnimation(character.animations[State::IDLE], 0.1f);
+		skeletalAnimator.CrossfadeLayer(0, character.animations[State::IDLE], 0.1f);
 	}
 
 	void Update(entt::registry& registry, entt::entity entity, float deltaTime) override
@@ -104,8 +104,6 @@ private:
 public:
 	void Enter(entt::registry& registry, entt::entity entity) override
 	{
-		FirstPersonCharacter& character = registry.get<FirstPersonCharacter>(entity);
-		SkeletalAnimator& skeletalAnimator = registry.get<SkeletalAnimator>(entity);
 	}
 
 	void Update(entt::registry& registry, entt::entity entity, float deltaTime) override
@@ -118,36 +116,42 @@ public:
 		if (speed > 0.0f && speed < character.speed)
 		{
 			const float factor = speed / character.speed;
-			skeletalAnimator.BlendSkeletalAnimations(
-				character.animations[State::IDLE],
-				character.animations[State::WALK],
-				factor);
+			skeletalAnimator.SetLayerAnimation(0, character.animations[State::IDLE]);
+			skeletalAnimator.SetLayerWeight(0, 1.0f);
+			skeletalAnimator.SetLayerAnimation(1, character.animations[State::WALK]);
+			skeletalAnimator.SetLayerWeight(1, factor);
 
 			isWalking = true;
 		}
 		else if (speed >= character.speed)
 		{
 			const float factor = glm::abs(speed - character.speed) / character.speed;
-			skeletalAnimator.BlendSkeletalAnimations(
-				character.animations[State::WALK],
-				character.animations[State::RUN],
-				factor);
+			skeletalAnimator.SetLayerAnimation(0, character.animations[State::WALK]);
+			skeletalAnimator.SetLayerWeight(0, 1.0f);
+			skeletalAnimator.SetLayerAnimation(1, character.animations[State::RUN]);
+			skeletalAnimator.SetLayerWeight(1, factor);
 
 			isWalking = false;
 		}
-
 	}
 
 	void Exit(entt::registry& registry, entt::entity entity) override
 	{
 		SkeletalAnimator& skeletalAnimator = registry.get<SkeletalAnimator>(entity);
-		skeletalAnimator.SetSkeletalAnimation(skeletalAnimator.GetNextSkeletalAnimation());
+		if (skeletalAnimator.GetLayerCount() > 1 && skeletalAnimator.GetLayer(1).animation)
+		{
+			skeletalAnimator.SetLayerAnimation(0, skeletalAnimator.GetLayer(1).animation);
+		}
+		if (skeletalAnimator.GetLayerCount() > 1)
+		{
+			skeletalAnimator.SetLayerWeight(1, 0.0f);
+		}
 	}
 
 	void HandleInput(entt::registry& registry, entt::entity entity, Pengine::Input& input) override
 	{
 		FirstPersonCharacter& character = registry.get<FirstPersonCharacter>(entity);
-		
+
 		if (isWalking && input.IsKeyPressed(KeyCode::KEY_R) && character.currentMagazine < character.maxMagazine && character.currentAmmo > 0)
 		{
 			setState(registry, entity, State::RELOAD);
@@ -175,7 +179,7 @@ public:
 		FirstPersonCharacter& character = registry.get<FirstPersonCharacter>(entity);
 		SkeletalAnimator& skeletalAnimator = registry.get<SkeletalAnimator>(entity);
 
-		skeletalAnimator.SetNextSkeletalAnimation(character.animations[State::RELOAD], 0.2f);
+		skeletalAnimator.CrossfadeLayer(0, character.animations[State::RELOAD], 0.2f);
 		
 		timer = 0.0f;
 	}
@@ -208,7 +212,7 @@ public:
 		FirstPersonCharacter& character = registry.get<FirstPersonCharacter>(entity);
 		SkeletalAnimator& skeletalAnimator = registry.get<SkeletalAnimator>(entity);
 
-		skeletalAnimator.SetSkeletalAnimation(character.animations[State::IDLE]);
+		skeletalAnimator.SetLayerAnimation(0, character.animations[State::IDLE]);
 
 		if (character.currentAmmo > 0 || character.currentMagazine < character.maxMagazine)
 		{
@@ -237,7 +241,7 @@ public:
 		FirstPersonCharacter& character = registry.get<FirstPersonCharacter>(entity);
 		SkeletalAnimator& skeletalAnimator = registry.get<SkeletalAnimator>(entity);
 
-		skeletalAnimator.SetNextSkeletalAnimation(character.animations[State::SHOT], 0.0f);
+		skeletalAnimator.CrossfadeLayer(0, character.animations[State::SHOT], 0.0f);
 
 		timer = 0.0f;
 	}
@@ -269,7 +273,7 @@ public:
 			}
 			else
 			{
-				skeletalAnimator.SetSkeletalAnimation(character.animations[State::IDLE]);
+				skeletalAnimator.SetLayerAnimation(0, character.animations[State::IDLE]);
 				setState(registry, entity, State::IDLE);
 			}
 		}
@@ -376,9 +380,18 @@ void CharacterSystem::OnUpdate(const float deltaTime, std::shared_ptr<Scene> sce
 			addState(character, State::RELOAD, std::make_unique<ReloadState>());
 			addState(character, State::SHOT, std::make_unique<ShotState>());
 
-			setState(scene->GetRegistry(), entity, State::IDLE);
+			// Layer 0: base animation. Layer 1: blend target (walk/run locomotion blend).
+			SkeletalAnimator::AnimationLayer baseLayer;
+			baseLayer.animation = character.animations[State::IDLE];
+			baseLayer.speed = 1.0f;
+			baseLayer.weight = 1.0f;
+			skeletalAnimator.AddLayer(baseLayer);
 
-			skeletalAnimator.SetCurrentTime(0.0f);
+			SkeletalAnimator::AnimationLayer blendLayer;
+			blendLayer.weight = 0.0f;
+			skeletalAnimator.AddLayer(blendLayer);
+
+			setState(scene->GetRegistry(), entity, State::IDLE);
 		}
 
 		if (!character.joltCharacter)

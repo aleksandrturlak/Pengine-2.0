@@ -25,23 +25,29 @@ namespace Pengine
 	SkeletalAnimator::SkeletalAnimator()
 	{
 		m_FinalBoneMatrices.resize(100, glm::mat4(1.0f));
+		m_AccumulatedPose.resize(100);
 		m_Buffer = CreateBoneBuffer(100);
 	}
 
 	SkeletalAnimator::SkeletalAnimator(const SkeletalAnimator& skeletalAnimator)
 	{
-		m_CurrentTime = skeletalAnimator.GetCurrentTime();
-		m_Speed = skeletalAnimator.GetSpeed();
-		m_SkeletalAnimation = skeletalAnimator.GetSkeletalAnimation();
-		m_NextSkeletalAnimation = skeletalAnimator.GetNextSkeletalAnimation();
 		m_Skeleton = skeletalAnimator.GetSkeleton();
-		m_FinalBoneMatrices.resize(100, glm::mat4(1.0f));
-		m_Buffer = CreateBoneBuffer(100);
+		m_Layers   = skeletalAnimator.GetLayers();
+		m_ApplySkeletonTransform = skeletalAnimator.GetApplySkeletonTransform();
+		m_DrawDebugSkeleton      = skeletalAnimator.GetDrawDebugSkeleton();
+
+		const uint32_t boneCount = m_Skeleton
+			? static_cast<uint32_t>(m_Skeleton->GetBones().size())
+			: 100u;
+
+		m_FinalBoneMatrices.assign(boneCount, glm::mat4(1.0f));
+		m_AccumulatedPose.resize(boneCount);
+		m_Buffer = CreateBoneBuffer(boneCount);
 	}
 
 	void SkeletalAnimator::UpdateAnimation(std::shared_ptr<Entity> entity, const float deltaTime, const glm::mat4& parentTransform)
 	{
-		if (!m_SkeletalAnimation || !m_Skeleton)
+		if (m_Layers.empty() || !m_Skeleton)
 		{
 			return;
 		}
@@ -51,33 +57,42 @@ namespace Pengine
 			RebuildBoneEntityCache(entity);
 		}
 
-		m_CurrentTime += deltaTime * m_Speed;
-
-		if (m_NextSkeletalAnimation)
+		for (uint32_t i = 0; i < static_cast<uint32_t>(m_Layers.size()); ++i)
 		{
-			m_NextTime += deltaTime * m_Speed;
-			if (!m_IsBlending)
+			AnimationLayer& layer = m_Layers[i];
+			if (!layer.animation)
 			{
-				m_TransitionTimer += deltaTime;
+				continue;
+			}
 
-				if (m_TransitionTimer >= m_TransitionTime)
+			layer.currentTime += deltaTime * layer.speed;
+
+			if (layer.nextAnimation)
+			{
+				layer.nextTime += deltaTime * layer.speed;
+				layer.transitionTimer += deltaTime;
+
+				if (layer.transitionTimer >= layer.transitionTime)
 				{
-					m_TransitionTimer = 0.0f;
-					m_TransitionTime = 0.0f;
-					m_CurrentTime = m_NextTime;
-					m_NextTime = 0.0f;
-					m_SkeletalAnimation = m_NextSkeletalAnimation;
-					m_NextSkeletalAnimation = nullptr;
-					RebuildAnimationBoneCache();
+					layer.animation      = layer.nextAnimation;
+					layer.currentTime    = layer.nextTime;
+					layer.nextAnimation  = nullptr;
+					layer.nextTime       = 0.0f;
+					layer.transitionTime = 0.0f;
+					layer.transitionTimer= 0.0f;
+					RebuildLayerBoneCache(i);
 				}
+			}
+
+			layer.currentTime = fmod(layer.currentTime, static_cast<float>(layer.animation->GetDuration()));
+			if (layer.nextAnimation)
+			{
+				layer.nextTime = fmod(layer.nextTime, static_cast<float>(layer.nextAnimation->GetDuration()));
 			}
 		}
 
-		m_CurrentTime = fmod(m_CurrentTime, m_SkeletalAnimation->GetDuration());
-		if (m_NextSkeletalAnimation)
-		{
-			m_NextTime = fmod(m_NextTime, m_NextSkeletalAnimation->GetDuration());
-		}
+		const BonePose identityPose{};
+		std::fill(m_AccumulatedPose.begin(), m_AccumulatedPose.end(), identityPose);
 
 		for (const uint32_t rootBoneId : m_Skeleton->GetRootBoneIds())
 		{
@@ -90,6 +105,51 @@ namespace Pengine
 		m_Buffer->Flush();
 	}
 
+	uint32_t SkeletalAnimator::AddLayer(AnimationLayer layer)
+	{
+		const uint32_t index = static_cast<uint32_t>(m_Layers.size());
+		m_Layers.push_back(std::move(layer));
+		RebuildLayerBoneCache(index);
+		return index;
+	}
+
+	void SkeletalAnimator::RemoveLayer(uint32_t layerIndex)
+	{
+		m_Layers.erase(m_Layers.begin() + layerIndex);
+	}
+
+	void SkeletalAnimator::SetLayerAnimation(uint32_t layerIndex, std::shared_ptr<SkeletalAnimation> anim)
+	{
+		AnimationLayer& layer  = m_Layers[layerIndex];
+		layer.animation        = std::move(anim);
+		layer.nextAnimation    = nullptr;
+		layer.currentTime      = 0.0f;
+		layer.nextTime         = 0.0f;
+		layer.transitionTime   = 0.0f;
+		layer.transitionTimer  = 0.0f;
+		RebuildLayerBoneCache(layerIndex);
+	}
+
+	void SkeletalAnimator::CrossfadeLayer(uint32_t layerIndex, std::shared_ptr<SkeletalAnimation> anim, float transitionTime)
+	{
+		AnimationLayer& layer  = m_Layers[layerIndex];
+		layer.nextAnimation    = std::move(anim);
+		layer.nextTime         = 0.0f;
+		layer.transitionTime   = transitionTime;
+		layer.transitionTimer  = 0.0f;
+		RebuildLayerBoneCache(layerIndex);
+	}
+
+	void SkeletalAnimator::SetLayerWeight(uint32_t layerIndex, float weight)
+	{
+		m_Layers[layerIndex].weight = weight;
+	}
+
+	void SkeletalAnimator::SetLayerSpeed(uint32_t layerIndex, float speed)
+	{
+		m_Layers[layerIndex].speed = speed;
+	}
+
 	void SkeletalAnimator::SetSkeleton(std::shared_ptr<Skeleton> skeleton)
 	{
 		m_Skeleton = std::move(skeleton);
@@ -98,39 +158,10 @@ namespace Pengine
 		{
 			const uint32_t boneCount = static_cast<uint32_t>(m_Skeleton->GetBones().size());
 			m_FinalBoneMatrices.assign(boneCount, glm::mat4(1.0f));
+			m_AccumulatedPose.resize(boneCount);
 			m_Buffer = CreateBoneBuffer(boneCount);
-			RebuildAnimationBoneCache();
+			RebuildAllLayerBoneCaches();
 		}
-	}
-
-	void SkeletalAnimator::SetSkeletalAnimation(std::shared_ptr<SkeletalAnimation> skeletalAnimation)
-	{
-		m_SkeletalAnimation = std::move(skeletalAnimation);
-		m_IsBlending = false;
-		RebuildAnimationBoneCache();
-	}
-
-	void SkeletalAnimator::SetNextSkeletalAnimation(std::shared_ptr<SkeletalAnimation> skeletalAnimation, float transitionTime)
-	{
-		m_NextSkeletalAnimation = std::move(skeletalAnimation);
-		m_TransitionTime = transitionTime;
-		m_TransitionTimer = 0.0f;
-		m_NextTime = 0.0f;
-		m_IsBlending = false;
-		RebuildAnimationBoneCache();
-	}
-
-	void SkeletalAnimator::BlendSkeletalAnimations(
-		std::shared_ptr<SkeletalAnimation> firstSkeletalAnimation,
-		std::shared_ptr<SkeletalAnimation> secondSkeletalAnimation,
-		float value)
-	{
-		m_SkeletalAnimation = std::move(firstSkeletalAnimation);
-		m_NextSkeletalAnimation = std::move(secondSkeletalAnimation);
-		m_TransitionTime = 1.0f;
-		m_TransitionTimer = value;
-		m_IsBlending = true;
-		RebuildAnimationBoneCache();
 	}
 
 	void SkeletalAnimator::RebuildBoneEntityCache(std::shared_ptr<Entity> entity)
@@ -151,43 +182,50 @@ namespace Pengine
 		}
 	}
 
-	void SkeletalAnimator::RebuildAnimationBoneCache()
+	void SkeletalAnimator::RebuildLayerBoneCache(uint32_t layerIndex)
 	{
 		if (!m_Skeleton)
 		{
-			m_CurrentAnimBones.clear();
-			m_NextAnimBones.clear();
 			return;
 		}
 
+		AnimationLayer& layer = m_Layers[layerIndex];
 		const auto& bones = m_Skeleton->GetBones();
 		const uint32_t boneCount = static_cast<uint32_t>(bones.size());
 
-		m_CurrentAnimBones.assign(boneCount, nullptr);
-		m_NextAnimBones.assign(boneCount, nullptr);
+		layer.animBones.assign(boneCount, nullptr);
+		layer.nextAnimBones.assign(boneCount, nullptr);
 
-		if (m_SkeletalAnimation)
+		if (layer.animation)
 		{
-			const auto& bonesByName = m_SkeletalAnimation->GetBonesByName();
+			const auto& bonesByName = layer.animation->GetBonesByName();
 			for (const Skeleton::Bone& bone : bones)
 			{
 				if (auto it = bonesByName.find(bone.name); it != bonesByName.end())
 				{
-					m_CurrentAnimBones[bone.id] = &it->second;
+					layer.animBones[bone.id] = &it->second;
 				}
 			}
 		}
 
-		if (m_NextSkeletalAnimation)
+		if (layer.nextAnimation)
 		{
-			const auto& bonesByName = m_NextSkeletalAnimation->GetBonesByName();
+			const auto& bonesByName = layer.nextAnimation->GetBonesByName();
 			for (const Skeleton::Bone& bone : bones)
 			{
 				if (auto it = bonesByName.find(bone.name); it != bonesByName.end())
 				{
-					m_NextAnimBones[bone.id] = &it->second;
+					layer.nextAnimBones[bone.id] = &it->second;
 				}
 			}
+		}
+	}
+
+	void SkeletalAnimator::RebuildAllLayerBoneCaches()
+	{
+		for (uint32_t i = 0; i < static_cast<uint32_t>(m_Layers.size()); ++i)
+		{
+			RebuildLayerBoneCache(i);
 		}
 	}
 
@@ -195,29 +233,76 @@ namespace Pengine
 	{
 		const Skeleton::Bone& node = m_Skeleton->GetBones()[boneId];
 
-		glm::vec3 currentPosition = glm::vec3(0.0f);
-		glm::quat currentRotation = glm::quat(glm::vec3(0.0f));
-		glm::vec3 currentScale = glm::vec3(1.0f);
+		BonePose pose{};
 
-		if (const SkeletalAnimation::Bone* bone = m_CurrentAnimBones[boneId])
+		for (const AnimationLayer& layer : m_Layers)
 		{
-			bone->Update(m_CurrentTime, currentPosition, currentRotation, currentScale);
+			if (!layer.animation || layer.animBones.empty())
+			{
+				continue;
+			}
+
+			if (!layer.boneMask.empty())
+			{
+				bool inMask = false;
+				for (const uint32_t maskedId : layer.boneMask)
+				{
+					if (maskedId == boneId) { inMask = true; break; }
+				}
+				if (!inMask) continue;
+			}
+
+			glm::vec3 layerPos   = glm::vec3(0.0f);
+			glm::quat layerRot   = glm::quat(glm::vec3(0.0f));
+			glm::vec3 layerScale = glm::vec3(1.0f);
+
+			if (const SkeletalAnimation::Bone* animBone = layer.animBones[boneId])
+			{
+				animBone->Update(layer.currentTime, layerPos, layerRot, layerScale);
+			}
+
+			if (layer.nextAnimation && !layer.nextAnimBones.empty() && layer.transitionTime > 0.0f)
+			{
+				glm::vec3 nextPos;
+				glm::quat nextRot;
+				glm::vec3 nextScale;
+
+				if (const SkeletalAnimation::Bone* nextBone = layer.nextAnimBones[boneId])
+				{
+					nextBone->Update(layer.nextTime, nextPos, nextRot, nextScale);
+				}
+				else
+				{
+					nextPos   = glm::vec3(0.0f);
+					nextRot   = glm::quat(glm::vec3(0.0f));
+					nextScale = glm::vec3(1.0f);
+				}
+
+				const float t = layer.transitionTimer / layer.transitionTime;
+				layerPos   = glm::mix(layerPos, nextPos, t);
+				layerRot   = glm::normalize(glm::slerp(layerRot, nextRot, t));
+				layerScale = glm::mix(layerScale, nextScale, t);
+			}
+
+			if (layer.blendMode == AnimationLayer::BlendMode::Override)
+			{
+				pose.position = glm::mix(pose.position, layerPos, layer.weight);
+				pose.rotation = glm::normalize(glm::slerp(pose.rotation, layerRot, layer.weight));
+				pose.scale    = glm::mix(pose.scale, layerScale, layer.weight);
+			}
+			else
+			{
+				pose.position += layerPos * layer.weight;
+				pose.rotation  = glm::normalize(pose.rotation * glm::slerp(glm::quat(glm::vec3(0.0f)), layerRot, layer.weight));
+				pose.scale    *= glm::mix(glm::vec3(1.0f), layerScale, layer.weight);
+			}
 		}
 
-		if (const SkeletalAnimation::Bone* nextBone = m_NextAnimBones[boneId])
-		{
-			glm::vec3 nextPosition;
-			glm::quat nextRotation;
-			glm::vec3 nextScale;
-			nextBone->Update(m_NextTime, nextPosition, nextRotation, nextScale);
+		const glm::mat4 nodeTransform =
+			glm::translate(glm::mat4(1.0f), pose.position) *
+			glm::toMat4(pose.rotation) *
+			glm::scale(glm::mat4(1.0f), pose.scale);
 
-			const float blendFactor = m_TransitionTimer / m_TransitionTime;
-			currentPosition = glm::mix(currentPosition, nextPosition, blendFactor);
-			currentRotation = glm::normalize(glm::slerp(currentRotation, nextRotation, blendFactor));
-			currentScale = glm::mix(currentScale, nextScale, blendFactor);
-		}
-
-		const glm::mat4 nodeTransform = glm::translate(glm::mat4(1.0f), currentPosition) * glm::toMat4(currentRotation) * glm::scale(glm::mat4(1.0f), currentScale);
 		const glm::mat4 globalTransform = m_ApplySkeletonTransform
 			? parentTransform * node.transform * nodeTransform
 			: parentTransform * nodeTransform;
@@ -234,7 +319,7 @@ namespace Pengine
 				{
 					glm::vec3 newPosition = glm::vec3(0.0f);
 					glm::vec3 newRotation = glm::vec3(0.0f);
-					glm::vec3 newScale = glm::vec3(1.0f);
+					glm::vec3 newScale    = glm::vec3(1.0f);
 					Utils::DecomposeTransform(globalTransform, newPosition, newRotation, newScale);
 					boneEntityTransform.Translate(newPosition);
 					boneEntityTransform.Rotate(newRotation);
@@ -242,9 +327,9 @@ namespace Pengine
 				}
 				else
 				{
-					boneEntityTransform.Translate(currentPosition);
-					boneEntityTransform.Rotate(glm::eulerAngles(currentRotation));
-					boneEntityTransform.Scale(currentScale);
+					boneEntityTransform.Translate(pose.position);
+					boneEntityTransform.Rotate(glm::eulerAngles(pose.rotation));
+					boneEntityTransform.Scale(pose.scale);
 				}
 
 				if (GetDrawDebugSkeleton() && boneEntity->HasParent())

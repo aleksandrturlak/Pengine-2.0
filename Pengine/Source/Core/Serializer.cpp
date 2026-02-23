@@ -3990,11 +3990,14 @@ std::shared_ptr<Entity> Serializer::GenerateEntity(
 					{
 						SkeletalAnimator& skeletalAnimator = topEntity->AddComponent<SkeletalAnimator>();
 						skeletalAnimator.SetSkeleton(skeletonsByIndex[*gltfNode.skinIndex]);
-						skeletalAnimator.SetSpeed(1.0f);
 
 						if (!animations.empty())
 						{
-							skeletalAnimator.SetSkeletalAnimation(animations[0]);
+							SkeletalAnimator::AnimationLayer layer;
+							layer.animation = animations[0];
+							layer.speed = 1.0f;
+							layer.weight = 1.0f;
+							skeletalAnimator.AddLayer(layer);
 						}
 					}
 
@@ -4673,14 +4676,34 @@ void Serializer::SerializeSkeletalAnimator(YAML::Emitter& out, const std::shared
 		out << YAML::Key << "Skeleton" << YAML::Value << Utils::FindUuid(skeletalAnimator.GetSkeleton()->GetFilepath());
 	}
 
-	if (skeletalAnimator.GetSkeletalAnimation())
-	{
-		out << YAML::Key << "SkeletalAnimation" << YAML::Value << Utils::FindUuid(skeletalAnimator.GetSkeletalAnimation()->GetFilepath());
-	}
-
-	out << YAML::Key << "Speed" << YAML::Value << skeletalAnimator.GetSpeed();
-	out << YAML::Key << "CurrentTime" << YAML::Value << skeletalAnimator.GetCurrentTime();
 	out << YAML::Key << "ApplySkeletonTransform" << YAML::Value << skeletalAnimator.GetApplySkeletonTransform();
+	out << YAML::Key << "DrawDebugSkeleton" << YAML::Value << skeletalAnimator.GetDrawDebugSkeleton();
+
+	out << YAML::Key << "Layers" << YAML::Value << YAML::BeginSeq;
+	for (const SkeletalAnimator::AnimationLayer& layer : skeletalAnimator.GetLayers())
+	{
+		out << YAML::BeginMap;
+
+		if (layer.animation)
+		{
+			out << YAML::Key << "Animation" << YAML::Value << Utils::FindUuid(layer.animation->GetFilepath());
+		}
+
+		out << YAML::Key << "Weight"      << YAML::Value << layer.weight;
+		out << YAML::Key << "Speed"       << YAML::Value << layer.speed;
+		out << YAML::Key << "CurrentTime" << YAML::Value << layer.currentTime;
+		out << YAML::Key << "BlendMode"   << YAML::Value << static_cast<int>(layer.blendMode);
+
+		out << YAML::Key << "BoneMask" << YAML::Value << YAML::BeginSeq;
+		for (const uint32_t boneId : layer.boneMask)
+		{
+			out << boneId;
+		}
+		out << YAML::EndSeq;
+
+		out << YAML::EndMap;
+	}
+	out << YAML::EndSeq;
 
 	out << YAML::EndMap;
 }
@@ -4701,24 +4724,58 @@ void Serializer::DeserializeSkeletalAnimator(const YAML::Node& in, const std::sh
 			skeletalAnimator.SetSkeleton(MeshManager::GetInstance().LoadSkeleton(DeserializeFilepath(skeletonData.as<std::string>())));
 		}
 
-		if (const auto& skeletalAnimationData = skeletalAnimatorData["SkeletalAnimation"])
-		{
-			skeletalAnimator.SetSkeletalAnimation(MeshManager::GetInstance().LoadSkeletalAnimation(DeserializeFilepath(skeletalAnimationData.as<std::string>())));
-		}
-
-		if (const auto& speedData = skeletalAnimatorData["Speed"])
-		{
-			skeletalAnimator.SetSpeed(speedData.as<float>());
-		}
-
-		if (const auto& currentTimeData = skeletalAnimatorData["CurrentTime"])
-		{
-			skeletalAnimator.SetCurrentTime(currentTimeData.as<float>());
-		}
-
 		if (const auto& applySkeletonTransformData = skeletalAnimatorData["ApplySkeletonTransform"])
 		{
 			skeletalAnimator.SetApplySkeletonTransform(applySkeletonTransformData.as<bool>());
+		}
+
+		if (const auto& drawDebugSkeletonData = skeletalAnimatorData["DrawDebugSkeleton"])
+		{
+			skeletalAnimator.SetDrawDebugSkeleton(drawDebugSkeletonData.as<bool>());
+		}
+
+		if (const auto& layersData = skeletalAnimatorData["Layers"])
+		{
+			for (const auto& layerData : layersData)
+			{
+				SkeletalAnimator::AnimationLayer layer;
+
+				if (const auto& animData = layerData["Animation"])
+				{
+					layer.animation = MeshManager::GetInstance().LoadSkeletalAnimation(
+						DeserializeFilepath(animData.as<std::string>()));
+				}
+
+				if (const auto& weightData = layerData["Weight"])
+				{
+					layer.weight = weightData.as<float>();
+				}
+
+				if (const auto& speedData = layerData["Speed"])
+				{
+					layer.speed = speedData.as<float>();
+				}
+
+				if (const auto& currentTimeData = layerData["CurrentTime"])
+				{
+					layer.currentTime = currentTimeData.as<float>();
+				}
+
+				if (const auto& blendModeData = layerData["BlendMode"])
+				{
+					layer.blendMode = static_cast<SkeletalAnimator::AnimationLayer::BlendMode>(blendModeData.as<int>());
+				}
+
+				if (const auto& boneMaskData = layerData["BoneMask"])
+				{
+					for (const auto& boneIdData : boneMaskData)
+					{
+						layer.boneMask.push_back(boneIdData.as<uint32_t>());
+					}
+				}
+
+				skeletalAnimator.AddLayer(std::move(layer));
+			}
 		}
 	}
 }

@@ -45,13 +45,6 @@ Scene:
       ShadowVisibilityMask: 255
     Childs:
       []
-  - PrefabFilepath: 0xc2aec3b413daf9cc06b47fd3da37a90a
-    UUID: 0xdb7214d599ec591442a8bcd7f7592d48
-    Transform:
-      Position: [0, 1.44043362, 8.58565343e-08]
-      Rotation: [-1.57079625, -0, 0]
-      Scale: [0.00999999978, 0.00999999885, 0.00999999885]
-      FollowOwner: true
   - PrefabFilepath: 0x1e460b9c3f7ac077ee6d5fa88d7e14f8
     UUID: 0x718211cff93929571028728b7e5c1eaa
     Transform:
