@@ -293,6 +293,13 @@ void VulkanPipelineUtils::ReflectDescriptorSets(
 					binding.count *= reflectBinding.array.dims[dimIndex];
 				}
 			}
+			else if (reflectBinding.descriptor_type == SpvReflectDescriptorType::SPV_REFLECT_DESCRIPTOR_TYPE_ACCELERATION_STRUCTURE_KHR)
+			{
+				binding.name = reflectBinding.name;
+				binding.binding = reflectBinding.binding;
+				binding.type = VulkanUniformLayout::ConvertDescriptorType(static_cast<VkDescriptorType>(reflectBinding.descriptor_type));
+				binding.count = 1;
+			}
 		}
 	}
 }

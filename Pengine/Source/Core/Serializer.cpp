@@ -41,7 +41,6 @@
 
 #define STB_IMAGE_WRITE_IMPLEMENTATION
 #include <stbi/stb_image_write.h>
-
 #include <filesystem>
 #include <fstream>
 #include <sstream>
@@ -4693,6 +4692,7 @@ void Serializer::SerializeSkeletalAnimator(YAML::Emitter& out, const std::shared
 		out << YAML::Key << "Speed"       << YAML::Value << layer.speed;
 		out << YAML::Key << "CurrentTime" << YAML::Value << layer.currentTime;
 		out << YAML::Key << "BlendMode"   << YAML::Value << static_cast<int>(layer.blendMode);
+		out << YAML::Key << "PlayInPlace" << YAML::Value << layer.playInPlace;
 
 		out << YAML::Key << "BoneMask" << YAML::Value << YAML::BeginSeq;
 		for (const uint32_t boneId : layer.boneMask)
@@ -4764,6 +4764,11 @@ void Serializer::DeserializeSkeletalAnimator(const YAML::Node& in, const std::sh
 				if (const auto& blendModeData = layerData["BlendMode"])
 				{
 					layer.blendMode = static_cast<SkeletalAnimator::AnimationLayer::BlendMode>(blendModeData.as<int>());
+				}
+
+				if (const auto& playInPlaceData = layerData["PlayInPlace"])
+				{
+					layer.playInPlace = playInPlaceData.as<bool>();
 				}
 
 				if (const auto& boneMaskData = layerData["BoneMask"])

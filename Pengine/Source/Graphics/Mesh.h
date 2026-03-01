@@ -5,6 +5,7 @@
 #include "../Core/BoundingBox.h"
 #include "../Core/Visualizer.h"
 
+#include "AccelerationStructure.h"
 #include "Buffer.h"
 #include "Vertex.h"
 #include "MeshBVH.h"
@@ -95,6 +96,8 @@ namespace Pengine
 
 		[[nodiscard]] std::shared_ptr<MeshBVH> GetBVH() const { return m_BVH; }
 
+		[[nodiscard]] std::shared_ptr<AccelerationStructure> GetBLAS() const { return m_BLAS; }
+
 		[[nodiscard]] const std::vector<Lod>& GetLods() const { return m_CreateInfo.lods; }
 
 		[[nodiscard]] bool Raycast(
@@ -113,6 +116,7 @@ namespace Pengine
 		void Reload(const CreateInfo& createInfo);
 
 	private:
+		std::shared_ptr<AccelerationStructure> m_BLAS;
 		std::shared_ptr<MeshBVH> m_BVH;
 		std::vector<std::shared_ptr<Buffer>> m_Vertices;
 		std::vector<NativeHandle> m_VertexLayoutHandles;

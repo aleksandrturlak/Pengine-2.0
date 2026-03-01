@@ -241,16 +241,26 @@ void VulkanDevice::CreateLogicalDevice()
 	VkPhysicalDeviceMaintenance6Features vulkanMaintenance6Features{};
 	vulkanMaintenance6Features.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_MAINTENANCE_6_FEATURES;
 	vulkanMaintenance6Features.maintenance6 = true;
+
+	VkPhysicalDeviceRayQueryFeaturesKHR vulkanRayQueryFeatures{};
+	vulkanRayQueryFeatures.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_RAY_QUERY_FEATURES_KHR;
+	vulkanRayQueryFeatures.pNext = &vulkanMaintenance6Features;
+	vulkanRayQueryFeatures.rayQuery = VK_TRUE;
 	
+	VkPhysicalDeviceAccelerationStructureFeaturesKHR vulkanAccelerationStructureFeatures{};
+	vulkanAccelerationStructureFeatures.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_ACCELERATION_STRUCTURE_FEATURES_KHR;
+	vulkanAccelerationStructureFeatures.pNext = &vulkanRayQueryFeatures;
+	vulkanAccelerationStructureFeatures.accelerationStructure = VK_TRUE;
+	vulkanAccelerationStructureFeatures.descriptorBindingAccelerationStructureUpdateAfterBind = VK_TRUE;
+
 	VkPhysicalDeviceVulkan11Features vulkan11Features{};
 	vulkan11Features.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_1_FEATURES;
+	vulkan11Features.pNext = &vulkanAccelerationStructureFeatures;
 	vulkan11Features.shaderDrawParameters = VK_TRUE;
-	vulkan11Features.pNext = &vulkanMaintenance6Features;
 
 	VkPhysicalDeviceVulkan12Features vulkan12Features{};
 	vulkan12Features.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_2_FEATURES;
 	vulkan12Features.pNext = &vulkan11Features;
-
 	vulkan12Features.scalarBlockLayout = VK_TRUE;
 	vulkan12Features.bufferDeviceAddress = VK_TRUE;
 	vulkan12Features.descriptorIndexing = VK_TRUE;
@@ -264,7 +274,7 @@ void VulkanDevice::CreateLogicalDevice()
 	vulkan12Features.drawIndirectCount = VK_TRUE;
 	vulkan12Features.shaderOutputViewportIndex = VK_TRUE;
 	vulkan12Features.shaderOutputLayer = VK_TRUE;
-	
+
 	VkDeviceCreateInfo createInfo{};
 	createInfo.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO;
 	createInfo.pNext = &vulkan12Features;
@@ -291,6 +301,17 @@ void VulkanDevice::CreateLogicalDevice()
 	}
 
 	vkGetDeviceQueue(m_Device, indices.graphicsFamily, 0, &m_GraphicsQueue);
+
+	m_vkCreateAccelerationStructureKHR = reinterpret_cast<PFN_vkCreateAccelerationStructureKHR>(
+		vkGetDeviceProcAddr(m_Device, "vkCreateAccelerationStructureKHR"));
+	m_vkDestroyAccelerationStructureKHR = reinterpret_cast<PFN_vkDestroyAccelerationStructureKHR>(
+		vkGetDeviceProcAddr(m_Device, "vkDestroyAccelerationStructureKHR"));
+	m_vkGetAccelerationStructureBuildSizesKHR = reinterpret_cast<PFN_vkGetAccelerationStructureBuildSizesKHR>(
+		vkGetDeviceProcAddr(m_Device, "vkGetAccelerationStructureBuildSizesKHR"));
+	m_vkCmdBuildAccelerationStructuresKHR = reinterpret_cast<PFN_vkCmdBuildAccelerationStructuresKHR>(
+		vkGetDeviceProcAddr(m_Device, "vkCmdBuildAccelerationStructuresKHR"));
+	m_vkGetAccelerationStructureDeviceAddressKHR = reinterpret_cast<PFN_vkGetAccelerationStructureDeviceAddressKHR>(
+		vkGetDeviceProcAddr(m_Device, "vkGetAccelerationStructureDeviceAddressKHR"));
 }
 
 VkCommandPool VulkanDevice::CreateCommandPool()
@@ -864,21 +885,30 @@ void VulkanDevice::EndSingleTimeCommands(const VkCommandBuffer commandBuffer) co
 }
 
 void VulkanDevice::CopyBuffer(
+	VkCommandBuffer commandBuffer,
 	const VkBuffer srcBuffer,
 	const VkBuffer dstBuffer,
 	const VkDeviceSize size,
 	const VkDeviceSize srcOffset,
 	const VkDeviceSize dstOffset) const
 {
-	const VkCommandBuffer commandBuffer = BeginSingleTimeCommands();
-
+	bool isCreatedSingleTimeCommands = false;
+	if (commandBuffer == VK_NULL_HANDLE)
+	{
+		commandBuffer = BeginSingleTimeCommands();
+		isCreatedSingleTimeCommands = true;
+	}
+	
 	VkBufferCopy copyRegion{};
 	copyRegion.srcOffset = srcOffset;
 	copyRegion.dstOffset = dstOffset;
 	copyRegion.size = size;
 	vkCmdCopyBuffer(commandBuffer, srcBuffer, dstBuffer, 1, &copyRegion);
 
-	EndSingleTimeCommands(commandBuffer);
+	if (isCreatedSingleTimeCommands)
+	{
+		EndSingleTimeCommands(commandBuffer);
+	}
 }
 
 void VulkanDevice::CopyBufferToImage(
@@ -1302,4 +1332,47 @@ VkCommandBuffer VulkanDevice::GetCommandBufferFromFrame(void* frame)
 std::shared_ptr<VulkanDevice> Pengine::Vk::GetVkDevice()
 {
 	return std::static_pointer_cast<VulkanDevice>(device);
+}
+
+void VulkanDevice::CreateAccelerationStructure(
+	const VkAccelerationStructureCreateInfoKHR& createInfo,
+	VkAccelerationStructureKHR& accelerationStructure) const
+{
+	if (m_vkCreateAccelerationStructureKHR(m_Device, &createInfo, nullptr, &accelerationStructure) != VK_SUCCESS)
+	{
+		FATAL_ERROR("Device:<" + GetName() + "> Failed to create acceleration structure!");
+	}
+}
+
+void VulkanDevice::DestroyAccelerationStructure(const VkAccelerationStructureKHR accelerationStructure) const
+{
+	m_vkDestroyAccelerationStructureKHR(m_Device, accelerationStructure, nullptr);
+}
+
+void VulkanDevice::GetAccelerationStructureBuildSizes(
+	const VkAccelerationStructureBuildTypeKHR buildType,
+	const VkAccelerationStructureBuildGeometryInfoKHR& buildInfo,
+	const uint32_t* maxPrimitiveCounts,
+	VkAccelerationStructureBuildSizesInfoKHR& sizeInfo) const
+{
+	sizeInfo.sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_BUILD_SIZES_INFO_KHR;
+	m_vkGetAccelerationStructureBuildSizesKHR(m_Device, buildType, &buildInfo, maxPrimitiveCounts, &sizeInfo);
+}
+
+void VulkanDevice::CmdBuildAccelerationStructures(
+	const VkCommandBuffer commandBuffer,
+	const uint32_t infoCount,
+	const VkAccelerationStructureBuildGeometryInfoKHR* pInfos,
+	const VkAccelerationStructureBuildRangeInfoKHR* const* ppRangeInfos) const
+{
+	m_vkCmdBuildAccelerationStructuresKHR(commandBuffer, infoCount, pInfos, ppRangeInfos);
+}
+
+VkDeviceAddress VulkanDevice::GetAccelerationStructureDeviceAddress(
+	const VkAccelerationStructureKHR accelerationStructure) const
+{
+	VkAccelerationStructureDeviceAddressInfoKHR addressInfo{};
+	addressInfo.sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_DEVICE_ADDRESS_INFO_KHR;
+	addressInfo.accelerationStructure = accelerationStructure;
+	return m_vkGetAccelerationStructureDeviceAddressKHR(m_Device, &addressInfo);
 }

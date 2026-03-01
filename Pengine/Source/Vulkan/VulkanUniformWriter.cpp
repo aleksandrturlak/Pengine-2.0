@@ -1,5 +1,6 @@
 #include "VulkanUniformWriter.h"
 
+#include "VulkanAccelerationStructure.h"
 #include "VulkanBuffer.h"
 #include "VulkanDescriptors.h"
 #include "VulkanDevice.h"
@@ -108,6 +109,44 @@ void VulkanUniformWriter::Flush()
 		}
 	}
 	m_Writes[index].textureWritesByLocation.clear();
+
+	size_t accelerationStructureInfoCount = 0;
+	for (const auto& [location, accelerationStructureWrite] : m_Writes[index].accelerationStructureWritesByLocation)
+	{
+		accelerationStructureInfoCount += accelerationStructureWrite.accelerationStructures.size();
+	}
+	
+	std::vector<VkAccelerationStructureKHR> asHandles;
+	asHandles.reserve(accelerationStructureInfoCount);
+	std::vector<VkWriteDescriptorSetAccelerationStructureKHR> accelerationStructureInfos;
+	accelerationStructureInfos.reserve(accelerationStructureInfoCount);
+	for (const auto& [location, accelerationStructureWrite] : m_Writes[index].accelerationStructureWritesByLocation)
+	{
+		const size_t accelerationStructureInfoIndex = accelerationStructureInfos.size();
+
+		for (const auto& accelerationStructure : accelerationStructureWrite.accelerationStructures)
+		{
+			assert(accelerationStructureInfoCount > 0);
+
+			asHandles.push_back(std::static_pointer_cast<VulkanAccelerationStructure>(accelerationStructure)->GetHandle());
+
+			VkWriteDescriptorSetAccelerationStructureKHR& writeDescriptorSetAccelerationStructure = accelerationStructureInfos.emplace_back();
+			writeDescriptorSetAccelerationStructure.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET_ACCELERATION_STRUCTURE_KHR;
+			writeDescriptorSetAccelerationStructure.accelerationStructureCount = 1;
+			writeDescriptorSetAccelerationStructure.pAccelerationStructures = &asHandles.back();
+		}
+
+		VkWriteDescriptorSet write{};
+		write.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+		write.descriptorType = VulkanUniformLayout::ConvertDescriptorType(accelerationStructureWrite.binding.type);
+		write.dstBinding = location;
+		write.pNext = &accelerationStructureInfos[accelerationStructureInfoIndex];
+		write.descriptorCount = accelerationStructureWrite.binding.count;
+		write.dstSet = set;
+
+		writes.emplace_back(write);
+	}
+	m_Writes[index].bufferWritesByLocation.clear();
 
 	if (writes.empty())
 	{

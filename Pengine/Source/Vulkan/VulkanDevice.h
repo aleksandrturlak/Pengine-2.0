@@ -110,6 +110,7 @@ namespace Pengine::Vk
 		void EndSingleTimeCommands(VkCommandBuffer commandBuffer) const;
 
 		void CopyBuffer(
+			VkCommandBuffer commandBuffer,
 			VkBuffer srcBuffer,
 			VkBuffer dstBuffer,
 			VkDeviceSize size,
@@ -181,6 +182,27 @@ namespace Pengine::Vk
 
 		virtual void WaitIdle() const override;
 
+		void CreateAccelerationStructure(
+			const VkAccelerationStructureCreateInfoKHR& createInfo,
+			VkAccelerationStructureKHR& accelerationStructure) const;
+
+		void DestroyAccelerationStructure(VkAccelerationStructureKHR accelerationStructure) const;
+
+		void GetAccelerationStructureBuildSizes(
+			VkAccelerationStructureBuildTypeKHR buildType,
+			const VkAccelerationStructureBuildGeometryInfoKHR& buildInfo,
+			const uint32_t* maxPrimitiveCounts,
+			VkAccelerationStructureBuildSizesInfoKHR& sizeInfo) const;
+
+		void CmdBuildAccelerationStructures(
+			VkCommandBuffer commandBuffer,
+			uint32_t infoCount,
+			const VkAccelerationStructureBuildGeometryInfoKHR* pInfos,
+			const VkAccelerationStructureBuildRangeInfoKHR* const* ppRangeInfos) const;
+
+		VkDeviceAddress GetAccelerationStructureDeviceAddress(
+			VkAccelerationStructureKHR accelerationStructure) const;
+
 		void DeleteResource(std::function<void()>&& callback);
 
 		virtual void FlushDeletionQueue(bool immediate = false) override;
@@ -245,11 +267,20 @@ namespace Pengine::Vk
 		PFN_vkCmdBeginDebugUtilsLabelEXT m_VkCmdBeginDebugUtilsLabelEXT;
 		PFN_vkCmdEndDebugUtilsLabelEXT m_VkCmdEndDebugUtilsLabelEXT;
 
+		PFN_vkCreateAccelerationStructureKHR           m_vkCreateAccelerationStructureKHR = nullptr;
+		PFN_vkDestroyAccelerationStructureKHR          m_vkDestroyAccelerationStructureKHR = nullptr;
+		PFN_vkGetAccelerationStructureBuildSizesKHR    m_vkGetAccelerationStructureBuildSizesKHR = nullptr;
+		PFN_vkCmdBuildAccelerationStructuresKHR        m_vkCmdBuildAccelerationStructuresKHR = nullptr;
+		PFN_vkGetAccelerationStructureDeviceAddressKHR m_vkGetAccelerationStructureDeviceAddressKHR = nullptr;
+
 		const std::vector<const char*> validationLayers = { "VK_LAYER_KHRONOS_validation" };
-		const std::vector<const char*> deviceExtensions = { 
-			VK_KHR_SWAPCHAIN_EXTENSION_NAME, 
+		const std::vector<const char*> deviceExtensions = {
+			VK_KHR_SWAPCHAIN_EXTENSION_NAME,
 			VK_KHR_SHADER_NON_SEMANTIC_INFO_EXTENSION_NAME,
-			VK_EXT_SHADER_VIEWPORT_INDEX_LAYER_EXTENSION_NAME
+			VK_EXT_SHADER_VIEWPORT_INDEX_LAYER_EXTENSION_NAME,
+			VK_KHR_ACCELERATION_STRUCTURE_EXTENSION_NAME,
+			VK_KHR_DEFERRED_HOST_OPERATIONS_EXTENSION_NAME,
+			VK_KHR_RAY_QUERY_EXTENSION_NAME
 		};
 
 		mutable std::recursive_mutex m_Mutex;

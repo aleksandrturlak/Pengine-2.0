@@ -1,5 +1,6 @@
 #include "Mesh.h"
 
+#include "AccelerationStructure.h"
 #include "../Core/Logger.h"
 #include "../Core/Raycast.h"
 
@@ -316,4 +317,6 @@ void Mesh::Reload(const CreateInfo& createInfo)
 		m_MeshInfoBuffer->WriteToBuffer((void*)&meshInfo, sizeof(MeshInfo), 0);
 		m_MeshInfoBuffer->Flush();
 	}
+
+	m_BLAS = AccelerationStructure::CreateBLAS(*this);
 }

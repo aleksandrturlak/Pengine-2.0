@@ -105,6 +105,7 @@ set(RENDER_PASSES_SOURCES
 source_group("RenderPasses" FILES ${RENDER_PASSES_SOURCES})
 
 set(GRAPHICS_SOURCES
+	Graphics/AccelerationStructure.cpp Graphics/AccelerationStructure.h
 	Graphics/BaseMaterial.cpp Graphics/BaseMaterial.h
 	Graphics/Buffer.cpp Graphics/Buffer.h
 	Graphics/Device.cpp Graphics/Device.h
@@ -136,6 +137,7 @@ source_group("Graphics" FILES ${GRAPHICS_SOURCES})
 
 set(VULKAN_SOURCES
 	Vulkan/ShaderIncluder.cpp Vulkan/ShaderIncluder.h
+	Vulkan/VulkanAccelerationStructure.cpp Vulkan/VulkanAccelerationStructure.h
 	Vulkan/VulkanBuffer.cpp Vulkan/VulkanBuffer.h
 	Vulkan/VulkanComputePipeline.cpp Vulkan/VulkanComputePipeline.h
 	Vulkan/VulkanGraphicsPipeline.cpp Vulkan/VulkanGraphicsPipeline.h

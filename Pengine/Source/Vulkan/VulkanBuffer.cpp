@@ -36,6 +36,7 @@ void VulkanBuffer::WriteToVulkanBuffer(
 		stagingBuffer->WriteToBuffer(data, size, offset);
 
 		GetVkDevice()->CopyBuffer(
+			VK_NULL_HANDLE,
 			stagingBuffer->m_BufferDatas[frameIndex].m_Buffer,
 			m_BufferDatas[frameIndex].m_Buffer,
 			size,
@@ -117,6 +118,11 @@ VulkanBuffer::VulkanBuffer(const CreateInfo& createInfo)
 	for (const Usage& usage : createInfo.usages)
 	{
 		m_UsageFlags |= ConvertUsage(usage);
+	}
+
+	if (m_UsageFlags & (VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_INDEX_BUFFER_BIT))
+	{
+		m_UsageFlags |= VK_BUFFER_USAGE_ACCELERATION_STRUCTURE_BUILD_INPUT_READ_ONLY_BIT_KHR;
 	}
 	
 
@@ -222,6 +228,7 @@ void VulkanBuffer::Copy(
 	else
 	{
 		GetVkDevice()->CopyBuffer(
+			VK_NULL_HANDLE,
 			vkBuffer->GetBuffer(),
 			m_BufferDatas.back().m_Buffer,
 			vkBuffer->GetSize(),
@@ -263,6 +270,7 @@ void VulkanBuffer::Flush()
 		stagingBuffer->WriteToBuffer(m_Data, GetSize(), 0);
 
 		GetVkDevice()->CopyBuffer(
+			VK_NULL_HANDLE,
 			stagingBuffer->m_BufferDatas.begin()->m_Buffer,
 			m_BufferDatas[frameIndex].m_Buffer,
 			GetSize(),

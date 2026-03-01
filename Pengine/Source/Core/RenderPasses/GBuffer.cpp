@@ -49,6 +49,7 @@ void RenderPassManager::CreateGBuffer()
 	samplerCreateInfo.addressMode = Texture::SamplerCreateInfo::AddressMode::CLAMP_TO_BORDER;
 	samplerCreateInfo.borderColor = Texture::SamplerCreateInfo::BorderColor::FLOAT_OPAQUE_BLACK;
 	samplerCreateInfo.maxAnisotropy = 1.0f;
+	samplerCreateInfo.filter = Texture::SamplerCreateInfo::Filter::NEAREST;
 
 	RenderPass::AttachmentDescription color{};
 	color.textureCreateInfo.format = Format::B10G11R11_UFLOAT_PACK32;

@@ -42,6 +42,35 @@ UniformWriter::~UniformWriter()
 	}
 }
 
+void UniformWriter::WriteAccelerationStructureToFrame(
+	uint32_t location,
+	const std::shared_ptr<AccelerationStructure>& accelerationStructure,
+	uint32_t frameIndex)
+{
+	const auto binding = m_UniformLayout->GetBindingByLocation(location);
+	if (!binding)
+	{
+		FATAL_ERROR("Layout does not contain specified binding!");
+	}
+
+	AccelerationStructureWrite write{};
+	write.accelerationStructures = { accelerationStructure };
+	write.binding = *binding;
+
+	std::lock_guard<std::mutex> lock(mutex);
+	m_Writes[frameIndex].accelerationStructureWritesByLocation[location] = write;
+}
+
+void UniformWriter::WriteAccelerationStructureToAllFrames(
+	uint32_t location,
+	const std::shared_ptr<AccelerationStructure>& accelerationStructure)
+{
+	for (size_t i = 0; i < Vk::frameInFlightCount; i++)
+	{
+		WriteAccelerationStructureToFrame(location, accelerationStructure, i);
+	}
+}
+
 void UniformWriter::WriteBufferToFrame(
 	uint32_t location,
 	const std::shared_ptr<Buffer>& buffer,
@@ -129,6 +158,28 @@ void UniformWriter::WriteTexturesToAllFrames(
 	for (size_t i = 0; i < Vk::frameInFlightCount; i++)
 	{
 		WriteTexturesToFrame(location, textureInfos, dstArrayElement, i, i);
+	}
+}
+
+void UniformWriter::WriteAccelerationStructureToFrame(
+	const std::string& name,
+	const std::shared_ptr<AccelerationStructure>& accelerationStructure,
+	uint32_t frameIndex)
+{
+	const uint32_t location = m_UniformLayout->GetBindingLocationByName(name);
+	m_AccelerationStructureNameByLocation[location] = name;
+	m_AccelerationStructuresByName[name] = { accelerationStructure };
+
+	WriteAccelerationStructureToFrame(location, accelerationStructure, frameIndex);
+}
+
+void UniformWriter::WriteAccelerationStructureToAllFrames(
+	const std::string& name,
+	const std::shared_ptr<AccelerationStructure>& accelerationStructure)
+{
+	for (size_t i = 0; i < Vk::frameInFlightCount; i++)
+	{
+		WriteAccelerationStructureToFrame(name, accelerationStructure, i);
 	}
 }
 

@@ -4,6 +4,7 @@
 
 #include "Buffer.h"
 #include "Texture.h"
+#include "AccelerationStructure.h"
 #include "UniformLayout.h"
 
 namespace Pengine
@@ -28,6 +29,15 @@ namespace Pengine
 		virtual ~UniformWriter();
 		UniformWriter(const UniformWriter&) = delete;
 		UniformWriter& operator=(const UniformWriter&) = delete;
+
+		void WriteAccelerationStructureToFrame(
+			uint32_t location,
+			const std::shared_ptr<AccelerationStructure>& accelerationStructure,
+			uint32_t frameIndex = Vk::frameInFlightIndex);
+
+		void WriteAccelerationStructureToAllFrames(
+			uint32_t location,
+			const std::shared_ptr<AccelerationStructure>& accelerationStructure);
 
 		void WriteBufferToFrame(
 			uint32_t location,
@@ -65,6 +75,15 @@ namespace Pengine
 			uint32_t location,
 			const std::vector<TextureInfo>& textureInfos,
 			uint32_t dstArrayElement = 0);
+
+		void WriteAccelerationStructureToFrame(
+			const std::string& name,
+			const std::shared_ptr<AccelerationStructure>& accelerationStructure,
+			uint32_t frameIndex = Vk::frameInFlightIndex);
+
+		void WriteAccelerationStructureToAllFrames(
+			const std::string& name,
+			const std::shared_ptr<AccelerationStructure>& accelerationStructure);
 
 		void WriteBufferToFrame(
 			const std::string& name,
@@ -137,11 +156,13 @@ namespace Pengine
 	protected:
 		std::shared_ptr<UniformLayout> m_UniformLayout;
 
-		std::unordered_map<std::string, std::vector<std::shared_ptr<Buffer>>> m_BuffersByName;
 		std::unordered_map<std::string, std::vector<TextureInfo>> m_TextureInfosByName;
+		std::unordered_map<std::string, std::vector<std::shared_ptr<Buffer>>> m_BuffersByName;
+		std::unordered_map<std::string, std::vector<std::shared_ptr<AccelerationStructure>>> m_AccelerationStructuresByName;
 
 		std::unordered_map<uint32_t, std::string> m_BufferNameByLocation;
 		std::unordered_map<uint32_t, std::string> m_TextureNameByLocation;
+		std::unordered_map<uint32_t, std::string> m_AccelerationStructureNameByLocation;
 
 		struct BufferWrite
 		{
@@ -159,10 +180,17 @@ namespace Pengine
 			uint32_t frameIndex = 0;
 		};
 
+		struct AccelerationStructureWrite
+		{
+			ShaderReflection::ReflectDescriptorSetBinding binding;
+			std::vector<std::shared_ptr<AccelerationStructure>> accelerationStructures;
+		};
+
 		struct Write
 		{
 			std::unordered_map<uint32_t, BufferWrite> bufferWritesByLocation;
 			std::unordered_map<uint32_t, std::vector<TextureWrite>> textureWritesByLocation;
+			std::unordered_map<uint32_t, AccelerationStructureWrite> accelerationStructureWritesByLocation;
 		};
 
 		std::vector<Write> m_Writes;

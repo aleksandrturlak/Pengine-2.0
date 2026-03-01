@@ -172,14 +172,28 @@ void RenderPassManager::CreateCSM()
 
 			renderInfo.renderer->BeginRenderPass(submitInfo);
 
-			const std::shared_ptr<Buffer>& csmInstanceDataBuffer = GetOrCreateBuffer(
-				renderInfo.renderView, nullptr, "CSMInstanceDataBufferCSM");
+			const std::shared_ptr<BaseMaterial> computeIndirectDrawCSMBaseMaterial = MaterialManager::GetInstance().LoadBaseMaterial(
+				std::filesystem::path("Materials") / "ComputeIndirectDrawCSM.basemat");
+			const std::shared_ptr<Pipeline> computeIndirectDrawCSMPipeline = computeIndirectDrawCSMBaseMaterial->GetPipeline(ComputeIndirectDrawCSM);
+			if (!computeIndirectDrawCSMPipeline)
+			{
+				return;
+			}
+
+			const std::shared_ptr<UniformWriter>& renderUniformWriter = GetOrCreateUniformWriter(
+				renderInfo.renderView, computeIndirectDrawCSMPipeline, Pipeline::DescriptorSetIndexType::RENDERER, "ComputeIndirectDrawCSMBuffers", {}, true);
 			const std::shared_ptr<Buffer>& indirectDrawCommandsBuffer = GetOrCreateBuffer(
-				renderInfo.renderView, nullptr, "IndirectDrawCommandsCSM");
+				renderInfo.renderView, renderUniformWriter, "IndirectDrawCommands", "IndirectDrawCommandsCSM", 
+				{ Buffer::Usage::STORAGE_BUFFER, Buffer::Usage::INDIRECT_BUFFER }, MemoryType::GPU, true);
 			const std::shared_ptr<Buffer>& indirectDrawCommandCountBuffer = GetOrCreateBuffer(
-				renderInfo.renderView, nullptr, "IndirectDrawCommandCountCSM");
+				renderInfo.renderView, renderUniformWriter, "IndirectDrawCommandCount", "IndirectDrawCommandCountCSM", 
+				{ Buffer::Usage::STORAGE_BUFFER, Buffer::Usage::INDIRECT_BUFFER }, MemoryType::GPU, true);
 			const std::shared_ptr<Buffer>& pipelineInfoBuffer = GetOrCreateBuffer(
-				renderInfo.renderView, nullptr, "PipelineInfoBufferCSM");
+				renderInfo.renderView, renderUniformWriter, "PipelineInfoBuffer", "PipelineInfoBufferCSM", 
+				{ Buffer::Usage::STORAGE_BUFFER, Buffer::Usage::INDIRECT_BUFFER }, MemoryType::CPU, true);
+			const std::shared_ptr<Buffer>& csmInstanceDataBuffer = GetOrCreateBuffer(
+				renderInfo.renderView, renderUniformWriter, "CSMInstanceDataBuffer", "CSMInstanceDataBufferCSM", 
+				{ Buffer::Usage::STORAGE_BUFFER }, MemoryType::GPU, true);
 
 			for (int cascadeIndex = 0; cascadeIndex < cascadeCount; ++cascadeIndex)
 			{

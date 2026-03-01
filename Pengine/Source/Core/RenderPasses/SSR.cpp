@@ -100,9 +100,11 @@ void RenderPassManager::CreateSSR()
 			renderUniformWriter->WriteTextureToAllFrames("outColor", ssrTexture);
 		}
 
+		
 		const std::shared_ptr<UniformWriter> renderUniformWriter = GetOrCreateUniformWriter(
 			renderInfo.renderView, pipeline, Pipeline::DescriptorSetIndexType::RENDERER, passName);
-
+		
+		renderUniformWriter->WriteAccelerationStructureToFrame("topLevelAS", renderInfo.scene->GetTLAS());
 		WriteRenderViews(renderInfo.renderView, renderInfo.scene->GetRenderView(), pipeline, renderUniformWriter);
 		if (const auto frameBuffer = renderInfo.scene->GetRenderView()->GetFrameBuffer(Atmosphere))
 		{

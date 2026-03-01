@@ -22,6 +22,7 @@
 #include "../Components/Renderer3D.h"
 #include "../Components/SkeletalAnimator.h"
 #include "../Components/Transform.h"
+#include "../Graphics/AccelerationStructure.h"
 #include "../Graphics/Device.h"
 #include "../Graphics/Renderer.h"
 #include "../Graphics/RenderView.h"
@@ -539,6 +540,8 @@ void RenderPassManager::ProcessEntities(const RenderPass::RenderCallbackInfo& re
 
 	const auto view = scene->GetRegistry().view<Renderer3D>();
 
+	std::vector<AccelerationStructure::Instance> tlasInstances;
+
 	uint32_t entityIndex = 0;
 	view.each([&](entt::entity entity, Renderer3D& r3d)
 	{
@@ -643,6 +646,22 @@ void RenderPassManager::ProcessEntities(const RenderPass::RenderCallbackInfo& re
 
 		r3d.entityIndex = entityIndex;
 
+		const std::shared_ptr<AccelerationStructure>& blas = r3d.mesh->GetBLAS();
+		if (blas)
+		{
+			const glm::mat4 transformMat4 = glm::transpose(transform.GetTransform());
+
+			AccelerationStructure::Instance instance{};
+			memcpy(&instance.transform, glm::value_ptr(transformMat4), sizeof(float[3][4]));
+			instance.instanceCustomIndex = r3d.entityIndex;
+			instance.mask = 0xFF;
+			instance.instanceShaderBindingTableRecordOffset = 0;
+			instance.flags = (uint32_t)AccelerationStructure::GeometryInstanceFlagBits::TRIANGLE_FACING_CULL_DISABLE_BIT;
+			instance.accelerationStructureReference = blas->GetDeviceAddress();
+
+			tlasInstances.emplace_back(instance);
+		}
+
 		multiPassData->entityBuffer->WriteToBuffer(
 			&entityInfo,
 			sizeof(BindlessUniformWriter::EntityInfo),
@@ -650,6 +669,8 @@ void RenderPassManager::ProcessEntities(const RenderPass::RenderCallbackInfo& re
 	});
 
 	multiPassData->totalEntityCount = entityIndex;
+
+	scene->UpdateTLAS(tlasInstances, renderInfo.frame);
 
 	for (BaseMaterial* baseMaterial : updatedBaseMaterials)
 	{
