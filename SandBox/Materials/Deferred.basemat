@@ -13,9 +13,6 @@ Basemat:
         - Type: Renderer
           Name: Lights
           Set: 2
-        - Type: Renderer
-          Name: DeferredOutput
-          Set: 3
       Uniforms:
         - Name: albedoTexture
           TextureAttachment: "GBuffer[0]"

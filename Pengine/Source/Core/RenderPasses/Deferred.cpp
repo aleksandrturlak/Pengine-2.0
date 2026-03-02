@@ -59,10 +59,8 @@ void RenderPassManager::CreateDeferred()
 		const std::shared_ptr<Texture> colorTexture = renderInfo.renderView->GetFrameBuffer(Transparent)->GetAttachment(0);
 		const std::shared_ptr<Texture> emissiveTexture = renderInfo.renderView->GetFrameBuffer(GBuffer)->GetAttachment(3);
 
-		const std::shared_ptr<UniformWriter> outputUniformWriter = GetOrCreateUniformWriter(
-			renderInfo.renderView, pipeline, Pipeline::DescriptorSetIndexType::RENDERER, "DeferredOutput");
-		outputUniformWriter->WriteTextureToFrame("outColor", colorTexture);
-		outputUniformWriter->WriteTextureToFrame("outEmissive", emissiveTexture);
+		renderUniformWriter->WriteTextureToFrame("outColor", colorTexture);
+		renderUniformWriter->WriteTextureToFrame("outEmissive", emissiveTexture);
 		
 		std::vector<NativeHandle> uniformWriterNativeHandles;
 		std::vector<std::shared_ptr<UniformWriter>> uniformWriters;
