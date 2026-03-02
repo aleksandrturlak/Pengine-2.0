@@ -161,7 +161,7 @@ void RenderPassManager::CreateComputeIndirectDrawCSM()
 		PROFILER_SCOPE(ComputeIndirectDrawCSM);
 
 		const GraphicsSettings::Shadows::CSM& shadowsSettings = renderInfo.scene->GetGraphicsSettings().shadows.csm;
-		if (!shadowsSettings.isEnabled)
+		if (!shadowsSettings.isEnabled || renderInfo.scene->GetGraphicsSettings().shadows.rayTracing.directionalLight)
 		{
 			return;
 		}

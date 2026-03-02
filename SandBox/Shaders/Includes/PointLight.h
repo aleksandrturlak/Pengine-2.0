@@ -27,6 +27,7 @@ struct PointLightShadows
 	int isEnabled;
 	int shadowMapAtlasSize;
 	int faceSize;
+	int isRayTraced;
 };
 
 vec3 CalculatePointLight(

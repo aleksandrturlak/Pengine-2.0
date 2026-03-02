@@ -113,6 +113,8 @@ std::shared_ptr<VulkanAccelerationStructure> VulkanAccelerationStructure::Create
 	const std::shared_ptr<VulkanDevice> vkDevice = std::static_pointer_cast<VulkanDevice>(device);
 	const VkCommandBuffer commandBuffer = vkDevice->GetCommandBufferFromFrame(frame);
 
+	vkDevice->CommandBeginLabel("BuildTLAS", commandBuffer, { 0.5f, 1.0f, 0.5f });
+
 	const VkDeviceSize instanceBufferSize = sizeof(VkAccelerationStructureInstanceKHR) * instances.size();
 
 	VkBuffer instanceBuffer = VK_NULL_HANDLE;
@@ -196,13 +198,17 @@ std::shared_ptr<VulkanAccelerationStructure> VulkanAccelerationStructure::Create
 	buildRange.firstVertex     = 0;
 	buildRange.transformOffset = 0;
 
-	return Build(
+	const auto tlas = Build(
 		VK_ACCELERATION_STRUCTURE_TYPE_TOP_LEVEL_KHR,
 		{ geometry },
 		{ buildRange },
 		VK_BUILD_ACCELERATION_STRUCTURE_PREFER_FAST_BUILD_BIT_KHR |
 		VK_BUILD_ACCELERATION_STRUCTURE_ALLOW_UPDATE_BIT_KHR,
 		commandBuffer);
+
+	vkDevice->CommandEndLabel(commandBuffer);
+
+	return tlas;
 }
 
 std::shared_ptr<VulkanAccelerationStructure> VulkanAccelerationStructure::Build(

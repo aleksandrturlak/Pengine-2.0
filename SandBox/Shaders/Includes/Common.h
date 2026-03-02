@@ -138,4 +138,14 @@ vec3 IsBrightPixel(in vec3 color, in float threshold)
     return dot(colorSRGB, vec3(0.2126f, 0.7152f, 0.0722f)) > threshold ? colorSRGB : vec3(0.0f);
 }
 
+vec2 BarycentricLerp(vec2 a, vec2 b, vec2 c, vec3 barycentrics)
+{
+    return a * barycentrics.x + b * barycentrics.y + c * barycentrics.z;
+}
+
+vec3 BarycentricLerp(vec3 a, vec3 b, vec3 c, vec3 barycentrics)
+{
+    return a * barycentrics.x + b * barycentrics.y + c * barycentrics.z;
+}
+
 #endif

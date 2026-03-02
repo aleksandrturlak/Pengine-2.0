@@ -70,7 +70,7 @@ void RenderPassManager::CreateSpotLightShadows()
 		const std::string& renderPassName = renderInfo.renderPass->GetName();
 
 		const GraphicsSettings::Shadows::SpotLightShadows& spotLightShadowsSettings = renderInfo.scene->GetGraphicsSettings().shadows.spotLightShadows;
-		if (!spotLightShadowsSettings.isEnabled)
+		if (!spotLightShadowsSettings.isEnabled || renderInfo.scene->GetGraphicsSettings().shadows.rayTracing.spotLights)
 		{
 			renderInfo.renderView->DeleteBuffer("InstanceBufferSpotLightShadows");
 			renderInfo.renderView->DeleteBuffer("SpotLightShadowMapIndicesBuffer");

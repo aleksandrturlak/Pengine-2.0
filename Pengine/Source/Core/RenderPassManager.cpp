@@ -867,6 +867,9 @@ void RenderPassManager::ProcessLights(const RenderPass::RenderCallbackInfo& rend
 		deferredBaseMaterial->WriteToBuffer(lightsBuffer, lightsBufferName, "directionalLight.intensity", dl.intensity);
 		deferredBaseMaterial->WriteToBuffer(lightsBuffer, lightsBufferName, "directionalLight.ambient", dl.ambient);
 
+		const int rayTracedShadows = graphicsSettings.shadows.rayTracing.directionalLight;
+		deferredBaseMaterial->WriteToBuffer(lightsBuffer, lightsBufferName, "directionalLight.rayTracedShadows", rayTracedShadows);
+
 		const glm::vec3 directionWorldSpace = transform.GetForward();
 		const glm::vec3 directionViewSpace = glm::normalize(glm::mat3(camera.GetViewMat4()) * directionWorldSpace);
 		deferredBaseMaterial->WriteToBuffer(lightsBuffer, lightsBufferName, "directionalLight.directionWorldSpace", directionWorldSpace);
@@ -977,6 +980,9 @@ void RenderPassManager::ProcessLights(const RenderPass::RenderCallbackInfo& rend
 		deferredBaseMaterial->WriteToBuffer(lightsBuffer, lightsBufferName, "pointLightShadows.isEnabled", pointLightShadowsEnabled);
 		deferredBaseMaterial->WriteToBuffer(lightsBuffer, lightsBufferName, "pointLightShadows.shadowMapAtlasSize", shadowMapAtlasSize.x);
 		deferredBaseMaterial->WriteToBuffer(lightsBuffer, lightsBufferName, "pointLightShadows.faceSize", faceSize);
+		
+		const int isRayTraced = graphicsSettings.shadows.rayTracing.pointLights;
+		deferredBaseMaterial->WriteToBuffer(lightsBuffer, lightsBufferName, "pointLightShadows.isRayTraced", isRayTraced);
 	}
 
 	// Spot lights.
@@ -1045,6 +1051,9 @@ void RenderPassManager::ProcessLights(const RenderPass::RenderCallbackInfo& rend
 		deferredBaseMaterial->WriteToBuffer(lightsBuffer, lightsBufferName, "spotLightShadows.isEnabled", spotLightShadowsEnabled);
 		deferredBaseMaterial->WriteToBuffer(lightsBuffer, lightsBufferName, "spotLightShadows.shadowMapAtlasSize", shadowMapAtlasSize.x);
 		deferredBaseMaterial->WriteToBuffer(lightsBuffer, lightsBufferName, "spotLightShadows.faceSize", faceSize);
+
+		const int isRayTraced = graphicsSettings.shadows.rayTracing.spotLights;
+		deferredBaseMaterial->WriteToBuffer(lightsBuffer, lightsBufferName, "spotLightShadows.isRayTraced", isRayTraced);
 	}
 
 	// SSS.

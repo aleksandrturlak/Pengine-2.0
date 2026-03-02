@@ -10,6 +10,7 @@ struct DirectionalLight
 	vec3 directionViewSpace;
 	float ambient;
 	vec3 directionWorldSpace;
+	int rayTracedShadows;
 };
 
 vec3 CalculateDirectionalLight(

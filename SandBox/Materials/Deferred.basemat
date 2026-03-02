@@ -13,6 +13,11 @@ Basemat:
         - Type: Renderer
           Name: Lights
           Set: 2
+        - Type: Bindless
+          Set: 3
+        - Type: Scene
+          Name: Scene
+          Set: 4
       Uniforms:
         - Name: albedoTexture
           TextureAttachment: "GBuffer[0]"

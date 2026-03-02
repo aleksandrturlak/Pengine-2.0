@@ -37,7 +37,7 @@ Mat:
               Value: 0
               Type: float
             - Name: material.roughnessFactor
-              Value: 1
+              Value: 0
               Type: float
             - Name: material.aoFactor
               Value: 1
@@ -67,7 +67,7 @@ Mat:
               Value: 0
               Type: int
             - Name: material.albedoTexture
-              Value: 0x1ad5b93a36a91ba7b72df134d942d69a
+              Value: White
               Type: texture
             - Name: material.normalTexture
               Value: Black

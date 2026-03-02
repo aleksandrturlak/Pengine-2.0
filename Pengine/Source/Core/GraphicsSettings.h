@@ -45,6 +45,13 @@ namespace Pengine
 
 		struct Shadows
 		{
+			struct RayTracing
+			{
+				bool directionalLight = false;
+				bool pointLights = false;
+				bool spotLights = false;
+			} rayTracing;
+
 			struct CSM
 			{
 				enum class Filter : int

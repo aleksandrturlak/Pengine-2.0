@@ -72,7 +72,7 @@ void RenderPassManager::CreateCSM()
 		const std::string& renderPassName = renderInfo.renderPass->GetName();
 
 		const GraphicsSettings::Shadows::CSM& shadowsSettings = renderInfo.scene->GetGraphicsSettings().shadows.csm;
-		if (!shadowsSettings.isEnabled)
+		if (!shadowsSettings.isEnabled || renderInfo.scene->GetGraphicsSettings().shadows.rayTracing.directionalLight)
 		{
 			renderInfo.renderView->DeleteUniformWriter(renderPassName);
 			renderInfo.renderView->DeleteCustomData("CSMRenderer");
