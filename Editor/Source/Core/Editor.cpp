@@ -1452,6 +1452,36 @@ void Editor::GraphicsSettingsInfo(GraphicsSettings& graphicsSettings)
 			ImGui::PopID();
 		}
 
+		if (ImGui::CollapsingHeader("Ray Tracing"))
+		{
+			Indent indent;
+			if (ImGui::CollapsingHeader("Shadows##RayTracing"))
+			{
+				Indent indent;
+
+				ImGui::PushID("Ray Tracing Directional Light Shadows");
+				isChangedToSerialize += ImGui::Checkbox("Directional Light Shadows", &graphicsSettings.rayTracing.shadows.directionalLight);
+				ImGui::PopID();
+
+				ImGui::PushID("Ray Tracing Point Light Shadows");
+				isChangedToSerialize += ImGui::Checkbox("Point Light Shadows", &graphicsSettings.rayTracing.shadows.pointLight);
+				ImGui::PopID();
+
+				ImGui::PushID("Ray Tracing Spot Light Shadows");
+				isChangedToSerialize += ImGui::Checkbox("Spot Light Shadows", &graphicsSettings.rayTracing.shadows.spotLight);
+				ImGui::PopID();
+			}
+
+			if (ImGui::CollapsingHeader("Reflections##RayTracing"))
+			{
+				Indent indent;
+
+				ImGui::PushID("Ray Tracing Reflections");
+				isChangedToSerialize += ImGui::Checkbox("Ray Traced Reflections", &graphicsSettings.rayTracing.reflections.isRayTraced);
+				ImGui::PopID();
+			}
+		}
+
 		if (isChangedToSerialize && std::filesystem::exists(graphicsSettings.GetFilepath()))
 		{
 			Serializer::SerializeGraphicsSettings(graphicsSettings);

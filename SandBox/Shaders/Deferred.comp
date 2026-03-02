@@ -91,7 +91,7 @@ void main()
 		if (hasDirectionalLight == 1)
 		{
 			vec3 shadow = vec3(0.0f);
-			if (bool(directionalLight.rayTracedShadows))
+			if (bool(directionalLight.hasRayTracedShadows))
 			{
 				shadow = vec3(TraceShadowRay(
 					0,
@@ -110,16 +110,14 @@ void main()
 					positionWorldSpace,
 					normalViewSpace,
 					directionalLight.directionViewSpace);
-			}
 
-			if (!bool(directionalLight.rayTracedShadows))
-			{
 				shadow += vec3(texture(sssTexture, uv).r);
 				shadow = clamp(shadow, vec3(0.0f), vec3(1.0f));	
 			}
 
 			result += CalculateDirectionalLight(
 				directionalLight,
+				directionalLight.directionViewSpace,
 				viewDirectionViewSpace,
 				basicReflectivity,
 				normalViewSpace,
@@ -147,7 +145,7 @@ void main()
 						positionWorldSpace,
 						0.01f,
 						normalize(toLightWorldSpace),
-						camera.zFar);
+						distanceToPoint);
 				}
 				else if (bool(pointLightShadows.isEnabled) && pointLightShadowMapIndices[i] > -1)
 				{
@@ -176,6 +174,7 @@ void main()
 
 				result += CalculatePointLight(
 					pointLight,
+					pointLight.positionViewSpace,
 					viewDirectionViewSpace,
 					positionViewSpace,
 					basicReflectivity,
@@ -204,7 +203,7 @@ void main()
 						positionWorldSpace,
 						0.01f,
 						normalize(toLightWorldSpace),
-						camera.zFar);
+						distanceToPoint);
 				}
 				else if (bool(spotLightShadows.isEnabled) && spotLightShadowMapIndices[i] > -1)
 				{
@@ -234,6 +233,8 @@ void main()
 				
 				result += CalculateSpotLight(
 					spotLight,
+					spotLight.positionViewSpace,
+					spotLight.directionViewSpace,
 					viewDirectionViewSpace,
 					positionViewSpace,
 					basicReflectivity,

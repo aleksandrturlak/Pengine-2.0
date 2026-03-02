@@ -27,7 +27,8 @@ namespace Pengine
 	const std::string ToneMapping = "ToneMapping";
 	const std::string AntiAliasingAndCompose = "AntiAliasingAndCompose";
 	const std::string SSR = "SSR";
-	const std::string SSRBlur = "SSRBlur";
+	const std::string BlurReflections = "BlurReflections";
+	const std::string RayTracedReflection = "RayTracedReflection";
 	const std::string HiZPyramid = "HiZPyramid";
 	const std::string UI = "UI";
 

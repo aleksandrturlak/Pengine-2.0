@@ -15,6 +15,21 @@ namespace Pengine
 			: Asset(name, filepath)
 		{}
 
+		struct RayTracing
+		{
+			struct Shadows
+			{
+				bool directionalLight = false;
+				bool pointLight = false;
+				bool spotLight = false;
+			} shadows;
+
+			struct Reflections
+			{
+				bool isRayTraced = false;
+			} reflections;
+		} rayTracing;
+
 		struct HiZOcclusionCulling
 		{
 			bool isEnabled = true;
@@ -45,13 +60,6 @@ namespace Pengine
 
 		struct Shadows
 		{
-			struct RayTracing
-			{
-				bool directionalLight = false;
-				bool pointLights = false;
-				bool spotLights = false;
-			} rayTracing;
-
 			struct CSM
 			{
 				enum class Filter : int

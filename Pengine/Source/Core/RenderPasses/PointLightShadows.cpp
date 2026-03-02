@@ -70,7 +70,7 @@ void RenderPassManager::CreatePointLightShadows()
 		const std::string& renderPassName = renderInfo.renderPass->GetName();
 		
 		const GraphicsSettings::Shadows::PointLightShadows& pointLightShadowsSettings = renderInfo.scene->GetGraphicsSettings().shadows.pointLightShadows;
-		if (!pointLightShadowsSettings.isEnabled || renderInfo.scene->GetGraphicsSettings().shadows.rayTracing.pointLights)
+		if (!pointLightShadowsSettings.isEnabled || renderInfo.scene->GetGraphicsSettings().rayTracing.shadows.pointLight)
 		{
 			renderInfo.renderView->DeleteBuffer("InstanceBufferPointLightShadows");
 			renderInfo.renderView->DeleteBuffer("PointLightShadowMapIndicesBuffer");

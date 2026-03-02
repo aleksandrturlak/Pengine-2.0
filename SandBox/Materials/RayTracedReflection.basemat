@@ -1,0 +1,29 @@
+Basemat:
+  Pipelines:
+    - RenderPass: RayTracedReflection
+      Type: Compute
+      Compute: Shaders/RayTracedReflection.comp
+      UniformWriters:
+        - Type: Renderer
+          Name: Camera
+          Set: 0
+        - Type: Renderer
+          Name: RayTracedReflection
+          Set: 1
+        - Type: Bindless
+          Set: 2
+        - Type: Scene
+          Name: Scene
+          Set: 3
+        - Type: Renderer
+          Name: Lights
+          Set: 4
+      Uniforms:
+        - Name: normalTexture
+          TextureAttachment: "GBuffer[1]"
+        - Name: shadingTexture
+          TextureAttachment: "GBuffer[2]"
+        - Name: outEmissive
+          TextureAttachment: "GBuffer[3]"
+        - Name: depthTexture
+          TextureAttachment: "GBuffer[4]"

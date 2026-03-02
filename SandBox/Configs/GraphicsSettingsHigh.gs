@@ -37,11 +37,11 @@ SSS:
 PointLightShadows:
   IsEnabled: true
   AtlasQuality: 3
-  FaceQuality: 2
+  FaceQuality: 3
 SpotLightShadows:
   IsEnabled: true
   AtlasQuality: 3
-  FaceQuality: 2
+  FaceQuality: 3
 Bloom:
   IsEnabled: true
   MipCount: 10
@@ -49,13 +49,13 @@ Bloom:
   Intensity: 1
   ResolutionScale: 3
 SSR:
-  IsEnabled: false
+  IsEnabled: true
   MaxDistance: 100
   Resolution: 1
-  ResolutionBlurScale: 2
-  ResolutionScale: 1
+  ResolutionBlurScale: 4
+  ResolutionScale: 3
   StepCount: 20
-  Thickness: 500
+  Thickness: 0.209999993
   BlurRange: 1
   BlurOffset: 1
   MipMultiplier: 0
@@ -65,3 +65,9 @@ PostProcess:
   Gamma: 2.20000005
   ToneMapper: 1
   FXAA: true
+RayTracedShadows:
+  DirectionalLight: true
+  PointLight: true
+  SpotLight: true
+RayTracedReflections:
+  IsRayTraced: true

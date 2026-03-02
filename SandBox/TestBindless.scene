@@ -11,8 +11,8 @@ Scene:
     Name: Camera
     IsEnabled: true
     Transform:
-      Position: [-10.1697884, 1.39523637, 5.50831175]
-      Rotation: [-0.430261701, -1.04131866, 0]
+      Position: [5.07028246, 8.33866596, 14.655798]
+      Rotation: [-0.486174107, 0.877482414, 0]
       Scale: [1, 1, 1]
       FollowOwner: true
     Camera:
@@ -82,7 +82,7 @@ Scene:
     IsEnabled: true
     Transform:
       Position: [0, -3.0596633, 0]
-      Rotation: [0, -0, 0]
+      Rotation: [0.000174532935, -0, 0]
       Scale: [25, 1, 25]
       FollowOwner: true
     Renderer3D:
@@ -99,7 +99,7 @@ Scene:
     Name: Sphere
     IsEnabled: true
     Transform:
-      Position: [-5.03137684, -1.50267744, 4.08000135]
+      Position: [-5.03137684, -1.50267744, 6.25830126]
       Rotation: [0, -0, 0]
       Scale: [1, 1, 1]
       FollowOwner: true
@@ -194,5 +194,37 @@ Scene:
     Decal:
       Material: 0x76812426c98dc467b8f82fff11dc35b0
       ObjectVisibilityMask: 255
+    Childs:
+      []
+  - UUID: 0x6bdab709a2a981b7e968e033fa7e5f23
+    Name: DirectionalLight
+    IsEnabled: true
+    Transform:
+      Position: [0, 0, 0]
+      Rotation: [0.811995268, -0.11593651, -0.015266805]
+      Scale: [0.999987483, 0.999966025, 0.999992847]
+      FollowOwner: true
+    DirectionalLight:
+      Color: [1, 1, 1]
+      Intensity: 3
+      Ambient: 0.100000001
+    Childs:
+      []
+  - UUID: 0x3bdd3eb3997329c906a25ae0844eb2cd
+    Name: Plane
+    IsEnabled: true
+    Transform:
+      Position: [-16.7653847, -2.00000787, 0]
+      Rotation: [0, -0, -1.57079625]
+      Scale: [24.9999981, 0.99999994, 24.9999962]
+      FollowOwner: true
+    Renderer3D:
+      Mesh: 0x3f83219ad29d9c27728dd755119284cd
+      Material: 0x07e46f38e3511b4d8e61e74f9b89516a
+      RenderingOrder: 5
+      IsEnabled: true
+      CastShadows: true
+      ObjectVisibilityMask: 255
+      ShadowVisibilityMask: 255
     Childs:
       []

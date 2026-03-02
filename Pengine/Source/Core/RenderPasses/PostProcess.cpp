@@ -87,12 +87,12 @@ void RenderPassManager::CreateToneMappingPass()
 			MemoryType::CPU,
 			true);
 
-		const int isSSREnabled = graphicsSettings.ssr.isEnabled;
-		const int SSRMipLevels = isSSREnabled ? renderInfo.renderView->GetStorageImage(SSRBlur)->GetMipLevels() * graphicsSettings.ssr.mipMultiplier : 0;
+		const int isReflectionsEnabled = graphicsSettings.ssr.isEnabled || graphicsSettings.rayTracing.reflections.isRayTraced;
+		const int reflectionsTextureMipLevelCount = isReflectionsEnabled ? renderInfo.renderView->GetStorageImage("BlurredReflections")->GetMipLevels() * graphicsSettings.ssr.mipMultiplier : 0;
 		baseMaterial->WriteToBuffer(toneMappingBufferBuffer, toneMappingBufferBufferName, "toneMapperIndex", graphicsSettings.postProcess.toneMapper);
 		baseMaterial->WriteToBuffer(toneMappingBufferBuffer, toneMappingBufferBufferName, "gamma", graphicsSettings.postProcess.gamma);
-		baseMaterial->WriteToBuffer(toneMappingBufferBuffer, toneMappingBufferBufferName, "isSSREnabled", isSSREnabled);
-		baseMaterial->WriteToBuffer(toneMappingBufferBuffer, toneMappingBufferBufferName, "SSRMipLevels", SSRMipLevels);
+		baseMaterial->WriteToBuffer(toneMappingBufferBuffer, toneMappingBufferBufferName, "isReflectionsEnabled", isReflectionsEnabled);
+		baseMaterial->WriteToBuffer(toneMappingBufferBuffer, toneMappingBufferBufferName, "reflectionsTextureMipLevelCount", reflectionsTextureMipLevelCount);
 
 		toneMappingBufferBuffer->Flush();
 

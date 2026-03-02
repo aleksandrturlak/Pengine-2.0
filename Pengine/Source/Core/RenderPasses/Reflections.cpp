@@ -52,6 +52,7 @@ void RenderPassManager::CreateSSR()
 			return;
 		}
 
+		const GraphicsSettings::RayTracing::Reflections rtSettings = renderInfo.scene->GetGraphicsSettings().rayTracing.reflections;
 		const GraphicsSettings::SSR& ssrSettings = renderInfo.scene->GetGraphicsSettings().ssr;
 		const std::string ssrBufferName = passName;
 		constexpr float resolutionScales[] = { 0.25f, 0.5f, 0.75f, 1.0f };
@@ -60,51 +61,52 @@ void RenderPassManager::CreateSSR()
 		Texture::CreateInfo createInfo{};
 		createInfo.aspectMask = Texture::AspectMask::COLOR;
 		createInfo.instanceSize = sizeof(uint8_t) * 4;
-		createInfo.filepath = passName;
-		createInfo.name = passName;
+		createInfo.filepath = "Reflections";
+		createInfo.name = "Reflections";
 		createInfo.format = Format::R8G8B8A8_UNORM;
 		createInfo.size = currentViewportSize;
 		createInfo.usage = { Texture::Usage::STORAGE, Texture::Usage::SAMPLED };
 		createInfo.isMultiBuffered = true;
 
-		std::shared_ptr<Texture> ssrTexture = renderInfo.renderView->GetStorageImage(passName);
-
-		if (ssrSettings.isEnabled)
-		{
-			if (!ssrTexture)
-			{
-				ssrTexture = Texture::Create(createInfo);
-				renderInfo.renderView->SetStorageImage(passName, ssrTexture);
-				GetOrCreateUniformWriter(
-					renderInfo.renderView,
-					pipeline,
-					Pipeline::DescriptorSetIndexType::RENDERER,
-					passName)->WriteTextureToAllFrames("outColor", ssrTexture);
-			}
-		}
-		else
+		if (!ssrSettings.isEnabled && !rtSettings.isRayTraced)
 		{
 			renderInfo.renderView->DeleteUniformWriter(passName);
-			renderInfo.renderView->DeleteStorageImage(passName);
+			renderInfo.renderView->DeleteStorageImage("Reflections");
 			renderInfo.renderView->DeleteBuffer(ssrBufferName);
 
 			return;
 		}
 
-		if (currentViewportSize != ssrTexture->GetSize())
+		if (!ssrSettings.isEnabled || rtSettings.isRayTraced)
+		{
+			return;
+		}
+
+		std::shared_ptr<Texture> reflectionsTexture = renderInfo.renderView->GetStorageImage("Reflections");
+		if (!reflectionsTexture)
+		{
+			reflectionsTexture = Texture::Create(createInfo);
+			renderInfo.renderView->SetStorageImage("Reflections", reflectionsTexture);
+		}
+
+		GetOrCreateUniformWriter(
+			renderInfo.renderView,
+			pipeline,
+			Pipeline::DescriptorSetIndexType::RENDERER,
+			passName)->WriteTextureToFrame("outColor", reflectionsTexture);
+
+		if (currentViewportSize != reflectionsTexture->GetSize())
 		{
 			const std::shared_ptr<UniformWriter> renderUniformWriter = GetOrCreateUniformWriter(
 				renderInfo.renderView, pipeline, Pipeline::DescriptorSetIndexType::RENDERER, passName);
-			const std::shared_ptr<Texture> ssrTexture = Texture::Create(createInfo);
-			renderInfo.renderView->SetStorageImage(passName, ssrTexture);
-			renderUniformWriter->WriteTextureToAllFrames("outColor", ssrTexture);
+			const std::shared_ptr<Texture> reflectionsTexture = Texture::Create(createInfo);
+			renderInfo.renderView->SetStorageImage("Reflections", reflectionsTexture);
+			renderUniformWriter->WriteTextureToAllFrames("outColor", reflectionsTexture);
 		}
-
 		
 		const std::shared_ptr<UniformWriter> renderUniformWriter = GetOrCreateUniformWriter(
 			renderInfo.renderView, pipeline, Pipeline::DescriptorSetIndexType::RENDERER, passName);
 		
-		renderUniformWriter->WriteAccelerationStructureToFrame("topLevelAS", renderInfo.scene->GetTLAS());
 		WriteRenderViews(renderInfo.renderView, renderInfo.scene->GetRenderView(), pipeline, renderUniformWriter);
 		if (const auto frameBuffer = renderInfo.scene->GetRenderView()->GetFrameBuffer(Atmosphere))
 		{
@@ -142,6 +144,12 @@ void RenderPassManager::CreateSSR()
 			groupCount += glm::uvec2(1, 1);
 			renderInfo.renderer->Compute(pipeline, { groupCount.x, groupCount.y, 1 }, uniformWriterNativeHandles, renderInfo.frame);
 
+			renderInfo.renderer->PipelineBarrier(
+				BarrierBatch{}
+					.Stages(PipelineStage::ComputeShader, PipelineStage::ComputeShader)
+					.Image(reflectionsTexture, ImageLayout::General, ImageLayout::General, Access::ShaderWrite, Access::ShaderRead),
+					renderInfo.frame);
+
 			renderInfo.renderer->EndCommandLabel(renderInfo.frame);
 		}
 	};
@@ -149,24 +157,25 @@ void RenderPassManager::CreateSSR()
 	CreateComputePass(createInfo);
 }
 
-void RenderPassManager::CreateSSRBlur()
+void RenderPassManager::CreateBlurReflections()
 {
 	ComputePass::CreateInfo createInfo{};
 	createInfo.type = Pass::Type::COMPUTE;
-	createInfo.name = SSRBlur;
+	createInfo.name = BlurReflections;
 
 	createInfo.executeCallback = [this, passName = createInfo.name](const RenderPass::RenderCallbackInfo& renderInfo)
 	{
-		PROFILER_SCOPE(SSRBlur);
+		PROFILER_SCOPE(BlurReflections);
 
 		const std::shared_ptr<BaseMaterial> baseMaterial = MaterialManager::GetInstance().LoadBaseMaterial(
-			std::filesystem::path("Materials") / "SSRBlur.basemat");
+			std::filesystem::path("Materials") / "BlurReflections.basemat");
 		const std::shared_ptr<Pipeline> pipeline = baseMaterial->GetPipeline(passName);
 		if (!pipeline)
 		{
 			return;
 		}
 
+		const GraphicsSettings::RayTracing::Reflections rtSettings = renderInfo.scene->GetGraphicsSettings().rayTracing.reflections;
 		const GraphicsSettings::SSR& ssrSettings = renderInfo.scene->GetGraphicsSettings().ssr;
 		const std::string ssrBufferName = passName;
 		constexpr float resolutionScales[] = { 0.125f, 0.25f, 0.5f, 0.75f, 1.0f };
@@ -175,8 +184,8 @@ void RenderPassManager::CreateSSRBlur()
 		Texture::CreateInfo createInfo{};
 		createInfo.aspectMask = Texture::AspectMask::COLOR;
 		createInfo.instanceSize = sizeof(uint8_t) * 4;
-		createInfo.filepath = passName;
-		createInfo.name = passName;
+		createInfo.filepath = "BlurredReflections";
+		createInfo.name = "BlurredReflections";
 		createInfo.format = Format::R8G8B8A8_UNORM;
 		createInfo.size = currentViewportSize;
 		createInfo.usage = { Texture::Usage::STORAGE, Texture::Usage::SAMPLED, Texture::Usage::TRANSFER_SRC, Texture::Usage::TRANSFER_DST };
@@ -184,37 +193,37 @@ void RenderPassManager::CreateSSRBlur()
 		createInfo.mipLevels = static_cast<uint32_t>(std::floor(std::log2(std::max(
 			createInfo.size.x, createInfo.size.y)))) + 1;
 
-		std::shared_ptr<Texture> ssrBlurTexture = renderInfo.renderView->GetStorageImage(passName);
+		std::shared_ptr<Texture> blurredReflectionsTexture = renderInfo.renderView->GetStorageImage("BlurredReflections");
 
-		if (ssrSettings.isEnabled)
+		if (ssrSettings.isEnabled || rtSettings.isRayTraced)
 		{
-			if (!ssrBlurTexture)
+			if (!blurredReflectionsTexture)
 			{
-				ssrBlurTexture = Texture::Create(createInfo);
-				renderInfo.renderView->SetStorageImage(passName, ssrBlurTexture);
+				blurredReflectionsTexture = Texture::Create(createInfo);
+				renderInfo.renderView->SetStorageImage("BlurredReflections", blurredReflectionsTexture);
 				GetOrCreateUniformWriter(
 					renderInfo.renderView,
 					pipeline,
 					Pipeline::DescriptorSetIndexType::RENDERER,
-					passName)->WriteTextureToAllFrames("outColor", ssrBlurTexture);
+					passName)->WriteTextureToAllFrames("outColor", blurredReflectionsTexture);
 			}
 		}
 		else
 		{
 			renderInfo.renderView->DeleteUniformWriter(passName);
-			renderInfo.renderView->DeleteStorageImage(passName);
+			renderInfo.renderView->DeleteStorageImage("BlurredReflections");
 			renderInfo.renderView->DeleteBuffer(ssrBufferName);
 
 			return;
 		}
 
-		if (currentViewportSize != ssrBlurTexture->GetSize())
+		if (currentViewportSize != blurredReflectionsTexture->GetSize())
 		{
 			const std::shared_ptr<UniformWriter> renderUniformWriter = GetOrCreateUniformWriter(
 				renderInfo.renderView, pipeline, Pipeline::DescriptorSetIndexType::RENDERER, passName);
-			const std::shared_ptr<Texture> ssrBlurTexture = Texture::Create(createInfo);
-			renderInfo.renderView->SetStorageImage(passName, ssrBlurTexture);
-			renderUniformWriter->WriteTextureToAllFrames("outColor", ssrBlurTexture);
+			const std::shared_ptr<Texture> blurredReflectionsTexture = Texture::Create(createInfo);
+			renderInfo.renderView->SetStorageImage("BlurredReflections", blurredReflectionsTexture);
+			renderUniformWriter->WriteTextureToAllFrames("outColor", blurredReflectionsTexture);
 		}
 
 		const std::shared_ptr<UniformWriter> renderUniformWriter = GetOrCreateUniformWriter(
@@ -250,11 +259,11 @@ void RenderPassManager::CreateSSRBlur()
 
 			renderInfo.renderer->PipelineBarrier(
 				BarrierBatch{}
-					.Stages(PipelineStage::ComputeShader, PipelineStage::Transfer)
-					.Memory(Access::ShaderWrite, Access::TransferRead),
-				renderInfo.frame);
+					.Stages(PipelineStage::ComputeShader, PipelineStage::FragmentShader)
+					.Image(blurredReflectionsTexture, ImageLayout::General, ImageLayout::General, Access::ShaderWrite, Access::ShaderRead),
+					renderInfo.frame);
 
-			ssrBlurTexture->GenerateMipMaps(renderInfo.frame);
+			blurredReflectionsTexture->GenerateMipMaps(renderInfo.frame);
 
 			renderInfo.renderer->EndCommandLabel(renderInfo.frame);
 
@@ -265,3 +274,112 @@ void RenderPassManager::CreateSSRBlur()
 	CreateComputePass(createInfo);
 }
 
+void RenderPassManager::CreateRayTracedReflections()
+{
+	ComputePass::CreateInfo createInfo{};
+	createInfo.type = Pass::Type::COMPUTE;
+	createInfo.name = RayTracedReflection;
+
+	createInfo.executeCallback = [this, passName = createInfo.name](const RenderPass::RenderCallbackInfo& renderInfo)
+	{
+		PROFILER_SCOPE(RayTracedReflection);
+
+		const std::shared_ptr<BaseMaterial> baseMaterial = MaterialManager::GetInstance().LoadBaseMaterial(
+			std::filesystem::path("Materials") / "RayTracedReflection.basemat");
+		const std::shared_ptr<Pipeline> pipeline = baseMaterial->GetPipeline(passName);
+		if (!pipeline)
+		{
+			return;
+		}
+
+		const GraphicsSettings::RayTracing::Reflections rtSettings = renderInfo.scene->GetGraphicsSettings().rayTracing.reflections;
+		const GraphicsSettings::SSR& ssrSettings = renderInfo.scene->GetGraphicsSettings().ssr;
+		const std::string reflectionsBufferName = passName;
+		constexpr float resolutionScales[] = { 0.25f, 0.5f, 0.75f, 1.0f };
+		const glm::ivec2 currentViewportSize = glm::vec2(renderInfo.viewportSize) * glm::vec2(resolutionScales[ssrSettings.resolutionScale]);
+
+		Texture::CreateInfo createInfo{};
+		createInfo.aspectMask = Texture::AspectMask::COLOR;
+		createInfo.instanceSize = sizeof(uint8_t) * 4;
+		createInfo.filepath = "Reflections";
+		createInfo.name = "Reflections";
+		createInfo.format = Format::R8G8B8A8_UNORM;
+		createInfo.size = currentViewportSize;
+		createInfo.usage = { Texture::Usage::STORAGE, Texture::Usage::SAMPLED };
+		createInfo.isMultiBuffered = true;
+
+		std::shared_ptr<Texture> reflectionsTexture = renderInfo.renderView->GetStorageImage("Reflections");
+
+		if (!rtSettings.isRayTraced)
+		{
+			return;
+		}
+
+		if (!reflectionsTexture)
+		{
+			reflectionsTexture = Texture::Create(createInfo);
+			renderInfo.renderView->SetStorageImage("Reflections", reflectionsTexture);
+		}
+
+		GetOrCreateUniformWriter(
+			renderInfo.renderView,
+			pipeline,
+			Pipeline::DescriptorSetIndexType::RENDERER,
+			passName)->WriteTextureToFrame("outColor", reflectionsTexture);
+
+		if (currentViewportSize != reflectionsTexture->GetSize())
+		{
+			const std::shared_ptr<UniformWriter> renderUniformWriter = GetOrCreateUniformWriter(
+				renderInfo.renderView, pipeline, Pipeline::DescriptorSetIndexType::RENDERER, passName);
+			const std::shared_ptr<Texture> reflectionsTexture = Texture::Create(createInfo);
+			renderInfo.renderView->SetStorageImage("Reflections", reflectionsTexture);
+			renderUniformWriter->WriteTextureToAllFrames("outColor", reflectionsTexture);
+		}
+		
+		const std::shared_ptr<UniformWriter> renderUniformWriter = GetOrCreateUniformWriter(
+			renderInfo.renderView, pipeline, Pipeline::DescriptorSetIndexType::RENDERER, passName);
+		
+		renderUniformWriter->WriteAccelerationStructureToFrame("topLevelAS", renderInfo.scene->GetTLAS());
+		WriteRenderViews(renderInfo.renderView, renderInfo.scene->GetRenderView(), pipeline, renderUniformWriter);
+		if (const auto frameBuffer = renderInfo.scene->GetRenderView()->GetFrameBuffer(Atmosphere))
+		{
+			renderUniformWriter->WriteTextureToFrame("skyboxTexture", frameBuffer->GetAttachment(0));
+		}
+
+		const glm::vec2 viewportScale = glm::vec2(resolutionScales[ssrSettings.resolutionScale]);
+		const std::shared_ptr<Buffer> reflectionsBuffer = GetOrCreateBuffer(
+			renderInfo.renderView,
+			renderUniformWriter,
+			reflectionsBufferName,
+			{},
+			{ Buffer::Usage::UNIFORM_BUFFER },
+			MemoryType::CPU,
+			true);
+
+		baseMaterial->WriteToBuffer(reflectionsBuffer, reflectionsBufferName, "viewportScale", viewportScale);
+
+		std::vector<NativeHandle> uniformWriterNativeHandles;
+		std::vector<std::shared_ptr<UniformWriter>> uniformWriters;
+		GetUniformWriters(pipeline, baseMaterial, nullptr, renderInfo, uniformWriters, uniformWriterNativeHandles);
+		if (FlushUniformWriters(uniformWriters))
+		{
+			renderInfo.renderer->BeginCommandLabel(passName, topLevelRenderPassDebugColor, renderInfo.frame);
+
+			renderInfo.renderer->BeginCommandLabel(passName, { 1.0f, 1.0f, 0.0f }, renderInfo.frame);
+
+			glm::uvec2 groupCount = currentViewportSize / glm::ivec2(16, 16);
+			groupCount += glm::uvec2(1, 1);
+			renderInfo.renderer->Compute(pipeline, { groupCount.x, groupCount.y, 1 }, uniformWriterNativeHandles, renderInfo.frame);
+
+			renderInfo.renderer->PipelineBarrier(
+				BarrierBatch{}
+					.Stages(PipelineStage::ComputeShader, PipelineStage::ComputeShader)
+					.Image(reflectionsTexture, ImageLayout::General, ImageLayout::General, Access::ShaderWrite, Access::ShaderRead),
+					renderInfo.frame);
+
+			renderInfo.renderer->EndCommandLabel(renderInfo.frame);
+		}
+	};
+
+	CreateComputePass(createInfo);
+}

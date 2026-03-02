@@ -5681,6 +5681,26 @@ void Serializer::SerializeGraphicsSettings(const GraphicsSettings& graphicsSetti
 	out << YAML::EndMap;
 	//
 
+	// Ray Traced Shadows.
+	out << YAML::Key << "RayTracedShadows";
+	out << YAML::Value << YAML::BeginMap;
+
+	out << YAML::Key << "DirectionalLight" << YAML::Value << graphicsSettings.rayTracing.shadows.directionalLight;
+	out << YAML::Key << "PointLight" << YAML::Value << graphicsSettings.rayTracing.shadows.pointLight;
+	out << YAML::Key << "SpotLight" << YAML::Value << graphicsSettings.rayTracing.shadows.spotLight;
+
+	out << YAML::EndMap;
+	//
+
+	// Ray Traced Reflections.
+	out << YAML::Key << "RayTracedReflections";
+	out << YAML::Value << YAML::BeginMap;
+
+	out << YAML::Key << "IsRayTraced" << YAML::Value << graphicsSettings.rayTracing.reflections.isRayTraced;
+
+	out << YAML::EndMap;
+	//
+
 	out << YAML::EndMap;
 
 	WriteAtomically(graphicsSettings.GetFilepath(), std::ios::out, [&](std::ofstream& fout)
@@ -6007,6 +6027,32 @@ GraphicsSettings Serializer::DeserializeGraphicsSettings(const std::filesystem::
 		if (const auto& fxaaData = postProcessData["FXAA"])
 		{
 			graphicsSettings.postProcess.fxaa = fxaaData.as<bool>();
+		}
+	}
+
+	if (const auto& rayTracedShadowsData = data["RayTracedShadows"])
+	{
+		if (const auto& directionalLightData = rayTracedShadowsData["DirectionalLight"])
+		{
+			graphicsSettings.rayTracing.shadows.directionalLight = directionalLightData.as<bool>();
+		}
+
+		if (const auto& pointLightData = rayTracedShadowsData["PointLight"])
+		{
+			graphicsSettings.rayTracing.shadows.pointLight = pointLightData.as<bool>();
+		}
+
+		if (const auto& spotLightData = rayTracedShadowsData["SpotLight"])
+		{
+			graphicsSettings.rayTracing.shadows.spotLight = spotLightData.as<bool>();
+		}
+	}
+
+	if (const auto& rayTracedReflectionsData = data["RayTracedReflections"])
+	{
+		if (const auto& isRayTracedData = rayTracedReflectionsData["IsRayTraced"])
+		{
+			graphicsSettings.rayTracing.reflections.isRayTraced = isRayTracedData.as<bool>();
 		}
 	}
 

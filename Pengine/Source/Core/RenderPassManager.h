@@ -164,7 +164,9 @@ namespace Pengine
 
 		void CreateSSR();
 
-		void CreateSSRBlur();
+		void CreateBlurReflections();
+
+		void CreateRayTracedReflections();
 
 		void CreateSSAO();
 

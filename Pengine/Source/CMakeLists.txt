@@ -97,7 +97,7 @@ set(RENDER_PASSES_SOURCES
 	Core/RenderPasses/PointLightShadows.cpp
 	Core/RenderPasses/PostProcess.cpp
 	Core/RenderPasses/SpotLightShadows.cpp
-	Core/RenderPasses/SSR.cpp
+	Core/RenderPasses/Reflections.cpp
 	Core/RenderPasses/SSAO.cpp
 	Core/RenderPasses/SSS.cpp
 	Core/RenderPasses/Transparent.cpp

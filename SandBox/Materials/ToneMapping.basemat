@@ -26,10 +26,10 @@ Basemat:
         - Name: shadingTexture
           TextureAttachment: "GBuffer[2]"
         - Name: rawSSRTexture
-          TextureAttachment: "SSR"
+          TextureAttachment: "Reflections"
           TextureAttachmentDefault: "Black"
-        - Name: blurSSRTexture
-          TextureAttachment: "SSRBlur"
+        - Name: blurredReflectionsTexture
+          TextureAttachment: "BlurredReflections"
           TextureAttachmentDefault: "Black"
         - Name: bloomTexture
           TextureAttachment: "BloomFrameBuffers(0)[0]"
