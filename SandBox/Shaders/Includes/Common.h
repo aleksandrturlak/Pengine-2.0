@@ -108,9 +108,18 @@ layout(buffer_reference, scalar) buffer MaterialInfoBuffer
 	uint64_t pipelineFlags;
 };
 
+vec3 QuatRotate(vec4 q, vec3 v)
+{
+	vec3 qv = q.xyz;
+	vec3 t = 2.0 * cross(qv, v);
+	return v + q.w * t + cross(qv, t);
+}
+
 struct EntityInfo
 {
-	mat4 transform;
+	vec4 rotation;
+	vec3 position;
+	vec3 scale;
 	AABB aabb;
 	MaterialInfoBuffer materialInfoBuffer;
 	MeshInfoBuffer meshInfoBuffer;

@@ -85,7 +85,7 @@ void main()
 		localPosition = totalPosition;
 	}
 
-	vec4 worldPosition = entityInfo.transform * localPosition;
+	vec4 worldPosition = vec4(QuatRotate(entityInfo.rotation, localPosition.xyz * entityInfo.scale) + entityInfo.position, 1.0);
 	gl_Position = csm.lightSpaceMatrices[cascadeIndex] * worldPosition;
 	gl_Layer = cascadeIndex;
 	

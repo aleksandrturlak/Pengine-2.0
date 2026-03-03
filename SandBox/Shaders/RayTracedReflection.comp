@@ -59,17 +59,17 @@ layout(set = 4, binding = 0) uniform Lights
 #define MAX_BOUNCE_COUNT 1
 #define PI 3.14159265359f
 
-float Hash(vec2 p)
+float Hash(vec3 p)
 {
-    return fract(sin(dot(p, vec2(127.1f, 311.7f))) * 43758.5453123f);
+    return fract(sin(dot(p.xy, vec2(127.1f, 311.7f))) * 43758.5453123f * p.z);
 }
 
-vec3 PerturbReflection(vec3 reflectionDir, vec3 normal, float roughness, vec2 seed)
+vec3 PerturbReflection(vec3 reflectionDir, vec3 normal, float roughness, vec3 seed)
 {
     if (roughness <= 0.0f) return reflectionDir;
 
     float r1 = Hash(seed);
-    float r2 = Hash(seed + vec2(1.0f, 0.0f));
+    float r2 = Hash(seed + vec3(1.0f, 0.0f, 0.0f));
 
     float phi    = 2.0f * PI * r1;
     float alpha  = roughness * roughness;
@@ -125,9 +125,6 @@ vec4 TraceRay(vec3 origin, vec3 direction, vec4 shading)
                     barycentrics2D.y);
 
                 EntityInfo entityInfo = entities[customId];
-                mat4 transform = entityInfo.transform;
-                mat3 inverseTransform = mat3(transpose(inverse(transform)));
-
                 uint64_t materialBuffer = entityInfo.materialInfoBuffer.materialBuffers[GBUFFER_PASS];
                 DefaultMaterial material = MaterialBufferReference(materialBuffer).material;
 
@@ -139,16 +136,16 @@ vec4 TraceRay(vec3 origin, vec3 direction, vec4 shading)
                 uint idx0 = meshBufferInfoBuffer.indexBuffer.indices[primitiveId * 3 + 0].index;
                 uint idx1 = meshBufferInfoBuffer.indexBuffer.indices[primitiveId * 3 + 1].index;
                 uint idx2 = meshBufferInfoBuffer.indexBuffer.indices[primitiveId * 3 + 2].index;
-                
-                vec3 v0 = vec4(transform * vec4(meshBufferInfoBuffer.vertexBufferPosition.vertices[idx0].position, 1.0f)).xyz;
-                vec3 v1 = vec4(transform * vec4(meshBufferInfoBuffer.vertexBufferPosition.vertices[idx1].position, 1.0f)).xyz;
-                vec3 v2 = vec4(transform * vec4(meshBufferInfoBuffer.vertexBufferPosition.vertices[idx2].position, 1.0f)).xyz;
-                
+
+                vec3 v0 = QuatRotate(entityInfo.rotation, meshBufferInfoBuffer.vertexBufferPosition.vertices[idx0].position * entityInfo.scale) + entityInfo.position;
+                vec3 v1 = QuatRotate(entityInfo.rotation, meshBufferInfoBuffer.vertexBufferPosition.vertices[idx1].position * entityInfo.scale) + entityInfo.position;
+                vec3 v2 = QuatRotate(entityInfo.rotation, meshBufferInfoBuffer.vertexBufferPosition.vertices[idx2].position * entityInfo.scale) + entityInfo.position;
+
                 vec3 position = BarycentricLerp(v0, v1, v2, barycentrics);
 
-                vec3 n0 = normalize(inverseTransform * normalize(meshBufferInfoBuffer.vertexBufferNormal.normals[idx0].normal));
-                vec3 n1 = normalize(inverseTransform * normalize(meshBufferInfoBuffer.vertexBufferNormal.normals[idx1].normal));
-                vec3 n2 = normalize(inverseTransform * normalize(meshBufferInfoBuffer.vertexBufferNormal.normals[idx2].normal));
+                vec3 n0 = normalize(QuatRotate(entityInfo.rotation, normalize(meshBufferInfoBuffer.vertexBufferNormal.normals[idx0].normal) / entityInfo.scale));
+                vec3 n1 = normalize(QuatRotate(entityInfo.rotation, normalize(meshBufferInfoBuffer.vertexBufferNormal.normals[idx1].normal) / entityInfo.scale));
+                vec3 n2 = normalize(QuatRotate(entityInfo.rotation, normalize(meshBufferInfoBuffer.vertexBufferNormal.normals[idx2].normal) / entityInfo.scale));
                 
                 vec3 normal = BarycentricLerp(n0, n1, n2, barycentrics);
 
@@ -199,9 +196,9 @@ vec4 TraceRay(vec3 origin, vec3 direction, vec4 shading)
                         basicReflectivity,
                         normal,
                         albedoColor.xyz,
-                        shading.x,
-                        shading.y,
-                        shading.z,
+                        currentShading.x,
+                        currentShading.y,
+                        currentShading.z,
                         vec3(shadow),
                         vec3(1.0f));
                 }
@@ -333,9 +330,10 @@ void main()
     vec3 originWorldSpace    = vec4(camera.inverseViewMat4 * vec4(positionViewSpace, 1.0f)).xyz;
     vec3 normalWorldSpace    = mat3(camera.inverseViewMat4) * normalize(normalViewSpace);
     vec3 directionWorldSpace = mat3(camera.inverseViewMat4) * pivot;
-    directionWorldSpace = PerturbReflection(directionWorldSpace, normalWorldSpace, shading.y, vec2(pixelCoord));
+    directionWorldSpace = PerturbReflection(directionWorldSpace, normalWorldSpace, shading.y, vec3(originWorldSpace));
 
     vec4 color = TraceRay(originWorldSpace, directionWorldSpace, shading);
+
     vec4 emissive = vec4(0.0f);
     
     ivec2 emissivePixelCoord = ivec2(uv * imageSize(outEmissive));

@@ -559,11 +559,14 @@ void RenderPassManager::ProcessEntities(const RenderPass::RenderCallbackInfo& re
 		const Transform& transform = scene->GetRegistry().get<Transform>(entity);
 		
 		BindlessUniformWriter::EntityInfo entityInfo{};
-		entityInfo.transform = transform.GetTransform();
+		entityInfo.position = transform.GetPosition();
+		entityInfo.scale = transform.GetScale();
+		const glm::quat q = glm::quat_cast(glm::mat3(transform.GetRotationMat4()));
+		entityInfo.rotation = glm::vec4(q.x, q.y, q.z, q.w);
 
 		entityInfo.aabb = r3d.aabb = Utils::LocalToWorldAABB(
 			{ r3d.mesh->GetBoundingBox().min, r3d.mesh->GetBoundingBox().max },
-			entityInfo.transform);
+			transform.GetTransform());
 
 		if (!r3d.material || !r3d.isEnabled)
 			return;

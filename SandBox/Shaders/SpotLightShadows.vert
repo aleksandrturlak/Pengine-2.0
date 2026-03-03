@@ -77,8 +77,6 @@ void main()
 {
 	EntityInfo entityInfo = entities[entityIndexA];
 	
-	mat4 transform = entityInfo.transform;
-
 	materialBuffer = entityInfo.materialInfoBuffer.materialBuffers[GBUFFER_PASS];
 	DefaultMaterial material = MaterialBufferReference(materialBuffer).material;
 
@@ -99,7 +97,7 @@ void main()
 			position);
 	}
 
-	positionWorldSpace = transform * vec4(position, 1.0f);
+	positionWorldSpace = vec4(QuatRotate(entityInfo.rotation, position * entityInfo.scale) + entityInfo.position, 1.0);
 	gl_Position = spotLights[lightIndexA].viewProjectionMat4 * positionWorldSpace;
     lightPositionWorldSpace = spotLights[lightIndexA].positionWorldSpace;
     radius = spotLights[lightIndexA].radius;

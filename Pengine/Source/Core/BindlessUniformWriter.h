@@ -53,7 +53,9 @@ namespace Pengine
 
 		struct EntityInfo
 		{
-			glm::mat4 transform;
+			glm::vec4 rotation; // quaternion xyzw
+			glm::vec3 position;
+			glm::vec3 scale;
 			AABB aabb;
 			uint64_t materialInfoBuffer;
 			uint64_t meshInfoBuffer;

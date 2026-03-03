@@ -146,7 +146,7 @@ void main()
 	if (!bool((entityInfo.materialInfoBuffer.pipelineFlags >> CSM_PASS) & uint64_t(1))) return;
 
 	MeshInfoBuffer meshInfoBuffer = entityInfo.meshInfoBuffer;
-	uint lod = GetLod(camera.positionWorldSpace, vec4(entityInfo.transform * vec4(0.0f, 0.0f, 0.0f, 1.0f)).xyz, meshInfoBuffer);
+	uint lod = GetLod(camera.positionWorldSpace, entityInfo.position, meshInfoBuffer);
 	LodInfo lodInfo = meshInfoBuffer.lods[lod];
 
 	uint pipelineId = entityInfo.materialInfoBuffer.baseMaterialInfoBuffer.pipelineIds[CSM_PASS];

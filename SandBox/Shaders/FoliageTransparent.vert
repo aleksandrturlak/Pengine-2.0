@@ -111,8 +111,6 @@ void main()
 {
 	EntityInfo entityInfo = entities[gl_InstanceIndex];
 	
-	mat4 transform = entityInfo.transform;
-
 	materialIndex = int(gl_InstanceIndex);
 	uint64_t materialBuffer = entityInfo.materialInfoBuffer.materialBuffers[GBUFFER_PASS];
 	DefaultMaterial material = MaterialBufferReference(materialBuffer).material;
@@ -152,15 +150,13 @@ void main()
 			bitangent);
 	}
 
-	positionWorldSpace = (transform * vec4(position, 1.0f)).xyz;
+	positionWorldSpace = QuatRotate(entityInfo.rotation, position * entityInfo.scale) + entityInfo.position;
 	positionViewSpace = (camera.viewMat4 * vec4(positionWorldSpace, 1.0f)).xyz;
 	gl_Position = camera.projectionMat4 * vec4(positionViewSpace, 1.0f);
 
-	mat3 inverseTransform = mat3(transpose(inverse(transform)));
-
-	vec3 normalWorldSpace = normalize(inverseTransform * normalize(normal));
-	vec3 tangentWorldSpace = normalize(inverseTransform * normalize(tangent));
-	vec3 bitangentWorldSpace = normalize(inverseTransform * normalize(bitangent));
+	vec3 normalWorldSpace = normalize(QuatRotate(entityInfo.rotation, normalize(normal) / entityInfo.scale));
+	vec3 tangentWorldSpace = normalize(QuatRotate(entityInfo.rotation, normalize(tangent) / entityInfo.scale));
+	vec3 bitangentWorldSpace = normalize(QuatRotate(entityInfo.rotation, normalize(bitangent) / entityInfo.scale));
 
 	if (material.useParallaxOcclusion > 0)
 	{
