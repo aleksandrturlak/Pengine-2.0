@@ -139,6 +139,14 @@ namespace Pengine
 			const size_t offset,
 			uint32_t value,
 			void* frame) = 0;
+
+		virtual void PushConstants(
+			const std::shared_ptr<Pipeline>& pipeline,
+			ShaderStage stageFlags,
+			uint32_t offset,
+			uint32_t size,
+			const void* data,
+			void* frame) = 0;
 	};
 
 }

@@ -3,6 +3,8 @@
 #include "../Core/Core.h"
 #include "../Core/BoundingBox.h"
 #include "../Core/UUID.h"
+#include "../Graphics/AccelerationStructure.h"
+#include "../Graphics/Buffer.h"
 
 namespace Pengine
 {
@@ -38,6 +40,18 @@ namespace Pengine
 		 * Recalculated every frame in ProcessEntities.
 		 */
 		AABB aabb;
+
+		/**
+		 * Per-entity GPU buffer containing pre-computed skinned vertex data (position, normal, tangent).
+		 * Created lazily for skinned meshes with a SkeletalAnimator. Written by GPUSkinningPass.
+		 */
+		std::shared_ptr<Buffer> skinnedVertexBuffer;
+
+		/**
+		 * Per-entity BLAS built from skinnedVertexBuffer. Rebuilt every frame in GPUSkinningPass.
+		 * Used instead of mesh->GetBLAS() for TLAS instance construction.
+		 */
+		std::shared_ptr<AccelerationStructure> skinnedBLAS;
 
 		~Renderer3D();
 	};

@@ -32,53 +32,6 @@ layout(buffer_reference, scalar) buffer MaterialBufferReference
 	DefaultMaterial material;
 };
 
-void CalculateSkinning(
-	in vec4 weights,
-	in ivec4 boneIds,
-	in BoneBuffer boneBuffer,
-	inout vec3 position,
-	inout vec3 normal,
-	inout vec3 tangent,
-	inout vec3 bitangent)
-{
-	vec4 totalPosition = vec4(0.0f);
-	vec3 totalNormal = vec3(0.0f);
-	vec3 totalTangent = vec3(0.0f);
-	vec3 totalBitangent = vec3(0.0f);
-	for (int i = 0; i < MAX_BONE_INFLUENCE; i++)
-	{
-		if(boneIds[i] == -1) continue;
-		if(boneIds[i] >= MAX_BONES)
-		{
-			totalPosition = vec4(position, 1.0f);
-			totalNormal = normal;
-			totalTangent = tangent;
-			totalBitangent = bitangent;
-			break;
-		}
-
-		mat4 boneMat4 = boneBuffer.boneMatrices[boneIds[i]];
-		vec4 localPosition = boneMat4 * vec4(position, 1.0f);
-		totalPosition += localPosition * weights[i];
-
-		mat3 boneMat3 = mat3(boneMat4);
-
-		vec3 localNormal = boneMat3 * normal;
-		totalNormal += localNormal * weights[i];
-
-		vec3 localTangent = boneMat3 * tangent;
-		totalTangent += localTangent * weights[i];
-
-		vec3 localBitangent = boneMat3 * bitangent;
-		totalBitangent += localBitangent * weights[i];
-	}
-
-	position = totalPosition.xyz;
-	normal = totalNormal;
-	tangent = totalTangent;
-	bitangent = totalBitangent;
-}
-
 void main()
 {
 	EntityInfo entityInfo = entities[gl_InstanceIndex];
@@ -99,15 +52,11 @@ void main()
 
 	if (bool(entityInfo.flags & ENTITY_SKINNED))
 	{
-		VertexSkinned vertexSkinned = meshBufferInfoBuffer.vertexBufferSkinned.skinned[index];
-		CalculateSkinning(
-			vertexSkinned.weights,
-			vertexSkinned.boneIds,
-			entityInfo.boneBuffer,
-			position,
-			normal,
-			tangent,
-			bitangent);
+		SkinnedVertex sv = entityInfo.skinnedVertexBuffer.skinnedVertices[index];
+		position  = sv.position;
+		normal    = sv.normal;
+		tangent   = sv.tangent.xyz;
+		bitangent = cross(sv.normal, sv.tangent.xyz) * sv.tangent.w;
 	}
 
 	vec4 positionWorldSpace = vec4(QuatRotate(entityInfo.rotation, position * entityInfo.scale) + entityInfo.position, 1.0);

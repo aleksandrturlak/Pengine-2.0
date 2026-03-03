@@ -80,6 +80,8 @@ VkBufferUsageFlagBits VulkanBuffer::ConvertUsage(const Usage usage)
 		return VK_BUFFER_USAGE_TRANSFER_SRC_BIT;
 	case Pengine::Buffer::Usage::TRANSFER_DST:
 		return VK_BUFFER_USAGE_TRANSFER_DST_BIT;
+	case Pengine::Buffer::Usage::ACCELERATION_STRUCTURE_INPUT:
+		return VK_BUFFER_USAGE_ACCELERATION_STRUCTURE_BUILD_INPUT_READ_ONLY_BIT_KHR;
 	}
 
 	FATAL_ERROR("Failed to convert buffer usage!");

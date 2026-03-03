@@ -1,0 +1,77 @@
+Mat:
+  Basemat: 0xacf1582d87fa6244c969b7a6c10a743b
+  Options:
+    - Name: Transparency
+      IsEnabled: false
+      Active:
+        - Transparent
+      Inactive:
+        - GBuffer
+  Pipelines:
+    - RenderPass: GBuffer
+      Uniforms:
+        - Name: GBufferMaterial
+          Values:
+            - Name: material.albedoColor
+              Value: [0.337254912, 0.337254912, 0.337254912, 1]
+              Type: vec4
+            - Name: material.emissiveColor
+              Value: [1, 1, 1, 1]
+              Type: vec4
+            - Name: material.uvTransform
+              Value: [1, 1, 0, 0]
+              Type: vec4
+            - Name: material.metallicFactor
+              Value: 0
+              Type: float
+            - Name: material.roughnessFactor
+              Value: 1
+              Type: float
+            - Name: material.aoFactor
+              Value: 1
+              Type: float
+            - Name: material.emissiveFactor
+              Value: 0
+              Type: float
+            - Name: material.alphaCutoff
+              Value: 0.00999999978
+              Type: float
+            - Name: material.maxParallaxLayers
+              Value: 0
+              Type: int
+            - Name: material.minParallaxLayers
+              Value: 0
+              Type: int
+            - Name: material.parallaxHeightScale
+              Value: 0
+              Type: float
+            - Name: material.useNormalMap
+              Value: 0
+              Type: int
+            - Name: material.useAlphaCutoff
+              Value: 1
+              Type: int
+            - Name: material.useParallaxOcclusion
+              Value: 0
+              Type: int
+        - Name: albedoTexture
+          Value: White
+        - Name: normalTexture
+          Value: Black
+        - Name: metallicRoughnessTexture
+          Value: White
+        - Name: aoTexture
+          Value: White
+        - Name: emissiveTexture
+          Value: White
+        - Name: heightTexture
+          Value: White
+    - RenderPass: Transparent
+      Uniforms:
+        []
+    - RenderPass: CSM
+      Uniforms:
+        []
+    - RenderPass: ZPrePass
+      Uniforms:
+        []

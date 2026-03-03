@@ -1,0 +1,63 @@
+#version 460
+
+#include "Shaders/Includes/Common.h"
+
+layout(push_constant, scalar) uniform PushConstants
+{
+	VertexBufferPosition  positionBuffer;
+	VertexBufferNormal    normalBuffer;
+	VertexBufferSkinned   skinnedDataBuffer;
+	BoneBuffer            boneMatricesBuffer;
+	SkinnedVertexBuffer   outputBuffer;
+	uint                  vertexCount;
+	uint                  padding;
+} pc;
+
+layout(local_size_x = 64, local_size_y = 1, local_size_z = 1) in;
+
+void main()
+{
+	uint idx = gl_GlobalInvocationID.x;
+	if (idx >= pc.vertexCount)
+	{
+		return;
+	}
+
+	vec3 position    = pc.positionBuffer.vertices[idx].position;
+	vec3 normal      = pc.normalBuffer.normals[idx].normal;
+	vec4 tangentFull = pc.normalBuffer.normals[idx].tangent;
+	vec3 tangent     = tangentFull.xyz;
+
+	VertexSkinned skin = pc.skinnedDataBuffer.skinned[idx];
+
+	vec4 totalPosition = vec4(0.0f);
+	vec3 totalNormal   = vec3(0.0f);
+	vec3 totalTangent  = vec3(0.0f);
+
+	for (int i = 0; i < MAX_BONE_INFLUENCE; i++)
+	{
+		int boneId = skin.boneIds[i];
+		if (boneId == -1)
+		{
+			continue;
+		}
+		if (boneId >= MAX_BONES)
+		{
+			totalPosition  = vec4(position, 1.0f);
+			totalNormal = normal;
+			totalTangent = tangent;
+			break;
+		}
+
+		mat4 boneMat4  = pc.boneMatricesBuffer.boneMatrices[boneId];
+		float weight   = skin.weights[i];
+
+		totalPosition  += boneMat4 * vec4(position, 1.0f) * weight;
+		totalNormal += mat3(boneMat4) * normal  * weight;
+		totalTangent += mat3(boneMat4) * tangent * weight;
+	}
+
+	pc.outputBuffer.skinnedVertices[idx].position = totalPosition.xyz;
+	pc.outputBuffer.skinnedVertices[idx].normal   = normalize(totalNormal);
+	pc.outputBuffer.skinnedVertices[idx].tangent  = vec4(normalize(totalTangent), tangentFull.w);
+}

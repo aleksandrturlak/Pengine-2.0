@@ -1,0 +1,5 @@
+Basemat:
+  Pipelines:
+    - RenderPass: GPUSkinning
+      Type: Compute
+      Compute: Shaders/GPUSkinning.comp

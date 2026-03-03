@@ -178,6 +178,8 @@ namespace Pengine
 
 		void CreateHiZPyramid();
 
+		void CreateGPUSkinningPass();
+
 		void CreateUI();
 
 		void CreateDecalPass();

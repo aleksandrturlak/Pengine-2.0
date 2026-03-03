@@ -8,6 +8,7 @@ namespace Pengine
 
 	const std::vector<std::string> passPerSceneOrder =
 	{
+		GPUSkinning,
 		Atmosphere
 	};
 

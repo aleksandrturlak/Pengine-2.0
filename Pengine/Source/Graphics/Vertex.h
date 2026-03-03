@@ -48,6 +48,13 @@ namespace Pengine
 		uint32_t color;
 	};
 
+	struct PENGINE_API VertexSkinnedOutput
+	{
+		glm::vec3 position;
+		glm::vec3 normal;
+		glm::vec4 tangent;
+	};
+
 	struct PENGINE_API VertexLayout
 	{
 		uint32_t size;

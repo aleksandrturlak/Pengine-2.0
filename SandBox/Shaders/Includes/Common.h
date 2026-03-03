@@ -66,6 +66,18 @@ layout(buffer_reference, scalar) buffer BoneBuffer
 	mat4 boneMatrices[MAX_BONES];
 };
 
+struct SkinnedVertex
+{
+	vec3 position;
+	vec3 normal;
+	vec4 tangent;
+};
+
+layout(buffer_reference, scalar) buffer SkinnedVertexBuffer
+{
+	SkinnedVertex skinnedVertices[];
+};
+
 struct LodInfo
 {
 	uint indexOffset;
@@ -124,6 +136,7 @@ struct EntityInfo
 	MaterialInfoBuffer materialInfoBuffer;
 	MeshInfoBuffer meshInfoBuffer;
 	BoneBuffer boneBuffer;
+	SkinnedVertexBuffer skinnedVertexBuffer;
 	uint flags; // valid, skinned, etc.
 };
 

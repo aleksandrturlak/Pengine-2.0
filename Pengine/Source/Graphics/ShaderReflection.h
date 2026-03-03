@@ -85,10 +85,17 @@ namespace Pengine::ShaderReflection
 		uint32_t count;
 	};
 
+	struct PushConstantRange
+	{
+		uint32_t offset = 0;
+		uint32_t size = 0;
+	};
+
 	struct ReflectShaderModule
 	{
 		std::vector<ReflectDescriptorSetLayout> setLayouts;
 		std::vector<AttributeDescription> attributeDescriptions;
+		std::vector<PushConstantRange> pushConstantRanges;
 	};
 
 	static ReflectVariable::Type ConvertStringToType(const std::string& type)

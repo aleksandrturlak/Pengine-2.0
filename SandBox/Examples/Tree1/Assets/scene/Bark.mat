@@ -17,9 +17,6 @@ Mat:
     - RenderPass: CSM
       Uniforms:
         []
-    - RenderPass: Transparent
-      Uniforms:
-        []
     - RenderPass: GBuffer
       Uniforms:
         - Name: MaterialBuffer

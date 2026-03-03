@@ -39,7 +39,7 @@ void VulkanRenderer::Render(
 	const VulkanFrameInfo* vkFrame = static_cast<VulkanFrameInfo*>(frame);
 	
 	const std::shared_ptr<VulkanGraphicsPipeline>& vkPipeline = std::static_pointer_cast<VulkanGraphicsPipeline>(pipeline);
-	vkPipeline->Bind(vkFrame->CommandBuffer);
+	vkCmdBindPipeline(vkFrame->CommandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, vkPipeline->GetPipeline());
 
 	if (!uniformWriters.empty())
 	{
@@ -71,7 +71,7 @@ void VulkanRenderer::Compute(
 	const VulkanFrameInfo* vkFrame = static_cast<VulkanFrameInfo*>(frame);
 
 	const std::shared_ptr<VulkanComputePipeline>& vkPipeline = std::dynamic_pointer_cast<VulkanComputePipeline>(pipeline);
-	vkPipeline->Bind(vkFrame->CommandBuffer);
+	vkCmdBindPipeline(vkFrame->CommandBuffer, VK_PIPELINE_BIND_POINT_COMPUTE, vkPipeline->GetPipeline());
 
 	if (!uniformWriters.empty())
 	{
@@ -94,7 +94,21 @@ void VulkanRenderer::BindPipeline(
 	void* frame)
 {
 	const VulkanFrameInfo* vkFrame = static_cast<VulkanFrameInfo*>(frame);
-	std::static_pointer_cast<VulkanGraphicsPipeline>(pipeline)->Bind(vkFrame->CommandBuffer);
+	switch (pipeline->GetType())
+	{
+	case Pipeline::Type::GRAPHICS:
+		vkCmdBindPipeline(
+			vkFrame->CommandBuffer,
+			VK_PIPELINE_BIND_POINT_GRAPHICS,
+			std::static_pointer_cast<VulkanGraphicsPipeline>(pipeline)->GetPipeline());
+		break;
+	case Pipeline::Type::COMPUTE:
+		vkCmdBindPipeline(
+			vkFrame->CommandBuffer,
+			VK_PIPELINE_BIND_POINT_COMPUTE,
+			std::static_pointer_cast<VulkanComputePipeline>(pipeline)->GetPipeline());
+		break;
+	}
 }
 
 void VulkanRenderer::BindUniformWriters(
@@ -236,8 +250,9 @@ static VkPipelineStageFlags ToVkStage(PipelineStage stage)
 	if (static_cast<uint32_t>(stage & PipelineStage::ComputeShader))   flags |= VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT;
 	if (static_cast<uint32_t>(stage & PipelineStage::Transfer))        flags |= VK_PIPELINE_STAGE_TRANSFER_BIT;
 	if (static_cast<uint32_t>(stage & PipelineStage::Host))            flags |= VK_PIPELINE_STAGE_HOST_BIT;
-	if (static_cast<uint32_t>(stage & PipelineStage::AllGraphics))     flags |= VK_PIPELINE_STAGE_ALL_GRAPHICS_BIT;
-	if (static_cast<uint32_t>(stage & PipelineStage::AllCommands))     flags |= VK_PIPELINE_STAGE_ALL_COMMANDS_BIT;
+	if (static_cast<uint32_t>(stage & PipelineStage::AllGraphics))              flags |= VK_PIPELINE_STAGE_ALL_GRAPHICS_BIT;
+	if (static_cast<uint32_t>(stage & PipelineStage::AllCommands))              flags |= VK_PIPELINE_STAGE_ALL_COMMANDS_BIT;
+	if (static_cast<uint32_t>(stage & PipelineStage::AccelerationStructureBuild)) flags |= VK_PIPELINE_STAGE_ACCELERATION_STRUCTURE_BUILD_BIT_KHR;
 	return flags;
 }
 
@@ -257,8 +272,10 @@ static VkAccessFlags ToVkAccess(Access access)
 	if (static_cast<uint32_t>(access & Access::TransferWrite))        flags |= VK_ACCESS_TRANSFER_WRITE_BIT;
 	if (static_cast<uint32_t>(access & Access::HostRead))             flags |= VK_ACCESS_HOST_READ_BIT;
 	if (static_cast<uint32_t>(access & Access::HostWrite))            flags |= VK_ACCESS_HOST_WRITE_BIT;
-	if (static_cast<uint32_t>(access & Access::MemoryRead))           flags |= VK_ACCESS_MEMORY_READ_BIT;
-	if (static_cast<uint32_t>(access & Access::MemoryWrite))          flags |= VK_ACCESS_MEMORY_WRITE_BIT;
+	if (static_cast<uint32_t>(access & Access::MemoryRead))                    flags |= VK_ACCESS_MEMORY_READ_BIT;
+	if (static_cast<uint32_t>(access & Access::MemoryWrite))                   flags |= VK_ACCESS_MEMORY_WRITE_BIT;
+	if (static_cast<uint32_t>(access & Access::AccelerationStructureRead))     flags |= VK_ACCESS_ACCELERATION_STRUCTURE_READ_BIT_KHR;
+	if (static_cast<uint32_t>(access & Access::AccelerationStructureWrite))    flags |= VK_ACCESS_ACCELERATION_STRUCTURE_WRITE_BIT_KHR;
 	return flags;
 }
 
@@ -393,6 +410,20 @@ void VulkanRenderer::FillBuffer(
 
 	const VulkanFrameInfo* vkFrame = static_cast<VulkanFrameInfo*>(frame);
 	vkCmdFillBuffer(vkFrame->CommandBuffer, *(VkBuffer*)&buffer, offset, size, value);
+}
+
+void VulkanRenderer::PushConstants(
+	const std::shared_ptr<Pipeline>& pipeline,
+	ShaderStage stageFlags,
+	uint32_t offset,
+	uint32_t size,
+	const void* data,
+	void* frame)
+{
+	const VulkanFrameInfo* vkFrame = static_cast<VulkanFrameInfo*>(frame);
+	const std::shared_ptr<VulkanComputePipeline>& vkPipeline = std::static_pointer_cast<VulkanComputePipeline>(pipeline);
+	vkCmdPushConstants(vkFrame->CommandBuffer, vkPipeline->GetPipelineLayout(),
+		static_cast<VkShaderStageFlags>(stageFlags), offset, size, data);
 }
 
 void VulkanRenderer::BeginRenderPass(

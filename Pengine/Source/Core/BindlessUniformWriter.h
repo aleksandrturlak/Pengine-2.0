@@ -60,6 +60,7 @@ namespace Pengine
 			uint64_t materialInfoBuffer;
 			uint64_t meshInfoBuffer;
 			uint64_t boneBuffer;
+			uint64_t skinnedVertexBuffer = 0;
 			uint32_t flags; // valid, skinned, etc.
 		};
 

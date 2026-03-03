@@ -31,6 +31,7 @@ namespace Pengine
 	const std::string RayTracedReflection = "RayTracedReflection";
 	const std::string HiZPyramid = "HiZPyramid";
 	const std::string UI = "UI";
+	const std::string GPUSkinning = "GPUSkinning";
 
 	class FrameBuffer;
 	class Window;

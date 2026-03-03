@@ -7,21 +7,36 @@ namespace Pengine
 
 	class Texture;
 
+	enum class ShaderStage : uint32_t
+	{
+		None     = 0,
+		Vertex   = 0x00000001,
+		Fragment = 0x00000010,
+		Compute  = 0x00000020,
+		All      = 0x7FFFFFFF,
+	};
+
+	inline ShaderStage operator|(ShaderStage a, ShaderStage b)
+	{
+		return static_cast<ShaderStage>(static_cast<uint32_t>(a) | static_cast<uint32_t>(b));
+	}
+
 	enum class PipelineStage : uint32_t
 	{
-		None            = 0,
-		DrawIndirect    = 1 << 0,
-		VertexInput     = 1 << 1,
-		VertexShader    = 1 << 2,
-		FragmentShader  = 1 << 3,
-		ColorAttachment = 1 << 4,
-		EarlyDepth      = 1 << 5,
-		LateDepth       = 1 << 6,
-		ComputeShader   = 1 << 7,
-		Transfer        = 1 << 8,
-		Host            = 1 << 9,
-		AllGraphics     = 1 << 10,
-		AllCommands     = 1 << 11,
+		None                     = 0,
+		DrawIndirect             = 1 << 0,
+		VertexInput              = 1 << 1,
+		VertexShader             = 1 << 2,
+		FragmentShader           = 1 << 3,
+		ColorAttachment          = 1 << 4,
+		EarlyDepth               = 1 << 5,
+		LateDepth                = 1 << 6,
+		ComputeShader            = 1 << 7,
+		Transfer                 = 1 << 8,
+		Host                     = 1 << 9,
+		AllGraphics              = 1 << 10,
+		AllCommands              = 1 << 11,
+		AccelerationStructureBuild = 1 << 12,
 	};
 
 	inline PipelineStage operator|(PipelineStage a, PipelineStage b)
@@ -48,10 +63,12 @@ namespace Pengine
 		DepthAttachmentWrite = 1 << 8,
 		TransferRead         = 1 << 9,
 		TransferWrite        = 1 << 10,
-		HostRead             = 1 << 11,
-		HostWrite            = 1 << 12,
-		MemoryRead           = 1 << 13,
-		MemoryWrite          = 1 << 14,
+		HostRead                      = 1 << 11,
+		HostWrite                     = 1 << 12,
+		MemoryRead                    = 1 << 13,
+		MemoryWrite                   = 1 << 14,
+		AccelerationStructureRead     = 1 << 15,
+		AccelerationStructureWrite    = 1 << 16,
 	};
 
 	inline Access operator|(Access a, Access b)

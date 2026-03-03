@@ -93,6 +93,7 @@ set(RENDER_PASSES_SOURCES
 	Core/RenderPasses/Decal.cpp
 	Core/RenderPasses/Deferred.cpp
 	Core/RenderPasses/GBuffer.cpp
+	Core/RenderPasses/GPUSkinning.cpp
 	Core/RenderPasses/HiZ.cpp
 	Core/RenderPasses/PointLightShadows.cpp
 	Core/RenderPasses/PostProcess.cpp

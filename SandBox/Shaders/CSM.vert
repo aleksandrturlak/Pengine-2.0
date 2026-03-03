@@ -63,26 +63,7 @@ void main()
 
 	if (bool(entityInfo.flags & ENTITY_SKINNED))
 	{
-		VertexSkinned skinned = meshInfo.meshBufferInfoBuffer.vertexBufferSkinned.skinned[index];
-		vec4 totalPosition = vec4(0.0f);
-		
-		for (int i = 0; i < MAX_BONE_INFLUENCE; i++)
-		{
-			int boneId = skinned.boneIds[i];
-			if (boneId == -1)
-			{
-				continue;
-			}
-			if (boneId >= MAX_BONES)
-			{
-				totalPosition = localPosition;
-				break;
-			}
-			vec4 bonePosition = entityInfo.boneBuffer.boneMatrices[boneId] * localPosition;
-			totalPosition += bonePosition * skinned.weights[i];
-		}
-		
-		localPosition = totalPosition;
+		localPosition = vec4(entityInfo.skinnedVertexBuffer.skinnedVertices[index].position, 1.0f);
 	}
 
 	vec4 worldPosition = vec4(QuatRotate(entityInfo.rotation, localPosition.xyz * entityInfo.scale) + entityInfo.position, 1.0);

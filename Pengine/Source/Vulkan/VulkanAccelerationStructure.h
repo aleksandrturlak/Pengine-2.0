@@ -21,6 +21,11 @@ namespace Pengine::Vk
 	public:
 		static std::shared_ptr<VulkanAccelerationStructure> CreateBLAS(const Mesh& mesh);
 
+		static std::shared_ptr<VulkanAccelerationStructure> CreateSkinnedBLAS(
+			const Mesh& mesh,
+			uint64_t skinnedVertexAddress,
+			void* frame);
+
 		static std::shared_ptr<VulkanAccelerationStructure> CreateTLAS(
 			const std::vector<AccelerationStructure::Instance>& instances,
 			void* frame);
@@ -33,6 +38,11 @@ namespace Pengine::Vk
 		[[nodiscard]] virtual uint64_t GetDeviceAddress() const override { return m_DeviceAddress; }
 
 		[[nodiscard]] VkAccelerationStructureKHR GetHandle() const { return m_AccelerationStructure; }
+
+		virtual void Rebuild(
+			const Mesh& mesh,
+			uint64_t skinnedVertexAddress,
+			void* frame) override;
 
 	private:
 		static std::shared_ptr<VulkanAccelerationStructure> Build(

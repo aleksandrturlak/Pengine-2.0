@@ -127,6 +127,7 @@ std::optional<ShaderReflection::ReflectShaderModule> VulkanPipelineUtils::Reflec
 
 	ReflectDescriptorSets(reflectModule, reflectShaderModule);
 	ReflectInputVariables(reflectModule, reflectShaderModule);
+	ReflectPushConstants(reflectModule, reflectShaderModule);
 
 	spvReflectDestroyShaderModule(&reflectModule);
 
@@ -342,6 +343,32 @@ void VulkanPipelineUtils::ReflectInputVariables(
 		{
 			attributeDescription.count = inputVariable->numeric.matrix.row_count;
 		}
+	}
+}
+
+void VulkanPipelineUtils::ReflectPushConstants(
+	SpvReflectShaderModule& reflectModule,
+	ShaderReflection::ReflectShaderModule& reflectShaderModule)
+{
+	uint32_t count = 0;
+	SpvReflectResult result = spvReflectEnumeratePushConstantBlocks(&reflectModule, &count, nullptr);
+	if (result != SPV_REFLECT_RESULT_SUCCESS || count == 0)
+	{
+		return;
+	}
+
+	std::vector<SpvReflectBlockVariable*> pushConstants(count);
+	result = spvReflectEnumeratePushConstantBlocks(&reflectModule, &count, pushConstants.data());
+	if (result != SPV_REFLECT_RESULT_SUCCESS)
+	{
+		return;
+	}
+
+	for (const auto* block : pushConstants)
+	{
+		ShaderReflection::PushConstantRange& range = reflectShaderModule.pushConstantRanges.emplace_back();
+		range.offset = block->offset;
+		range.size = block->size;
 	}
 }
 

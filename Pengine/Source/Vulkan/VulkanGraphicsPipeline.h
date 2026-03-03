@@ -32,8 +32,6 @@ namespace Pengine::Vk
 	public:
 		static void DefaultPipelineConfigInfo(PipelineConfigInfo& pipelineConfigInfo);
 
-		void Bind(VkCommandBuffer commandBuffer) const;
-
 		explicit VulkanGraphicsPipeline(const CreateGraphicsInfo& createGraphicsInfo);
 		virtual ~VulkanGraphicsPipeline() override;
 		VulkanGraphicsPipeline(const VulkanGraphicsPipeline&) = delete;

@@ -4,6 +4,7 @@
 
 #include "../Core/Logger.h"
 #include "../Graphics/Mesh.h"
+#include "../Graphics/Vertex.h"
 
 using namespace Pengine;
 using namespace Vk;
@@ -99,6 +100,127 @@ std::shared_ptr<VulkanAccelerationStructure> VulkanAccelerationStructure::Create
 	GetVkDevice()->EndSingleTimeCommands(commandBuffer);
 
 	return blas;
+}
+
+std::shared_ptr<VulkanAccelerationStructure> VulkanAccelerationStructure::CreateSkinnedBLAS(
+	const Mesh& mesh,
+	const uint64_t skinnedVertexAddress,
+	void* frame)
+{
+	if (mesh.GetVertexCount() == 0 || mesh.GetIndexCount() == 0)
+	{
+		return nullptr;
+	}
+
+	const VkDeviceAddress indexAddress = mesh.GetIndexBuffer()->GetDeviceAddress().Get();
+	const uint32_t primitiveCount = static_cast<uint32_t>(mesh.GetLods()[0].indexCount / 3);
+
+	VkAccelerationStructureGeometryTrianglesDataKHR triangles{};
+	triangles.sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_GEOMETRY_TRIANGLES_DATA_KHR;
+	triangles.vertexFormat = VK_FORMAT_R32G32B32_SFLOAT;
+	triangles.vertexData.deviceAddress = skinnedVertexAddress;
+	triangles.vertexStride = sizeof(VertexSkinnedOutput);
+	triangles.maxVertex = static_cast<uint32_t>(mesh.GetVertexCount() - 1);
+	triangles.indexType = VK_INDEX_TYPE_UINT32;
+	triangles.indexData.deviceAddress = indexAddress;
+	triangles.transformData = {};
+
+	VkAccelerationStructureGeometryKHR geometry{};
+	geometry.sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_GEOMETRY_KHR;
+	geometry.geometryType = VK_GEOMETRY_TYPE_TRIANGLES_KHR;
+	geometry.geometry.triangles = triangles;
+	geometry.flags = 0;
+
+	VkAccelerationStructureBuildRangeInfoKHR buildRange{};
+	buildRange.primitiveCount = primitiveCount;
+	buildRange.primitiveOffset = static_cast<uint32_t>(mesh.GetLods()[0].indexOffset * sizeof(uint32_t));
+	buildRange.firstVertex = 0;
+	buildRange.transformOffset = 0;
+
+	const std::shared_ptr<VulkanDevice> vkDevice = std::static_pointer_cast<VulkanDevice>(device);
+	VkCommandBuffer commandBuffer = vkDevice->GetCommandBufferFromFrame(frame);
+
+	return Build(
+		VK_ACCELERATION_STRUCTURE_TYPE_BOTTOM_LEVEL_KHR,
+		{ geometry },
+		{ buildRange },
+		VK_BUILD_ACCELERATION_STRUCTURE_PREFER_FAST_BUILD_BIT_KHR |
+		VK_BUILD_ACCELERATION_STRUCTURE_ALLOW_UPDATE_BIT_KHR,
+		commandBuffer);
+}
+
+void VulkanAccelerationStructure::Rebuild(
+	const Mesh& mesh,
+	const uint64_t skinnedVertexAddress,
+	void* frame)
+{
+	if (m_AccelerationStructure == VK_NULL_HANDLE)
+		return;
+
+	const VkDeviceAddress indexAddress = mesh.GetIndexBuffer()->GetDeviceAddress().Get();
+	const uint32_t primitiveCount = static_cast<uint32_t>(mesh.GetLods()[0].indexCount / 3);
+
+	VkAccelerationStructureGeometryTrianglesDataKHR triangles{};
+	triangles.sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_GEOMETRY_TRIANGLES_DATA_KHR;
+	triangles.vertexFormat = VK_FORMAT_R32G32B32_SFLOAT;
+	triangles.vertexData.deviceAddress = skinnedVertexAddress;
+	triangles.vertexStride = sizeof(VertexSkinnedOutput);
+	triangles.maxVertex = static_cast<uint32_t>(mesh.GetVertexCount() - 1);
+	triangles.indexType = VK_INDEX_TYPE_UINT32;
+	triangles.indexData.deviceAddress = indexAddress;
+	triangles.transformData = {};
+
+	VkAccelerationStructureGeometryKHR geometry{};
+	geometry.sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_GEOMETRY_KHR;
+	geometry.geometryType = VK_GEOMETRY_TYPE_TRIANGLES_KHR;
+	geometry.geometry.triangles = triangles;
+	geometry.flags = 0;
+
+	uint32_t maxPrimitiveCount = primitiveCount;
+
+	VkAccelerationStructureBuildGeometryInfoKHR buildInfo{};
+	buildInfo.sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_BUILD_GEOMETRY_INFO_KHR;
+	buildInfo.type = VK_ACCELERATION_STRUCTURE_TYPE_BOTTOM_LEVEL_KHR;
+	buildInfo.flags = VK_BUILD_ACCELERATION_STRUCTURE_PREFER_FAST_BUILD_BIT_KHR |
+	                  VK_BUILD_ACCELERATION_STRUCTURE_ALLOW_UPDATE_BIT_KHR;
+	buildInfo.mode = VK_BUILD_ACCELERATION_STRUCTURE_MODE_UPDATE_KHR;
+	buildInfo.srcAccelerationStructure = m_AccelerationStructure;
+	buildInfo.dstAccelerationStructure = m_AccelerationStructure;
+	buildInfo.geometryCount = 1;
+	buildInfo.pGeometries = &geometry;
+
+	VkAccelerationStructureBuildSizesInfoKHR sizeInfo{};
+	GetVkDevice()->GetAccelerationStructureBuildSizes(
+		VK_ACCELERATION_STRUCTURE_BUILD_TYPE_DEVICE_KHR,
+		buildInfo,
+		&maxPrimitiveCount,
+		sizeInfo);
+
+	VkDeviceAddress scratchAddress{};
+	CreateScratchBuffer(sizeInfo.updateScratchSize, scratchAddress);
+	buildInfo.scratchData.deviceAddress = scratchAddress;
+
+	VkAccelerationStructureBuildRangeInfoKHR buildRange{};
+	buildRange.primitiveCount = primitiveCount;
+	buildRange.primitiveOffset = static_cast<uint32_t>(mesh.GetLods()[0].indexOffset * sizeof(uint32_t));
+	buildRange.firstVertex = 0;
+	buildRange.transformOffset = 0;
+
+	const std::shared_ptr<VulkanDevice> vkDevice = std::static_pointer_cast<VulkanDevice>(device);
+	VkCommandBuffer commandBuffer = vkDevice->GetCommandBufferFromFrame(frame);
+
+	const VkAccelerationStructureBuildRangeInfoKHR* pBuildRange = &buildRange;
+	vkDevice->CmdBuildAccelerationStructures(commandBuffer, 1, &buildInfo, &pBuildRange);
+
+	VkMemoryBarrier memBarrier{};
+	memBarrier.sType = VK_STRUCTURE_TYPE_MEMORY_BARRIER;
+	memBarrier.srcAccessMask = VK_ACCESS_ACCELERATION_STRUCTURE_WRITE_BIT_KHR;
+	memBarrier.dstAccessMask = VK_ACCESS_ACCELERATION_STRUCTURE_READ_BIT_KHR;
+	vkCmdPipelineBarrier(
+		commandBuffer,
+		VK_PIPELINE_STAGE_ACCELERATION_STRUCTURE_BUILD_BIT_KHR,
+		VK_PIPELINE_STAGE_ACCELERATION_STRUCTURE_BUILD_BIT_KHR,
+		0, 1, &memBarrier, 0, nullptr, 0, nullptr);
 }
 
 std::shared_ptr<VulkanAccelerationStructure> VulkanAccelerationStructure::CreateTLAS(

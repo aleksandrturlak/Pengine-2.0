@@ -55,7 +55,7 @@ SSR:
   ResolutionBlurScale: 4
   ResolutionScale: 3
   StepCount: 20
-  Thickness: 0.209999993
+  Thickness: 500
   BlurRange: 1
   BlurOffset: 1
   MipMultiplier: 0
@@ -64,7 +64,7 @@ SSR:
 PostProcess:
   Gamma: 2.20000005
   ToneMapper: 1
-  FXAA: true
+  FXAA: false
 RayTracedShadows:
   DirectionalLight: true
   PointLight: true

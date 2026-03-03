@@ -25,6 +25,7 @@
 #include "../Graphics/AccelerationStructure.h"
 #include "../Graphics/Device.h"
 #include "../Graphics/Renderer.h"
+#include "../Graphics/Vertex.h"
 #include "../Graphics/RenderView.h"
 #include "../Graphics/GraphicsPipeline.h"
 #include "../EventSystem/EventSystem.h"
@@ -451,6 +452,7 @@ void RenderPassManager::Initialize()
 	CreateUI();
 	CreateDefaultReflection();
 	CreateHiZPyramid();
+	CreateGPUSkinningPass();
 }
 
 void RenderPassManager::GetVertexBuffers(
@@ -590,6 +592,21 @@ void RenderPassManager::ProcessEntities(const RenderPass::RenderCallbackInfo& re
 				if (auto* skeletalAnimator = scene->GetRegistry().try_get<SkeletalAnimator>(skeletalAnimatorEntity->GetHandle()))
 				{
 					entityInfo.boneBuffer = skeletalAnimator->GetBuffer()->GetDeviceAddress().Get();
+
+					if (r3d.mesh->GetType() == Mesh::Type::SKINNED)
+					{
+						if (!r3d.skinnedVertexBuffer)
+						{
+							Buffer::CreateInfo bufferInfo{};
+							bufferInfo.instanceSize = sizeof(VertexSkinnedOutput);
+							bufferInfo.instanceCount = static_cast<uint32_t>(r3d.mesh->GetVertexCount());
+							bufferInfo.usages = { Buffer::Usage::STORAGE_BUFFER, Buffer::Usage::ACCELERATION_STRUCTURE_INPUT };
+							bufferInfo.memoryType = MemoryType::GPU;
+							bufferInfo.isMultiBuffered = false;
+							r3d.skinnedVertexBuffer = Buffer::Create(bufferInfo);
+						}
+						entityInfo.skinnedVertexBuffer = r3d.skinnedVertexBuffer->GetDeviceAddress().Get();
+					}
 				}
 			}
 		}
@@ -650,7 +667,10 @@ void RenderPassManager::ProcessEntities(const RenderPass::RenderCallbackInfo& re
 
 		r3d.entityIndex = entityIndex;
 
-		const std::shared_ptr<AccelerationStructure>& blas = r3d.mesh->GetBLAS();
+		const std::shared_ptr<AccelerationStructure> blas =
+			(r3d.mesh->GetType() == Mesh::Type::SKINNED && r3d.skinnedBLAS)
+			? r3d.skinnedBLAS
+			: r3d.mesh->GetBLAS();
 		if (blas)
 		{
 			const glm::mat4 transformMat4 = glm::transpose(transform.GetTransform());

@@ -42,9 +42,19 @@ namespace Pengine
 
 		static std::shared_ptr<AccelerationStructure> CreateBLAS(const Mesh& mesh);
 
+		static std::shared_ptr<AccelerationStructure> CreateSkinnedBLAS(
+			const Mesh& mesh,
+			uint64_t skinnedVertexAddress,
+			void* frame);
+
 		static std::shared_ptr<AccelerationStructure> CreateTLAS(
 			const std::vector<Instance>& instances,
 			void* frame);
+
+		virtual void Rebuild(
+			const Mesh& mesh,
+			uint64_t skinnedVertexAddress,
+			void* frame) = 0;
 
 	protected:
 		AccelerationStructure() = default;

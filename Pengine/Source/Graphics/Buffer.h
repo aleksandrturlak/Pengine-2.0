@@ -16,7 +16,8 @@ namespace Pengine
 			STORAGE_BUFFER,
 			INDIRECT_BUFFER,
 			TRANSFER_SRC,
-			TRANSFER_DST
+			TRANSFER_DST,
+			ACCELERATION_STRUCTURE_INPUT
 		};
 
 		struct CreateInfo

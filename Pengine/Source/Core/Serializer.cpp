@@ -2335,6 +2335,22 @@ void Serializer::SerializeShaderModuleReflection(
 
 	out << YAML::EndSeq;
 
+	out << YAML::Key << "PushConstantRanges";
+
+	out << YAML::BeginSeq;
+
+	for (const auto& pushConstantRange : reflectShaderModule.pushConstantRanges)
+	{
+		out << YAML::BeginMap;
+
+		out << YAML::Key << "Offset" << YAML::Value << pushConstantRange.offset;
+		out << YAML::Key << "Size" << YAML::Value << pushConstantRange.size;
+
+		out << YAML::EndMap;
+	}
+
+	out << YAML::EndSeq;
+
 	out << YAML::EndMap;
 
 	out << YAML::EndMap;
@@ -2537,6 +2553,24 @@ std::optional<ShaderReflection::ReflectShaderModule> Serializer::DeserializeShad
 			if (const auto& sizeData = attributeDescriptionData["Size"])
 			{
 				attributeDescription.size = sizeData.as<uint32_t>();
+			}
+		}
+
+		if (const auto& pushConstantRangesData = reflectShaderModuleData["PushConstantRanges"])
+		{
+			for (const auto& rangeData : pushConstantRangesData)
+			{
+				ShaderReflection::PushConstantRange& range = reflectShaderModule.pushConstantRanges.emplace_back();
+
+				if (const auto& offsetData = rangeData["Offset"])
+				{
+					range.offset = offsetData.as<uint32_t>();
+				}
+
+				if (const auto& sizeData = rangeData["Size"])
+				{
+					range.size = sizeData.as<uint32_t>();
+				}
 			}
 		}
 	}
