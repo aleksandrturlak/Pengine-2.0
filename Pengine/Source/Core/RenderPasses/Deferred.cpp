@@ -61,7 +61,11 @@ void RenderPassManager::CreateDeferred()
 
 		renderUniformWriter->WriteTextureToFrame("outColor", colorTexture);
 		renderUniformWriter->WriteTextureToFrame("outEmissive", emissiveTexture);
-		renderUniformWriter->WriteAccelerationStructureToFrame("topLevelAS", renderInfo.scene->GetTLAS());
+
+		if (renderInfo.scene->GetTLAS())
+		{
+			renderUniformWriter->WriteAccelerationStructureToFrame("topLevelAS", renderInfo.scene->GetTLAS());
+		}
 		
 		std::vector<NativeHandle> uniformWriterNativeHandles;
 		std::vector<std::shared_ptr<UniformWriter>> uniformWriters;

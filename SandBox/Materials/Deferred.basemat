@@ -27,6 +27,8 @@ Basemat:
           TextureAttachment: "GBuffer[2]"
         - Name: depthTexture
           TextureAttachment: "GBuffer[4]"
+        - Name: skyboxTexture
+          TextureAttachment: "Atmosphere[0]"
         - Name: ssaoTexture
           TextureAttachment: "SSAOBlur"
           TextureAttachmentDefault: "White"

@@ -16,6 +16,7 @@ layout(set = 1, binding = 8) uniform sampler2D spotLightShadowMapTexture;
 layout(set = 1, binding = 9, r11f_g11f_b10f) uniform writeonly image2D outColor;
 layout(set = 1, binding = 10, r11f_g11f_b10f) uniform image2D outEmissive;
 layout(set = 1, binding = 11) uniform accelerationStructureEXT topLevelAS;
+layout(set = 1, binding = 12) uniform samplerCube skyboxTexture;
 
 #include "Shaders/Includes/SetMacros/CameraSet.h"
 CAMERA_SET(0)
@@ -52,6 +53,155 @@ layout(set = 4, binding = 0, scalar) buffer readonly EntityBuffer
 };
 
 #include "Shaders/Includes/RayTracing.h"
+
+// -------------------------------------------------------------------------
+// Indirect lighting (one-bounce GI via ray queries)
+// -------------------------------------------------------------------------
+
+float IndirectHash(vec3 p)
+{
+    return fract(sin(dot(p.xy, vec2(127.1f, 311.7f))) * 43758.5453123f * (p.z + 1.0f));
+}
+
+vec3 CosineSampleHemisphere(vec3 normal, float r1, float r2)
+{
+    float phi      = 2.0f * PI * r1;
+    float cosTheta = sqrt(r2);
+    float sinTheta = sqrt(max(0.0f, 1.0f - r2));
+
+    vec3 up        = abs(normal.z) < 0.999f ? vec3(0.0f, 0.0f, 1.0f) : vec3(1.0f, 0.0f, 0.0f);
+    vec3 tangent   = normalize(cross(up, normal));
+    vec3 bitangent = cross(normal, tangent);
+
+    return normalize(tangent   * (sinTheta * cos(phi)) +
+                     bitangent * (sinTheta * sin(phi)) +
+                     normal    * cosTheta);
+}
+
+// Multi-bounce indirect diffuse GI via ray queries.
+// Uses path-tracing throughput: each bounce multiplies by the hit surface's
+// albedo so colour bleeding propagates correctly across bounces.
+// Cosine-weighted sampling cancels NdotL/PDF, leaving  albedo * mean(pathContrib).
+vec3 TraceIndirectLight(vec3 originWorldSpace, vec3 normalWorldSpace, vec3 albedo, float metallic)
+{
+    const int   RAY_COUNT     = 32;
+    const int   BOUNCE_COUNT  = 2;
+    const float INV_RAY_COUNT = 1.0f / float(RAY_COUNT);
+    const float RAY_MAX_DIST  = 100.0f;
+    const float GOLDEN_RATIO  = 1.61803398875f;
+
+    float seed             = IndirectHash(originWorldSpace);
+    vec3  indirectIrradiance = vec3(0.0f);
+
+    for (int i = 0; i < RAY_COUNT; i++)
+    {
+        // Primary ray direction — golden-ratio sequence gives good hemisphere coverage
+        float r1 = fract(float(i) * INV_RAY_COUNT + seed);
+        float r2 = fract(float(i) * GOLDEN_RATIO  + seed);
+
+        vec3 currentOrigin = originWorldSpace;
+        vec3 currentNormal = normalWorldSpace;
+        vec3 currentDir    = CosineSampleHemisphere(normalWorldSpace, r1, r2);
+        vec3 throughput    = vec3(1.0f); // accumulated albedo tint along the path
+        vec3 pathContrib   = vec3(0.0f);
+
+        for (int bounce = 0; bounce < BOUNCE_COUNT; bounce++)
+        {
+            rayQueryEXT rayQuery;
+            rayQueryInitializeEXT(
+                rayQuery, topLevelAS,
+                0, 0xFF,
+                currentOrigin, 0.01f, currentDir, RAY_MAX_DIST);
+
+            bool hitSomething = false;
+
+            while (rayQueryProceedEXT(rayQuery))
+            {
+                if (rayQueryGetIntersectionTypeEXT(rayQuery, false) == gl_RayQueryCandidateIntersectionTriangleEXT)
+                {
+                    uint customId = rayQueryGetIntersectionInstanceCustomIndexEXT(rayQuery, false);
+
+                    vec2 barycentrics2D = rayQueryGetIntersectionBarycentricsEXT(rayQuery, false);
+                    vec3 barycentrics   = vec3(1.0f - barycentrics2D.x - barycentrics2D.y,
+                                               barycentrics2D.x, barycentrics2D.y);
+
+                    EntityInfo           entityInfo           = entities[customId];
+                    uint64_t             materialBufferAddr   = entityInfo.materialInfoBuffer.materialBuffers[GBUFFER_PASS];
+                    DefaultMaterial      material             = MaterialBufferReference(materialBufferAddr).material;
+                    MeshBufferInfoBuffer meshBufferInfoBuffer = entityInfo.meshInfoBuffer.meshBufferInfoBuffer;
+
+                    uint primitiveId = rayQueryGetIntersectionPrimitiveIndexEXT(rayQuery, false);
+
+                    uint idx0 = meshBufferInfoBuffer.indexBuffer.indices[primitiveId * 3 + 0].index;
+                    uint idx1 = meshBufferInfoBuffer.indexBuffer.indices[primitiveId * 3 + 1].index;
+                    uint idx2 = meshBufferInfoBuffer.indexBuffer.indices[primitiveId * 3 + 2].index;
+
+                    vec2 uv0   = meshBufferInfoBuffer.vertexBufferPosition.vertices[idx0].uv;
+                    vec2 uv1   = meshBufferInfoBuffer.vertexBufferPosition.vertices[idx1].uv;
+                    vec2 uv2   = meshBufferInfoBuffer.vertexBufferPosition.vertices[idx2].uv;
+                    vec2 hitUV = BarycentricLerp(uv0, uv1, uv2, barycentrics) * material.uvTransform.xy + material.uvTransform.zw;
+
+                    vec4 hitAlbedo = texture(bindlessTextures[material.albedoTexture], hitUV) * material.albedoColor;
+
+                    if (material.useAlphaCutoff > 0 && hitAlbedo.a < material.alphaCutoff)
+                    {
+                        continue;
+                    }
+
+                    rayQueryConfirmIntersectionEXT(rayQuery);
+                    hitSomething = true;
+
+                    // World-space position and normal at hit point
+                    vec3 v0 = QuatRotate(entityInfo.rotation, meshBufferInfoBuffer.vertexBufferPosition.vertices[idx0].position * entityInfo.scale) + entityInfo.position;
+                    vec3 v1 = QuatRotate(entityInfo.rotation, meshBufferInfoBuffer.vertexBufferPosition.vertices[idx1].position * entityInfo.scale) + entityInfo.position;
+                    vec3 v2 = QuatRotate(entityInfo.rotation, meshBufferInfoBuffer.vertexBufferPosition.vertices[idx2].position * entityInfo.scale) + entityInfo.position;
+                    vec3 hitPosition = BarycentricLerp(v0, v1, v2, barycentrics);
+
+                    vec3 n0 = normalize(QuatRotate(entityInfo.rotation, normalize(meshBufferInfoBuffer.vertexBufferNormal.normals[idx0].normal) / entityInfo.scale));
+                    vec3 n1 = normalize(QuatRotate(entityInfo.rotation, normalize(meshBufferInfoBuffer.vertexBufferNormal.normals[idx1].normal) / entityInfo.scale));
+                    vec3 n2 = normalize(QuatRotate(entityInfo.rotation, normalize(meshBufferInfoBuffer.vertexBufferNormal.normals[idx2].normal) / entityInfo.scale));
+                    vec3 hitNormal = normalize(BarycentricLerp(n0, n1, n2, barycentrics));
+
+                    // Direct lighting at the hit point with shadow ray
+                    vec3 directLight = vec3(0.0f);
+                    if (hasDirectionalLight == 1)
+                    {
+                        float NdotL  = max(dot(hitNormal, directionalLight.directionWorldSpace), 0.0f);
+                        float shadow = TraceShadowRay(0, 0xFF, hitPosition, 0.01f,
+                                                      directionalLight.directionWorldSpace, camera.zFar);
+                        directLight  = hitAlbedo.xyz * directionalLight.color * directionalLight.intensity * NdotL * (1.0f - shadow);
+                    }
+
+                    // Accumulate this bounce's direct contribution, tinted by path throughput
+                    pathContrib += throughput * directLight;
+
+                    // Attenuate throughput by hit surface albedo for the next bounce
+                    vec3  metallicRoughness = texture(bindlessTextures[material.metallicRoughnessTexture], hitUV).xyz;
+                    float hitMetallic       = metallicRoughness.b * material.metallicFactor;
+                    throughput *= hitAlbedo.xyz * (1.0f - hitMetallic);
+
+                    // Prepare next bounce: new cosine-weighted direction around hit normal
+                    float br1  = IndirectHash(hitPosition + vec3(float(bounce)));
+                    float br2  = IndirectHash(hitPosition.yzx + vec3(float(bounce) + 0.5f));
+                    currentOrigin = hitPosition;
+                    currentNormal = hitNormal;
+                    currentDir    = CosineSampleHemisphere(hitNormal, br1, br2);
+                }
+            }
+
+            // Ray escaped to sky — add sky contribution and terminate this path
+            if (!hitSomething)
+            {
+                pathContrib += throughput * texture(skyboxTexture, currentDir).rgb;
+                break;
+            }
+        }
+
+        indirectIrradiance += pathContrib * 8.0f;
+    }
+
+    return albedo * indirectIrradiance * INV_RAY_COUNT * (1.0f - metallic);
+}
 
 layout (local_size_x = 16, local_size_y = 16, local_size_z = 1) in;
 void main()
@@ -230,7 +380,7 @@ void main()
 						shadow = clamp(shadow, 0.0f, 1.0f);
 					}
 				}
-				
+
 				result += CalculateSpotLight(
 					spotLight,
 					spotLight.positionViewSpace,
@@ -246,6 +396,10 @@ void main()
 					shadow);
 			}
 		}
+
+		// Indirect lighting — one-bounce GI via 4 cosine-weighted hemisphere rays
+		//vec3 normalWorldSpace = mat3(camera.inverseViewMat4) * normalViewSpace;
+		//result += TraceIndirectLight(positionWorldSpace, normalWorldSpace, albedoColor, shading.x);
 	}
 
 	pixelCoord.y = int(camera.viewportSize.y) - pixelCoord.y;
