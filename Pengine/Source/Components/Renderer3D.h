@@ -18,6 +18,19 @@ namespace Pengine
 		std::shared_ptr<Mesh> mesh;
 		std::shared_ptr<Material> material;
 
+		Renderer3D() = default;
+		Renderer3D(const Renderer3D& r3d)
+		{
+			mesh = r3d.mesh;
+			material = r3d.material;
+			renderingOrder = r3d.renderingOrder;
+			isEnabled = r3d.isEnabled;
+			castShadows = r3d.castShadows;
+			objectVisibilityMask = r3d.objectVisibilityMask;
+			shadowVisibilityMask = r3d.shadowVisibilityMask;
+			skeletalAnimatorEntityUUID = r3d.skeletalAnimatorEntityUUID;
+		}
+
 		/**
 		 * Used for transparency. From 0 to 11 [-5, -4, -3, -2, -1, 0, 1, 2, 3, 4, 5].
 		 */

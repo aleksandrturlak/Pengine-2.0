@@ -64,7 +64,7 @@ void RenderPassManager::CreateSSS()
 		createInfo.format = Format::R8_UNORM;
 		createInfo.size = currentViewportSize;
 		createInfo.usage = { Texture::Usage::STORAGE, Texture::Usage::SAMPLED };
-		createInfo.isMultiBuffered = true;
+		createInfo.isMultiBuffered = false;
 
 		std::shared_ptr<Texture> sssTexture = renderInfo.renderView->GetStorageImage(passName);
 

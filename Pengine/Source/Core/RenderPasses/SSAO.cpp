@@ -64,7 +64,7 @@ void RenderPassManager::CreateSSAO()
 		createInfo.format = Format::R8_UNORM;
 		createInfo.size = currentViewportSize;
 		createInfo.usage = { Texture::Usage::STORAGE, Texture::Usage::SAMPLED };
-		createInfo.isMultiBuffered = true;
+		createInfo.isMultiBuffered = false;
 
 		SSAORenderer* ssaoRenderer = (SSAORenderer*)renderInfo.renderView->GetCustomData("SSAORenderer");
 		if (ssaoSettings.isEnabled && !ssaoRenderer)
@@ -190,7 +190,7 @@ void RenderPassManager::CreateSSAOBlur()
 		createInfo.format = Format::R8_UNORM;
 		createInfo.size = currentViewportSize;
 		createInfo.usage = { Texture::Usage::STORAGE, Texture::Usage::SAMPLED };
-		createInfo.isMultiBuffered = true;
+		createInfo.isMultiBuffered = false;
 
 		std::shared_ptr<Texture> ssaoBlurTexture = renderInfo.renderView->GetStorageImage(passName);
 		if (!ssaoSettings.isEnabled)

@@ -56,6 +56,7 @@ void RenderPassManager::CreateToneMappingPass()
 	createInfo.clearColors = { clearColor };
 	createInfo.attachmentDescriptions = { color };
 	createInfo.resizeWithViewport = true;
+	createInfo.isFrameBufferMultiBuffered = false;
 	createInfo.resizeViewportScale = { 1.0f, 1.0f };
 
 	createInfo.executeCallback = [](const RenderPass::RenderCallbackInfo& renderInfo)
@@ -88,12 +89,10 @@ void RenderPassManager::CreateToneMappingPass()
 			true);
 
 		const int isReflectionsEnabled = graphicsSettings.ssr.isEnabled || graphicsSettings.rayTracing.reflections.isRayTraced;
-		const int reflectionsTextureMipLevelCount = isReflectionsEnabled ? renderInfo.renderView->GetStorageImage("BlurredReflections")->GetMipLevels() * graphicsSettings.ssr.mipMultiplier : 0;
 		baseMaterial->WriteToBuffer(toneMappingBufferBuffer, toneMappingBufferBufferName, "toneMapperIndex", graphicsSettings.postProcess.toneMapper);
 		baseMaterial->WriteToBuffer(toneMappingBufferBuffer, toneMappingBufferBufferName, "gamma", graphicsSettings.postProcess.gamma);
 		baseMaterial->WriteToBuffer(toneMappingBufferBuffer, toneMappingBufferBufferName, "isReflectionsEnabled", isReflectionsEnabled);
-		baseMaterial->WriteToBuffer(toneMappingBufferBuffer, toneMappingBufferBufferName, "reflectionsTextureMipLevelCount", reflectionsTextureMipLevelCount);
-
+		
 		toneMappingBufferBuffer->Flush();
 
 		WriteRenderViews(renderInfo.renderView, renderInfo.scene->GetRenderView(), pipeline, renderUniformWriter);
@@ -158,6 +157,7 @@ void RenderPassManager::CreateAntiAliasingAndComposePass()
 	createInfo.clearColors = { clearColor };
 	createInfo.attachmentDescriptions = { color };
 	createInfo.resizeWithViewport = true;
+	createInfo.isFrameBufferMultiBuffered = false;
 	createInfo.resizeViewportScale = { 1.0f, 1.0f };
 
 	createInfo.executeCallback = [](const RenderPass::RenderCallbackInfo& renderInfo)
@@ -286,6 +286,7 @@ void RenderPassManager::CreateUI()
 	createInfo.clearColors = { clearColor };
 	createInfo.attachmentDescriptions = { color };
 	createInfo.resizeWithViewport = true;
+	createInfo.isFrameBufferMultiBuffered = false;
 	createInfo.resizeViewportScale = { 1.0f, 1.0f };
 
 	createInfo.executeCallback = [](const RenderPass::RenderCallbackInfo& renderInfo)

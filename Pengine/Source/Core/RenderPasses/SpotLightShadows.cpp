@@ -62,6 +62,7 @@ void RenderPassManager::CreateSpotLightShadows()
 	createInfo.attachmentDescriptions = { depth };
 	createInfo.resizeWithViewport = false;
 	createInfo.createFrameBuffer = false;
+	createInfo.isFrameBufferMultiBuffered = false;
 
 	createInfo.executeCallback = [this](const RenderPass::RenderCallbackInfo& renderInfo)
 	{

@@ -128,6 +128,7 @@ void RenderPassManager::CreateGBuffer()
 	createInfo.clearDepths = { clearDepth };
 	createInfo.attachmentDescriptions = { color, normal, shading, emissive, depth };
 	createInfo.resizeWithViewport = true;
+	createInfo.isFrameBufferMultiBuffered = false;
 	createInfo.resizeViewportScale = { 1.0f, 1.0f };
 
 	createInfo.executeCallback = [this](const RenderPass::RenderCallbackInfo& renderInfo)

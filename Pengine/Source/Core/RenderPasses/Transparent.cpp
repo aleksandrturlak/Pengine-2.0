@@ -100,6 +100,7 @@ void RenderPassManager::CreateTransparent()
 	createInfo.clearColors = { clearColor, clearNormal, clearShading, clearEmissive };
 	createInfo.attachmentDescriptions = { color, normal, shading, emissive, depth };
 	createInfo.resizeWithViewport = true;
+	createInfo.isFrameBufferMultiBuffered = false;
 
 	createInfo.executeCallback = [](const RenderPass::RenderCallbackInfo& renderInfo)
 	{

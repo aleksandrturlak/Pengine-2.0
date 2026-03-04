@@ -15,7 +15,6 @@ layout(set = 0, binding = 5) uniform ToneMappingBuffer
 	int toneMapperIndex;
 	float gamma;
 	int isReflectionsEnabled;
-	int reflectionsTextureMipLevelCount;
 };
 
 #include "Shaders/Includes/ACES.h"
@@ -31,23 +30,24 @@ void main()
 
 	vec4 reflectionColor = vec4(0.0f, 0.0f, 0.0f, 0.0f);
 
-	if (isReflectionsEnabled == 1)
+	if (bool(isReflectionsEnabled))
 	{
 		float SSRExist = ceil(texture(blurredReflectionsTexture, uv).a);
-		reflectionColor = textureLod(blurredReflectionsTexture, uv, roughness * reflectionsTextureMipLevelCount * SSRExist);
+		reflectionColor = texture(blurredReflectionsTexture, uv);
 	}
 
 	deferred = mix(deferred, reflectionColor.xyz, reflectionColor.a * isReflectionsEnabled * alpha);
 
 	vec3 toneMappedColor;
-	if (toneMapperIndex == 0)
+	switch (toneMapperIndex)
 	{
-		toneMappedColor = pow(deferred + bloom, vec3(1.0f / gamma));
-	}
-	else if (toneMapperIndex == 1)
-	{
-		toneMappedColor = pow(ACES(deferred + bloom), vec3(1.0f / gamma));
-	}
+        case 0:
+            toneMappedColor = pow(deferred + bloom, vec3(1.0f / gamma));
+            break;
+        case 1:
+            toneMappedColor = pow(ACES(deferred + bloom), vec3(1.0f / gamma));
+            break;
+    }
 
 	outColor = vec4(toneMappedColor, 1.0f);
 }

@@ -74,7 +74,7 @@ void RenderPassManager::CreateHiZPyramid()
 		textureCreateInfo.format = Format::R32_SFLOAT;
 		textureCreateInfo.size = viewportSize;
 		textureCreateInfo.usage = { Texture::Usage::STORAGE, Texture::Usage::SAMPLED, Texture::Usage::TRANSFER_SRC, Texture::Usage::TRANSFER_DST };
-		textureCreateInfo.isMultiBuffered = true;
+		textureCreateInfo.isMultiBuffered = false;
 		textureCreateInfo.mipLevels = mipLevelCount;
 
 		const std::shared_ptr<UniformWriter> renderUniformWriter = GetOrCreateUniformWriter(

@@ -59,6 +59,7 @@ void RenderPassManager::CreateAtmosphere()
 	createInfo.clearColors = { clearColor };
 	createInfo.attachmentDescriptions = { color };
 	createInfo.resizeWithViewport = false;
+	createInfo.isFrameBufferMultiBuffered = false;
 
 	createInfo.executeCallback = [this](const RenderPass::RenderCallbackInfo& renderInfo)
 	{

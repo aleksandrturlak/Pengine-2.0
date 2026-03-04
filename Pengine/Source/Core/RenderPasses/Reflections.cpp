@@ -66,7 +66,7 @@ void RenderPassManager::CreateSSR()
 		createInfo.format = Format::R8G8B8A8_UNORM;
 		createInfo.size = currentViewportSize;
 		createInfo.usage = { Texture::Usage::STORAGE, Texture::Usage::SAMPLED };
-		createInfo.isMultiBuffered = true;
+		createInfo.isMultiBuffered = false;
 
 		if (!ssrSettings.isEnabled && !rtSettings.isRayTraced)
 		{
@@ -189,9 +189,7 @@ void RenderPassManager::CreateBlurReflections()
 		createInfo.format = Format::R8G8B8A8_UNORM;
 		createInfo.size = currentViewportSize;
 		createInfo.usage = { Texture::Usage::STORAGE, Texture::Usage::SAMPLED, Texture::Usage::TRANSFER_SRC, Texture::Usage::TRANSFER_DST };
-		createInfo.isMultiBuffered = true;
-		createInfo.mipLevels = static_cast<uint32_t>(std::floor(std::log2(std::max(
-			createInfo.size.x, createInfo.size.y)))) + 1;
+		createInfo.isMultiBuffered = false;
 
 		std::shared_ptr<Texture> blurredReflectionsTexture = renderInfo.renderView->GetStorageImage("BlurredReflections");
 
@@ -263,8 +261,6 @@ void RenderPassManager::CreateBlurReflections()
 					.Image(blurredReflectionsTexture, ImageLayout::General, ImageLayout::General, Access::ShaderWrite, Access::ShaderRead),
 					renderInfo.frame);
 
-			blurredReflectionsTexture->GenerateMipMaps(renderInfo.frame);
-
 			renderInfo.renderer->EndCommandLabel(renderInfo.frame);
 
 			renderInfo.renderer->EndCommandLabel(renderInfo.frame);
@@ -306,7 +302,7 @@ void RenderPassManager::CreateRayTracedReflections()
 		createInfo.format = Format::R8G8B8A8_UNORM;
 		createInfo.size = currentViewportSize;
 		createInfo.usage = { Texture::Usage::STORAGE, Texture::Usage::SAMPLED };
-		createInfo.isMultiBuffered = true;
+		createInfo.isMultiBuffered = false;
 
 		std::shared_ptr<Texture> reflectionsTexture = renderInfo.renderView->GetStorageImage("Reflections");
 

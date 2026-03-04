@@ -19,7 +19,7 @@ namespace Pengine::Vk
 		VulkanFrameBuffer(const VulkanFrameBuffer&) = delete;
 		VulkanFrameBuffer& operator=(const VulkanFrameBuffer&) = delete;
 
-		[[nodiscard]] VkFramebuffer GetFrameBuffer() const { return m_FrameBuffers[frameInFlightIndex]; }
+		[[nodiscard]] VkFramebuffer GetFrameBuffer() const { return m_FrameBuffers[m_RenderPass->IsFrameBufferMultiBuffered() * frameInFlightIndex]; }
 
 		[[nodiscard]] virtual std::shared_ptr<Texture> GetAttachment(const size_t index) const override
 		{ return m_Attachments[index]; }

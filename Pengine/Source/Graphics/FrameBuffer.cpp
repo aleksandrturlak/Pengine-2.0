@@ -22,6 +22,7 @@ std::shared_ptr<FrameBuffer> FrameBuffer::Create(
 		Texture::CreateInfo& attachmentCreateInfo = attachments.emplace_back(attachment.textureCreateInfo);
 		attachmentCreateInfo.size = attachmentCreateInfo.size.x == 0 &&
 			attachmentCreateInfo.size.y == 0 ? glm::ivec2((glm::vec2)size * renderPass->GetResizeViewportScale()) : attachmentCreateInfo.size;
+		attachmentCreateInfo.isMultiBuffered = renderPass->IsFrameBufferMultiBuffered();
 	}
 
 	if (graphicsAPI == GraphicsAPI::Vk)
