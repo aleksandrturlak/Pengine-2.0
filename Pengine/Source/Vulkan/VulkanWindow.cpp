@@ -284,7 +284,7 @@ void* VulkanWindow::BeginFrame()
 
 	const VkSemaphore imageAcquiredSemaphore = m_VulkanWindow.FrameSemaphores[m_VulkanWindow.SemaphoreIndex].ImageAcquiredSemaphore;
 
-	const VkResult result = vkAcquireNextImageKHR(
+	VkResult result = vkAcquireNextImageKHR(
 		GetVkDevice()->GetDevice(),
 		m_VulkanWindow.Swapchain,
 		(std::numeric_limits<uint64_t>::max)(),
@@ -309,19 +309,20 @@ void* VulkanWindow::BeginFrame()
 
 	VulkanFrameInfo* vkFrame = &(m_Frames[frameInFlightIndex]);
 
-	if (vkWaitForFences(GetVkDevice()->GetDevice(), 1, &vkFrame->Fence, VK_TRUE, UINT64_MAX))
+	result = vkWaitForFences(GetVkDevice()->GetDevice(), 1, &vkFrame->Fence, VK_TRUE, UINT64_MAX);
+	if (result != VK_SUCCESS)
 	{
 		FATAL_ERROR("Failed to wait for fences!");
 		return nullptr;
 	}
 
-	if (vkResetFences(GetVkDevice()->GetDevice(), 1, &vkFrame->Fence))
+	if (vkResetFences(GetVkDevice()->GetDevice(), 1, &vkFrame->Fence) != VK_SUCCESS)
 	{
 		FATAL_ERROR("Failed to reset fences!");
 		return nullptr;
 	}
 
-	if (vkResetCommandPool(GetVkDevice()->GetDevice(), vkFrame->CommandPool, 0))
+	if (vkResetCommandPool(GetVkDevice()->GetDevice(), vkFrame->CommandPool, 0) != VK_SUCCESS)
 	{
 		FATAL_ERROR("Failed to reset command pool!");
 		return nullptr;

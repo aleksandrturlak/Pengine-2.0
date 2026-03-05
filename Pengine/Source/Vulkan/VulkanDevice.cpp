@@ -207,6 +207,14 @@ void VulkanDevice::PickPhysicalDevice()
 	}
 
 	Logger::Log(std::string("Choosen physical device: ") + m_PhysicalDeviceProperties.deviceName, BOLDGREEN);
+
+	VkPhysicalDeviceAccelerationStructurePropertiesKHR asProps{};
+	asProps.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_ACCELERATION_STRUCTURE_PROPERTIES_KHR;
+	VkPhysicalDeviceProperties2 props2{};
+	props2.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_PROPERTIES_2;
+	props2.pNext = &asProps;
+	vkGetPhysicalDeviceProperties2(m_PhysicalDevice, &props2);
+	m_MinScratchOffsetAlignment = asProps.minAccelerationStructureScratchOffsetAlignment;
 }
 
 void VulkanDevice::CreateLogicalDevice()
@@ -682,6 +690,7 @@ VulkanDevice::VulkanDevice(const std::string& applicationName)
 			.AddPoolSize(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 10000)
 			.AddPoolSize(VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 10000)
 			.AddPoolSize(VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, 10000)
+			.AddPoolSize(VK_DESCRIPTOR_TYPE_ACCELERATION_STRUCTURE_KHR, 10000)
 			.Build(m_Device);
 	}
 }
@@ -740,7 +749,8 @@ void VulkanDevice::CreateBuffer(
 	const VmaAllocationCreateFlags memoryFlags,
 	VkBuffer& buffer,
 	VmaAllocation& vmaAllocation,
-	VmaAllocationInfo& vmaAllocationInfo) const
+	VmaAllocationInfo& vmaAllocationInfo,
+	const VkDeviceSize minAlignment) const
 {
 	VkBufferCreateInfo bufferCreateInfo{};
 	bufferCreateInfo.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
@@ -752,13 +762,13 @@ void VulkanDevice::CreateBuffer(
 	allocationCreateInfo.usage = memoryUsage;
 	allocationCreateInfo.flags = memoryFlags;
 
-	if (vmaCreateBuffer(
-		m_VmaAllocator,
-		&bufferCreateInfo,
-		&allocationCreateInfo,
-		&buffer,
-		&vmaAllocation,
-		&vmaAllocationInfo) != VK_SUCCESS)
+	const VkResult result = minAlignment > 0
+		? vmaCreateBufferWithAlignment(m_VmaAllocator, &bufferCreateInfo, &allocationCreateInfo,
+			minAlignment, &buffer, &vmaAllocation, &vmaAllocationInfo)
+		: vmaCreateBuffer(m_VmaAllocator, &bufferCreateInfo, &allocationCreateInfo,
+			&buffer, &vmaAllocation, &vmaAllocationInfo);
+
+	if (result != VK_SUCCESS)
 	{
 		FATAL_ERROR("Device:<" + GetName() + "> Failed to create buffer!");
 	}

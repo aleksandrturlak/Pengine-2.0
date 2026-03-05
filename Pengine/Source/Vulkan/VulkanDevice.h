@@ -86,7 +86,10 @@ namespace Pengine::Vk
 			VmaAllocationCreateFlags memoryFlags,
 			VkBuffer& buffer,
 			VmaAllocation& vmaAllocation,
-			VmaAllocationInfo& vmaAllocationInfo) const;
+			VmaAllocationInfo& vmaAllocationInfo,
+			VkDeviceSize minAlignment = 0) const;
+
+		[[nodiscard]] uint32_t GetMinScratchOffsetAlignment() const { return m_MinScratchOffsetAlignment; }
 
 		void DestroyBuffer(
 			VkBuffer buffer,
@@ -261,6 +264,7 @@ namespace Pengine::Vk
 		uint32_t m_GraphicsFamilyIndex{};
 
 		uint32_t m_ApiVersion = VK_API_VERSION_1_3;
+		uint32_t m_MinScratchOffsetAlignment = 128;
 
 		VmaAllocator m_VmaAllocator = VK_NULL_HANDLE;
 

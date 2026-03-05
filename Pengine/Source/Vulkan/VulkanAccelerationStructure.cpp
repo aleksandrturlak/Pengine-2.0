@@ -22,7 +22,8 @@ VkBuffer CreateScratchBuffer(const VkDeviceSize size, VkDeviceAddress& deviceAdd
 		0,
 		buffer,
 		allocation,
-		allocationInfo);
+		allocationInfo,
+		GetVkDevice()->GetMinScratchOffsetAlignment());
 
 	VkBufferDeviceAddressInfo addressInfo{};
 	addressInfo.sType = VK_STRUCTURE_TYPE_BUFFER_DEVICE_ADDRESS_INFO;
@@ -405,7 +406,7 @@ std::shared_ptr<VulkanAccelerationStructure> VulkanAccelerationStructure::Build(
 	vkCmdPipelineBarrier(
 		commandBuffer,
 		VK_PIPELINE_STAGE_ACCELERATION_STRUCTURE_BUILD_BIT_KHR,
-		VK_PIPELINE_STAGE_ACCELERATION_STRUCTURE_BUILD_BIT_KHR,
+		VK_PIPELINE_STAGE_ACCELERATION_STRUCTURE_BUILD_BIT_KHR | VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT,
 		0, 1, &memBarrier, 0, nullptr, 0, nullptr);
 
 	// Package result

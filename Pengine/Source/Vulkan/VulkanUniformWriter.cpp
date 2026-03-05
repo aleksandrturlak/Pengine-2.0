@@ -146,7 +146,7 @@ void VulkanUniformWriter::Flush()
 
 		writes.emplace_back(write);
 	}
-	m_Writes[index].bufferWritesByLocation.clear();
+	m_Writes[index].accelerationStructureWritesByLocation.clear();
 
 	if (writes.empty())
 	{
