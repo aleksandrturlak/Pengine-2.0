@@ -1,25 +1,9 @@
 Basemat:
   Pipelines:
     - RenderPass: Bloom
-      DepthTest: false
-      DepthWrite: false
-      CullMode: None
-      PolygonMode: Fill
-      TopologyMode: TriangleList
-      Vertex: Shaders/BloomUpSample.vert
-      Fragment: Shaders/BloomUpSample.frag
+      Type: Compute
+      Compute: Shaders/BloomUpSample.comp
       UniformWriters:
         - Type: Renderer
-          Name: Bloom
+          Name: BloomUp
           Set: 0
-      VertexInputBindingDescriptions:
-        - Binding: 0
-          InputRate: Vertex
-          Tag: Position
-          Names:
-            - positionA
-      ColorBlendStates:
-        - BlendEnabled: true
-          ColorBlendOp: add
-          SrcColorBlendFactor: one
-          DstColorBlendFactor: one

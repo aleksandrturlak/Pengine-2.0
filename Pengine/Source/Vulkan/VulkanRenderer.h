@@ -108,6 +108,11 @@ namespace Pengine::Vk
 			const RenderPass::ClearDepth& clearDepth,
 			void* frame) override;
 
+		virtual void ClearColorImage(
+			std::shared_ptr<Texture> texture,
+			const glm::vec4& clearColor,
+			void* frame) override;
+
 		virtual void FillBuffer(
 			NativeHandle buffer,
 			const size_t size,

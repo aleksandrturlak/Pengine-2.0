@@ -1,0 +1,62 @@
+#version 450
+
+layout(set = 0, binding = 0) uniform sampler2D sourceTexture[10];
+
+layout(set = 0, binding = 1, r11f_g11f_b10f) uniform image2D outBloom[10];
+
+layout(push_constant) uniform PushConstants
+{
+    vec2 sourceSize;
+    int mipLevel;
+    float bloomIntensity;
+};
+
+layout(local_size_x = 16, local_size_y = 16, local_size_z = 1) in;
+
+void main()
+{
+    ivec2 pixelCoord = ivec2(gl_GlobalInvocationID.xy);
+    ivec2 outSize = imageSize(outBloom[mipLevel]);
+
+    if (pixelCoord.x >= outSize.x || pixelCoord.y >= outSize.y)
+        return;
+
+    vec2 uv = (vec2(pixelCoord) + 0.5f) / vec2(outSize);
+
+    float intensity = mipLevel == 1 ? bloomIntensity : 1.0f;
+
+    vec2 srcTexelSize = 1.0f / sourceSize;
+    float x = srcTexelSize.x;
+    float y = srcTexelSize.y;
+
+    // Take 13 samples around current texel:
+    // a - b - c
+    // - j - k -
+    // d - e - f
+    // - l - m -
+    // g - h - i
+    // === ('e' is the current texel) ===
+    vec3 a = texture(sourceTexture[mipLevel - 1], vec2(uv.x - 2*x, uv.y + 2*y)).rgb * intensity;
+    vec3 b = texture(sourceTexture[mipLevel - 1], vec2(uv.x,       uv.y + 2*y)).rgb * intensity;
+    vec3 c = texture(sourceTexture[mipLevel - 1], vec2(uv.x + 2*x, uv.y + 2*y)).rgb * intensity;
+
+    vec3 d = texture(sourceTexture[mipLevel - 1], vec2(uv.x - 2*x, uv.y)).rgb * intensity;
+    vec3 e = texture(sourceTexture[mipLevel - 1], vec2(uv.x,       uv.y)).rgb * intensity;
+    vec3 f = texture(sourceTexture[mipLevel - 1], vec2(uv.x + 2*x, uv.y)).rgb * intensity;
+
+    vec3 g = texture(sourceTexture[mipLevel - 1], vec2(uv.x - 2*x, uv.y - 2*y)).rgb * intensity;
+    vec3 h = texture(sourceTexture[mipLevel - 1], vec2(uv.x,       uv.y - 2*y)).rgb * intensity;
+    vec3 i = texture(sourceTexture[mipLevel - 1], vec2(uv.x + 2*x, uv.y - 2*y)).rgb * intensity;
+
+    vec3 j = texture(sourceTexture[mipLevel - 1], vec2(uv.x - x, uv.y + y)).rgb * intensity;
+    vec3 k = texture(sourceTexture[mipLevel - 1], vec2(uv.x + x, uv.y + y)).rgb * intensity;
+    vec3 l = texture(sourceTexture[mipLevel - 1], vec2(uv.x - x, uv.y - y)).rgb * intensity;
+    vec3 m = texture(sourceTexture[mipLevel - 1], vec2(uv.x + x, uv.y - y)).rgb * intensity;
+
+    vec3 result = e * 0.125f;
+    result += (a + c + g + i) * 0.03125f;
+    result += (b + d + f + h) * 0.0625f;
+    result += (j + k + l + m) * 0.125f;
+
+    imageStore(outBloom[mipLevel], pixelCoord, vec4(result, 1.0f));
+}

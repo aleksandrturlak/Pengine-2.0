@@ -84,8 +84,8 @@ vec3 CosineSampleHemisphere(vec3 normal, float r1, float r2)
 // Cosine-weighted sampling cancels NdotL/PDF, leaving  albedo * mean(pathContrib).
 vec3 TraceIndirectLight(vec3 originWorldSpace, vec3 normalWorldSpace, vec3 albedo, float metallic)
 {
-    const int   RAY_COUNT     = 32;
-    const int   BOUNCE_COUNT  = 2;
+    const int   RAY_COUNT     = 8;
+    const int   BOUNCE_COUNT  = 1;
     const float INV_RAY_COUNT = 1.0f / float(RAY_COUNT);
     const float RAY_MAX_DIST  = 100.0f;
     const float GOLDEN_RATIO  = 1.61803398875f;
@@ -173,7 +173,7 @@ vec3 TraceIndirectLight(vec3 originWorldSpace, vec3 normalWorldSpace, vec3 albed
                     }
 
                     // Accumulate this bounce's direct contribution, tinted by path throughput
-                    pathContrib += throughput * directLight;
+                    pathContrib += throughput * directLight + throughput * material.emissiveColor.xyz * material.emissiveFactor;
 
                     // Attenuate throughput by hit surface albedo for the next bounce
                     vec3  metallicRoughness = texture(bindlessTextures[material.metallicRoughnessTexture], hitUV).xyz;
@@ -197,7 +197,7 @@ vec3 TraceIndirectLight(vec3 originWorldSpace, vec3 normalWorldSpace, vec3 albed
             }
         }
 
-        indirectIrradiance += pathContrib * 8.0f;
+        indirectIrradiance += pathContrib;
     }
 
     return albedo * indirectIrradiance * INV_RAY_COUNT * (1.0f - metallic);

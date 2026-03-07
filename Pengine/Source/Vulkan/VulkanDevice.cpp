@@ -105,7 +105,14 @@ void VulkanDevice::CreateInstance(const std::string& applicationName)
 
 	VkDebugUtilsMessengerCreateInfoEXT debugCreateInfo;
 	VkValidationFeaturesEXT validationFeatures{};
-	VkValidationFeatureEnableEXT enabledValidationFeatures[] = { VK_VALIDATION_FEATURE_ENABLE_DEBUG_PRINTF_EXT };
+	VkValidationFeatureEnableEXT enabledValidationFeatures[] =
+	{
+		//VK_VALIDATION_FEATURE_ENABLE_GPU_ASSISTED_EXT,
+		//VK_VALIDATION_FEATURE_ENABLE_GPU_ASSISTED_RESERVE_BINDING_SLOT_EXT,
+		//VK_VALIDATION_FEATURE_ENABLE_BEST_PRACTICES_EXT,
+		VK_VALIDATION_FEATURE_ENABLE_DEBUG_PRINTF_EXT,
+		//VK_VALIDATION_FEATURE_ENABLE_SYNCHRONIZATION_VALIDATION_EXT,
+	};
 	
 	if (enableValidationLayers)
 	{
@@ -878,15 +885,36 @@ void VulkanDevice::EndSingleTimeCommands(const VkCommandBuffer commandBuffer) co
 		return;
 	}
 
-	vkEndCommandBuffer(commandBuffer);
+	VkResult result;
+	
+	result = vkEndCommandBuffer(commandBuffer);
+	if (result != VK_SUCCESS)
+	{
+		FATAL_ERROR("Failed to end command buffer!");
+	}
 
+	VkFence fence;
+	VkFenceCreateInfo fenceInfo{ VK_STRUCTURE_TYPE_FENCE_CREATE_INFO };
+	vkCreateFence(m_Device, &fenceInfo, nullptr, &fence);
+	
 	VkSubmitInfo submitInfo{};
 	submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
 	submitInfo.commandBufferCount = 1;
 	submitInfo.pCommandBuffers = &commandBuffer;
 
-	vkQueueSubmit(m_GraphicsQueue, 1, &submitInfo, VK_NULL_HANDLE);
-	vkQueueWaitIdle(m_GraphicsQueue);
+	result = vkQueueSubmit(m_GraphicsQueue, 1, &submitInfo, fence);
+	if (result != VK_SUCCESS)
+	{
+		FATAL_ERROR("Failed to submit to command buffer!");
+	}
+
+	result = vkWaitForFences(m_Device, 1, &fence, VK_TRUE, UINT64_MAX);
+	if (result != VK_SUCCESS)
+	{
+		FATAL_ERROR("Failed wait for fences!");
+	}
+
+	vkDestroyFence(m_Device, fence, nullptr);
 
 	FreeCommandBuffer(GetCommandPool(), commandBuffer);
 
@@ -1267,6 +1295,17 @@ void VulkanDevice::ClearDepthStencilImage(
 	VkCommandBuffer commandBuffer)
 {
 	vkCmdClearDepthStencilImage(commandBuffer, image, imageLayout, depthStencilClearValue, rangeCount, ranges);
+}
+
+void VulkanDevice::ClearColorImage(
+	VkImage image,
+	VkImageLayout imageLayout,
+	const VkClearColorValue* clearColorValue,
+	uint32_t rangeCount,
+	const VkImageSubresourceRange* ranges,
+	VkCommandBuffer commandBuffer)
+{
+	vkCmdClearColorImage(commandBuffer, image, imageLayout, clearColorValue, rangeCount, ranges);
 }
 
 void VulkanDevice::CommandEndLabel(const VkCommandBuffer commandBuffer) const

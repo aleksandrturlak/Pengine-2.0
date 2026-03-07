@@ -55,7 +55,6 @@ void RenderPassManager::CreateGBuffer()
 	color.textureCreateInfo.format = Format::B10G11R11_UFLOAT_PACK32;
 	color.textureCreateInfo.aspectMask = Texture::AspectMask::COLOR;
 	color.textureCreateInfo.instanceSize = sizeof(uint32_t);
-	color.textureCreateInfo.isMultiBuffered = true;
 	color.textureCreateInfo.usage = { Texture::Usage::SAMPLED, Texture::Usage::TRANSFER_SRC, Texture::Usage::COLOR_ATTACHMENT };
 	color.textureCreateInfo.name = "GBufferColor";
 	color.textureCreateInfo.filepath = color.textureCreateInfo.name;
@@ -68,7 +67,6 @@ void RenderPassManager::CreateGBuffer()
 	normal.textureCreateInfo.format = Format::R16G16_SFLOAT;
 	normal.textureCreateInfo.aspectMask = Texture::AspectMask::COLOR;
 	normal.textureCreateInfo.instanceSize = sizeof(uint16_t) * 2;
-	normal.textureCreateInfo.isMultiBuffered = true;
 	normal.textureCreateInfo.usage = { Texture::Usage::SAMPLED, Texture::Usage::TRANSFER_SRC, Texture::Usage::STORAGE, Texture::Usage::COLOR_ATTACHMENT };
 	normal.textureCreateInfo.name = "GBufferNormal";
 	normal.textureCreateInfo.filepath = normal.textureCreateInfo.name;
@@ -81,7 +79,6 @@ void RenderPassManager::CreateGBuffer()
 	shading.textureCreateInfo.format = Format::R8G8B8A8_UNORM;
 	shading.textureCreateInfo.aspectMask = Texture::AspectMask::COLOR;
 	shading.textureCreateInfo.instanceSize = sizeof(uint8_t) * 4;
-	shading.textureCreateInfo.isMultiBuffered = true;
 	shading.textureCreateInfo.usage = { Texture::Usage::SAMPLED, Texture::Usage::TRANSFER_SRC, Texture::Usage::COLOR_ATTACHMENT };
 	shading.textureCreateInfo.name = "GBufferShading";
 	shading.textureCreateInfo.filepath = shading.textureCreateInfo.name;
@@ -94,7 +91,6 @@ void RenderPassManager::CreateGBuffer()
 	emissive.textureCreateInfo.format = Format::B10G11R11_UFLOAT_PACK32;
 	emissive.textureCreateInfo.aspectMask = Texture::AspectMask::COLOR;
 	emissive.textureCreateInfo.instanceSize = sizeof(uint32_t);
-	emissive.textureCreateInfo.isMultiBuffered = true;
 	emissive.textureCreateInfo.usage = { Texture::Usage::SAMPLED, Texture::Usage::TRANSFER_SRC, Texture::Usage::STORAGE, Texture::Usage::COLOR_ATTACHMENT };
 	emissive.textureCreateInfo.name = "GBufferEmissive";
 	emissive.textureCreateInfo.filepath = emissive.textureCreateInfo.name;
@@ -107,7 +103,6 @@ void RenderPassManager::CreateGBuffer()
 	depth.textureCreateInfo.format = Format::D32_SFLOAT;
 	depth.textureCreateInfo.aspectMask = Texture::AspectMask::DEPTH;
 	depth.textureCreateInfo.instanceSize = sizeof(float);
-	depth.textureCreateInfo.isMultiBuffered = true;
 	depth.textureCreateInfo.usage = { Texture::Usage::SAMPLED, Texture::Usage::TRANSFER_SRC, Texture::Usage::DEPTH_STENCIL_ATTACHMENT };
 	depth.textureCreateInfo.name = "ZPrePassDepth";
 	depth.textureCreateInfo.filepath = depth.textureCreateInfo.name;

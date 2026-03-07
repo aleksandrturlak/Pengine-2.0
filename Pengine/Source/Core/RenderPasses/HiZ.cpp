@@ -155,4 +155,3 @@ void RenderPassManager::CreateHiZPyramid()
 
 	CreateComputePass(createInfo);
 }
-

@@ -366,8 +366,8 @@ void VulkanWindow::EndFrame(void* frame)
 
 	VulkanDevice::Lock lock;
 
-	if (vkQueueSubmit(GetVkDevice()->GetGraphicsQueue(), 1, &submitInfo,
-		vkFrame->Fence) != VK_SUCCESS)
+	VkResult result = vkQueueSubmit(GetVkDevice()->GetGraphicsQueue(), 1, &submitInfo, vkFrame->Fence);
+	if (result != VK_SUCCESS)
 	{
 		FATAL_ERROR("Failed to submit draw command buffer!");
 	}
@@ -380,7 +380,7 @@ void VulkanWindow::EndFrame(void* frame)
 	presentInfo.pSwapchains = &m_VulkanWindow.Swapchain;
 	presentInfo.pImageIndices = &m_VulkanWindow.ImageIndex;
 
-	const VkResult result = vkQueuePresentKHR(GetVkDevice()->GetGraphicsQueue(), &presentInfo);
+	result = vkQueuePresentKHR(GetVkDevice()->GetGraphicsQueue(), &presentInfo);
 	if (result == VK_ERROR_OUT_OF_DATE_KHR || result == VK_SUBOPTIMAL_KHR)
 	{
 		Resize(GetSize());

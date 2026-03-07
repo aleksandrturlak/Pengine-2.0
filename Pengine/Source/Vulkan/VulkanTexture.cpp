@@ -19,6 +19,9 @@ using namespace Vk;
 VulkanTexture::VulkanTexture(const CreateInfo& createInfo)
 	: Texture(createInfo)
 {
+	const auto vkDevice = GetVkDevice();
+	VkCommandBuffer commandBuffer = vkDevice->GetCommandBufferFromFrame(createInfo.frame);
+
 	VkFormat format = ConvertFormat(m_Format);
 	VkImageAspectFlagBits aspectMask = ConvertAspectMask(m_AspectMask);
 
@@ -66,7 +69,7 @@ VulkanTexture::VulkanTexture(const CreateInfo& createInfo)
 
 	for (auto& imageData : m_ImageDatas)
 	{
-		GetVkDevice()->CreateImage(
+		vkDevice->CreateImage(
 			imageInfo,
 			memoryUsage,
 			memoryFlags,
@@ -74,7 +77,7 @@ VulkanTexture::VulkanTexture(const CreateInfo& createInfo)
 			imageData.vmaAllocation,
 			imageData.vmaAllocationInfo);
 
-		TransitionInternal(imageData, VK_IMAGE_LAYOUT_GENERAL);
+		TransitionInternal(imageData, VK_IMAGE_LAYOUT_GENERAL, commandBuffer);
 	}
 
 	if (createInfo.data)
@@ -87,7 +90,7 @@ VulkanTexture::VulkanTexture(const CreateInfo& createInfo)
 
 		for (auto& imageData : m_ImageDatas)
 		{
-			GetVkDevice()->CopyBufferToImage(
+			vkDevice->CopyBufferToImage(
 				stagingBuffer->GetBuffer(),
 				imageData.image,
 				static_cast<uint32_t>(m_Size.x),
@@ -107,16 +110,16 @@ VulkanTexture::VulkanTexture(const CreateInfo& createInfo)
 
 	for (auto& imageData : m_ImageDatas)
 	{
-		if (m_MipLevels > 1)
+		if (m_MipLevels > 1 && createInfo.data)
 		{
-			GetVkDevice()->GenerateMipMaps(
+			vkDevice->GenerateMipMaps(
 				imageData.image,
 				ConvertFormat(m_Format),
 				m_Size.x,
 				m_Size.y,
 				m_MipLevels,
 				m_LayerCount,
-				VK_NULL_HANDLE);
+				commandBuffer);
 		}
 		
 		for (size_t i = 0; i < m_MipLevels; i++)

@@ -143,6 +143,7 @@ namespace Pengine
 			std::vector<Usage> usage;
 			bool isCubeMap = false;
 			bool isMultiBuffered = false;
+			void* frame = nullptr;
 			
 			MemoryType memoryType = MemoryType::GPU;
 

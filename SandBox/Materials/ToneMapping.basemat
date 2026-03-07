@@ -32,5 +32,5 @@ Basemat:
           TextureAttachment: "BlurredReflections"
           TextureAttachmentDefault: "Black"
         - Name: bloomTexture
-          TextureAttachment: "BloomFrameBuffers(0)[0]"
+          TextureAttachment: "Bloom"
           TextureAttachmentDefault: "Black"

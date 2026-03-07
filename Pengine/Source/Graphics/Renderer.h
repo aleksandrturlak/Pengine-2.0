@@ -133,6 +133,11 @@ namespace Pengine
 			const RenderPass::ClearDepth& clearDepth,
 			void* frame) = 0;
 
+		virtual void ClearColorImage(
+			std::shared_ptr<Texture> texture,
+			const glm::vec4& clearColor,
+			void* frame) = 0;
+
 		virtual void FillBuffer(
 			NativeHandle buffer,
 			const size_t size,

@@ -181,6 +181,14 @@ namespace Pengine::Vk
 			const VkImageSubresourceRange* ranges,
 			VkCommandBuffer commandBuffer);
 
+		void ClearColorImage(
+			VkImage image,
+			VkImageLayout imageLayout,
+			const VkClearColorValue* clearColorValue,
+			uint32_t rangeCount,
+			const VkImageSubresourceRange* ranges,
+			VkCommandBuffer commandBuffer);
+
 		void CommandEndLabel(VkCommandBuffer commandBuffer) const;
 
 		virtual void WaitIdle() const override;

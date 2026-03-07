@@ -1,325 +1,259 @@
 #include "../RenderPassManager.h"
 
+#include "../GraphicsSettings.h"
 #include "../Logger.h"
-#include "../BindlessUniformWriter.h"
+#include "../Scene.h"
 #include "../MaterialManager.h"
-#include "../MeshManager.h"
-#include "../SceneManager.h"
 #include "../TextureManager.h"
-#include "../Time.h"
-#include "../FrustumCulling.h"
-#include "../Raycast.h"
-#include "../UIRenderer.h"
 #include "../Profiler.h"
-#include "../Timer.h"
 
-#include "../../Components/Canvas.h"
-#include "../../Components/Camera.h"
-#include "../../Components/Decal.h"
-#include "../../Components/DirectionalLight.h"
-#include "../../Components/PointLight.h"
-#include "../../Components/SpotLight.h"
-#include "../../Components/Renderer3D.h"
-#include "../../Components/SkeletalAnimator.h"
-#include "../../Components/Transform.h"
-#include "../../Graphics/Device.h"
 #include "../../Graphics/Renderer.h"
 #include "../../Graphics/RenderView.h"
-#include "../../Graphics/GraphicsPipeline.h"
-#include "../../EventSystem/EventSystem.h"
-#include "../../EventSystem/NextFrameEvent.h"
-
-#include "../ViewportManager.h"
-#include "../Viewport.h"
+#include "../../Graphics/BarrierBatch.h"
 
 using namespace Pengine;
 
 void RenderPassManager::CreateBloom()
 {
-	glm::vec4 clearColor = { 1.0f, 1.0f, 1.0f, 1.0f };
-
-	RenderPass::AttachmentDescription color{};
-	color.textureCreateInfo.format = Format::B10G11R11_UFLOAT_PACK32;
-	color.textureCreateInfo.aspectMask = Texture::AspectMask::COLOR;
-	color.textureCreateInfo.instanceSize = sizeof(uint32_t);
-	color.textureCreateInfo.isMultiBuffered = true;
-	color.textureCreateInfo.usage = { Texture::Usage::SAMPLED, Texture::Usage::TRANSFER_SRC, Texture::Usage::COLOR_ATTACHMENT };
-	color.textureCreateInfo.name = "BloomColor";
-	color.textureCreateInfo.filepath = color.textureCreateInfo.name;
-	color.layout = Texture::Layout::COLOR_ATTACHMENT_OPTIMAL;
-	color.load = RenderPass::Load::LOAD;
-	color.store = RenderPass::Store::STORE;
-
-	Texture::SamplerCreateInfo samplerCreateInfo{};
-	samplerCreateInfo.addressMode = Texture::SamplerCreateInfo::AddressMode::CLAMP_TO_BORDER;
-	samplerCreateInfo.borderColor = Texture::SamplerCreateInfo::BorderColor::FLOAT_OPAQUE_BLACK;
-	samplerCreateInfo.maxAnisotropy = 1.0f;
-
-	color.textureCreateInfo.samplerCreateInfo = samplerCreateInfo;
-
-	RenderPass::CreateInfo createInfo{};
-	createInfo.type = Pass::Type::GRAPHICS;
+	ComputePass::CreateInfo createInfo{};
+	createInfo.type = Pass::Type::COMPUTE;
 	createInfo.name = Bloom;
-	createInfo.clearColors = { clearColor };
-	createInfo.attachmentDescriptions = { color };
-	createInfo.resizeWithViewport = false;
-	createInfo.createFrameBuffer = false;
-	
-	const std::shared_ptr<Mesh> planeMesh = nullptr;
 
 	createInfo.executeCallback = [this](const RenderPass::RenderCallbackInfo& renderInfo)
 	{
 		PROFILER_SCOPE(Bloom);
 
-		const std::string& renderPassName = renderInfo.renderPass->GetName();
-		const GraphicsSettings::Bloom& bloomSettings = renderInfo.scene->GetGraphicsSettings().bloom;
-		const int mipCount = bloomSettings.mipCount;
-
+		GraphicsSettings::Bloom& bloomSettings = renderInfo.scene->GetGraphicsSettings().bloom;
+		
 		if (!bloomSettings.isEnabled)
 		{
 			renderInfo.renderView->DeleteCustomData("BloomData");
-			renderInfo.renderView->DeleteFrameBuffer(renderPassName);
-			for (int mipLevel = 0; mipLevel < mipCount; mipLevel++)
-			{
-				renderInfo.renderView->DeleteFrameBuffer("BloomFrameBuffers(" + std::to_string(mipLevel) + ")");
-				renderInfo.renderView->DeleteBuffer("BloomBuffers(" + std::to_string(mipLevel) + ")");
-				renderInfo.renderView->DeleteUniformWriter("BloomDownUniformWriters(" + std::to_string(mipLevel) + ")");
-				renderInfo.renderView->DeleteUniformWriter("BloomUpUniformWriters(" + std::to_string(mipLevel) + ")");
-			}
-
+			renderInfo.renderView->DeleteStorageImage(Bloom);
+			renderInfo.renderView->DeleteUniformWriter("BloomDown");
+			renderInfo.renderView->DeleteUniformWriter("BloomUp");
 			return;
 		}
+		
+		constexpr float resolutionScales[] = { 0.25f, 0.5f, 0.75f, 1.0f };
+		const glm::ivec2 viewportSize = glm::vec2(renderInfo.viewportSize) * resolutionScales[bloomSettings.resolutionScale];
+		const int maxMipCount = static_cast<int>(std::floor(std::log2(std::max(
+			viewportSize.x, viewportSize.y)))) + 1;
+		int mipCount = bloomSettings.mipCount = std::min(bloomSettings.mipCount, maxMipCount);
 
-		const std::shared_ptr<Mesh> plane = MeshManager::GetInstance().LoadMesh("FullScreenQuad");
-
-		// Used to store unique view (camera) bloom information to compare with current graphics settings
-		// and in case if not equal then recreate resources.
 		struct BloomData : public CustomData
 		{
 			int mipCount = 0;
-			glm::ivec2 sourceSize = { 0, 0 };
+			float resolutionScale = 0;
 		};
-		
-		constexpr float resolutionScales[] = { 0.25f, 0.5f, 0.75f, 1.0f };
-		if (renderInfo.renderPass->GetResizeViewportScale() != glm::vec2(resolutionScales[bloomSettings.resolutionScale]))
-		{
-			renderInfo.renderPass->SetResizeViewportScale(glm::vec2(resolutionScales[bloomSettings.resolutionScale]));
-		}
-		const glm::ivec2 viewportSize = glm::vec2(renderInfo.viewportSize) * renderInfo.renderPass->GetResizeViewportScale();
 
-		bool recreateResources = false;
 		BloomData* bloomData = (BloomData*)renderInfo.renderView->GetCustomData("BloomData");
 		if (!bloomData)
 		{
 			bloomData = new BloomData();
-			bloomData->mipCount = mipCount;
-			bloomData->sourceSize = viewportSize;
 			renderInfo.renderView->SetCustomData("BloomData", bloomData);
-		
-			recreateResources = true;
-		}
-		else
-		{
-			recreateResources = bloomData->mipCount != mipCount;
-			bloomData->mipCount = mipCount;
 		}
 
-		renderInfo.renderer->BeginCommandLabel("Bloom", topLevelRenderPassDebugColor, renderInfo.frame);
-		// Down Sample.
+		std::shared_ptr<Texture> bloomTexture = renderInfo.renderView->GetStorageImage(Bloom);
+
+		auto createBloomTexture = [&]()
+		{
+			Texture::CreateInfo textureCreateInfo{};
+			textureCreateInfo.aspectMask = Texture::AspectMask::COLOR;
+			textureCreateInfo.instanceSize = sizeof(uint32_t);
+			textureCreateInfo.format = Format::B10G11R11_UFLOAT_PACK32;
+			textureCreateInfo.size = viewportSize;
+			textureCreateInfo.usage = { Texture::Usage::STORAGE, Texture::Usage::SAMPLED, Texture::Usage::TRANSFER_DST };
+			textureCreateInfo.isMultiBuffered = false;
+			textureCreateInfo.mipLevels = mipCount;
+			textureCreateInfo.name = Bloom;
+			textureCreateInfo.filepath = Bloom;
+			textureCreateInfo.frame = renderInfo.frame;
+
+			Texture::SamplerCreateInfo samplerCreateInfo{};
+			samplerCreateInfo.addressMode = Texture::SamplerCreateInfo::AddressMode::CLAMP_TO_BORDER;
+			samplerCreateInfo.borderColor = Texture::SamplerCreateInfo::BorderColor::FLOAT_OPAQUE_BLACK;
+			samplerCreateInfo.maxAnisotropy = 1.0f;
+
+    		textureCreateInfo.samplerCreateInfo = samplerCreateInfo;
+
+			bloomTexture = Texture::Create(textureCreateInfo);
+			renderInfo.renderView->SetStorageImage(Bloom, bloomTexture);
+		};
+
+		bool recreateResources = false;
+		if (!bloomTexture ||
+			bloomData->resolutionScale != resolutionScales[bloomSettings.resolutionScale] ||
+			bloomData->mipCount != mipCount)
+		{
+			createBloomTexture();
+			recreateResources = true;
+		}
+
+		bloomData->resolutionScale = resolutionScales[bloomSettings.resolutionScale];
+		bloomData->mipCount = mipCount;
+
+		const std::shared_ptr<BaseMaterial> downBaseMaterial = MaterialManager::GetInstance().LoadBaseMaterial(
+			std::filesystem::path("Materials") / "BloomDownSample.basemat");
+		const std::shared_ptr<Pipeline> downPipeline = downBaseMaterial->GetPipeline(Bloom);
+		if (!downPipeline)
+			return;
+
+		const std::shared_ptr<BaseMaterial> upBaseMaterial = MaterialManager::GetInstance().LoadBaseMaterial(
+			std::filesystem::path("Materials") / "BloomUpSample.basemat");
+		const std::shared_ptr<Pipeline> upPipeline = upBaseMaterial->GetPipeline(Bloom);
+		if (!upPipeline)
+			return;
+
+		const std::shared_ptr<UniformWriter> downUniformWriter = GetOrCreateUniformWriter(
+			renderInfo.renderView, downPipeline, Pipeline::DescriptorSetIndexType::RENDERER, "BloomDown");
+
+		const std::shared_ptr<UniformWriter> upUniformWriter = GetOrCreateUniformWriter(
+			renderInfo.renderView, upPipeline, Pipeline::DescriptorSetIndexType::RENDERER, "BloomUp");
+
+		if (recreateResources)
+		{
+			std::vector<UniformWriter::TextureInfo> mipInfos(mipCount);
+			for (int i = 0; i < mipCount; i++)
+			{
+				mipInfos[i].texture = bloomTexture;
+				mipInfos[i].baseMipLevel = i;
+			}
+			downUniformWriter->WriteTexturesToAllFrames("outBloom", mipInfos);
+			upUniformWriter->WriteTexturesToAllFrames("outBloom", mipInfos);
+		}
+
+		renderInfo.renderer->BeginCommandLabel(Bloom, topLevelRenderPassDebugColor, renderInfo.frame);
+
+		renderInfo.renderer->ClearColorImage(bloomTexture, { 0.0f, 0.0f, 0.0f, 0.0f }, renderInfo.frame);
+
+		const std::shared_ptr<Texture> blackTexture = TextureManager::GetInstance().GetBlack();
+
+		// Down Sample: GBuffer emissive → bloom mip 0 → bloom mip 1 → ...
 		{
 			PROFILER_SCOPE("DownSample");
 
-			const std::shared_ptr<BaseMaterial> baseMaterial = MaterialManager::GetInstance().LoadBaseMaterial(
-				std::filesystem::path("Materials") / "BloomDownSample.basemat");
-			const std::shared_ptr<Pipeline> pipeline = baseMaterial->GetPipeline(renderPassName);
-			if (!pipeline)
-			{
-				return;
-			}
-
-			// Create FrameBuffers.
-			if (recreateResources || !renderInfo.renderView->GetFrameBuffer(renderPassName))
-			{
-				glm::ivec2 size = viewportSize;
-				for (int mipLevel = 0; mipLevel < mipCount; mipLevel++)
-				{
-					const std::string mipLevelString = std::to_string(mipLevel);
-
-					// NOTE: There are parentheses in the name because square brackets are used in the base material file to find the attachment index.
-					renderInfo.renderView->SetFrameBuffer("BloomFrameBuffers(" + mipLevelString + ")", FrameBuffer::Create(renderInfo.renderPass, renderInfo.renderView.get(), size));
-
-					size.x = glm::max(size.x / 2, 4);
-					size.y = glm::max(size.y / 2, 4);
-				}
-
-				// For viewport visualization and easy access by render pass name.
-				renderInfo.renderView->SetFrameBuffer(renderPassName, renderInfo.renderView->GetFrameBuffer("BloomFrameBuffers(0)"));
-			}
-
-			// Create UniformWriters, Buffers for down sample pass.
-			if (recreateResources)
-			{
-				for (int mipLevel = 0; mipLevel < mipCount; mipLevel++)
-				{
-					const std::string mipLevelString = std::to_string(mipLevel);
-
-					const std::shared_ptr<UniformWriter> renderUniformWriter = GetOrCreateUniformWriter(
-						renderInfo.renderView, pipeline, Pipeline::DescriptorSetIndexType::RENDERER, renderPassName, "BloomDownUniformWriters[" + mipLevelString + "]");
-					GetOrCreateBuffer(
-						renderInfo.renderView,
-						renderUniformWriter,
-						"MipBuffer",
-						"BloomBuffers[" + mipLevelString + "]",
-						{ Buffer::Usage::UNIFORM_BUFFER },
-						MemoryType::CPU,
-						true);
-				}
-			}
-
-			// Resize.
-			if (bloomData->sourceSize.x != viewportSize.x ||
-				bloomData->sourceSize.y != viewportSize.y)
-			{
-				glm::ivec2 size = viewportSize;
-				bloomData->sourceSize = size;
-				for (size_t mipLevel = 0; mipLevel < mipCount; mipLevel++)
-				{
-					const std::shared_ptr<FrameBuffer> frameBuffer = renderInfo.renderView->GetFrameBuffer("BloomFrameBuffers(" + std::to_string(mipLevel) + ")");
-					frameBuffer->Resize(size);
-
-					size.x = glm::max(size.x / 2, 1);
-					size.y = glm::max(size.y / 2, 1);
-				}
-			}
-
 			std::shared_ptr<Texture> sourceTexture = renderInfo.renderView->GetFrameBuffer(GBuffer)->GetAttachment(3);
-			for (int mipLevel = 0; mipLevel < mipCount; mipLevel++)
+
+			renderInfo.renderer->BindPipeline(downPipeline, renderInfo.frame);
+
+			glm::ivec2 mipSize = viewportSize;
+			std::vector<UniformWriter::TextureInfo> sourceTextureInfos(mipCount, { blackTexture, 0 });
+
+			for (int mipLevel = 1; mipLevel < mipCount; mipLevel++)
 			{
-				const std::string mipLevelString = std::to_string(mipLevel);
+				sourceTextureInfos[mipLevel - 1].baseMipLevel = (mipLevel - 1) > 0 ? mipLevel - 1 : 0;
+				sourceTextureInfos[mipLevel - 1].texture = sourceTexture;
+
+				renderInfo.renderer->BeginCommandLabel(std::format("DownSample[{}]", mipLevel), { 1.0f, 1.0f, 0.0f }, renderInfo.frame);
 
 				renderInfo.renderer->PipelineBarrier(
 					BarrierBatch{}
-						.Stages(PipelineStage::FragmentShader, PipelineStage::FragmentShader)
-						.Memory(Access::ShaderRead | Access::ShaderWrite, Access::ShaderRead | Access::ShaderWrite),
+						.Stages(PipelineStage::ComputeShader, PipelineStage::ComputeShader)
+						.Image(bloomTexture, ImageLayout::General, ImageLayout::General, Access::ShaderWrite, Access::ShaderRead),
 					renderInfo.frame);
 
-				const std::shared_ptr<FrameBuffer> frameBuffer = renderInfo.renderView->GetFrameBuffer("BloomFrameBuffers(" + mipLevelString + ")");
-
-				RenderPass::SubmitInfo submitInfo{};
-				submitInfo.frame = renderInfo.frame;
-				submitInfo.renderPass = renderInfo.renderPass;
-				submitInfo.frameBuffer = frameBuffer;
-				renderInfo.renderer->BeginRenderPass(submitInfo, "Bloom Down Sample [" + mipLevelString + "]", { 1.0f, 1.0f, 0.0f });
-
-				glm::vec2 sourceSize = submitInfo.frameBuffer->GetSize();
-				const std::shared_ptr<Buffer> mipBuffer = renderInfo.renderView->GetBuffer("BloomBuffers[" + mipLevelString + "]");
-				baseMaterial->WriteToBuffer(mipBuffer, "MipBuffer", "sourceSize", sourceSize);
-				baseMaterial->WriteToBuffer(mipBuffer, "MipBuffer", "bloomIntensity", bloomSettings.intensity);
-				baseMaterial->WriteToBuffer(mipBuffer, "MipBuffer", "mipLevel", mipLevel);
-
-				mipBuffer->Flush();
-
-				const std::shared_ptr<UniformWriter> downUniformWriter = renderInfo.renderView->GetUniformWriter("BloomDownUniformWriters[" + mipLevelString + "]");
-				downUniformWriter->WriteTextureToFrame("sourceTexture", sourceTexture);
-				downUniformWriter->Flush();
-
-				std::vector<NativeHandle> vertexBuffers;
-				std::vector<size_t> vertexBufferOffsets;
-				GetVertexBuffers(pipeline, plane, vertexBuffers, vertexBufferOffsets);
-
-				renderInfo.renderer->Render(
-					vertexBuffers,
-					vertexBufferOffsets,
-					plane->GetIndexBuffer()->GetNativeHandle(),
-					plane->GetLods()[0].indexOffset * sizeof(uint32_t),
-					plane->GetLods()[0].indexCount,
-					pipeline,
-					NativeHandle::Invalid(),
+				renderInfo.renderer->BindUniformWriters(
+					downPipeline,
+					{ downUniformWriter->GetNativeHandle() },
 					0,
-					1,
-					{
-						downUniformWriter->GetNativeHandle()
-					},
 					renderInfo.frame);
 
-				renderInfo.renderer->EndRenderPass(submitInfo);
+				struct DownPushConstants
+				{
+					glm::vec2 sourceSize;
+					int mipLevel;
+					float bloomIntensity;
+				} pc{};
+				pc.sourceSize = glm::vec2(mipSize);
+				pc.mipLevel = mipLevel;
+				pc.bloomIntensity = bloomSettings.intensity;
 
-				sourceTexture = frameBuffer->GetAttachment(0);
+				renderInfo.renderer->PushConstants(
+					downPipeline,
+					ShaderStage::Compute,
+					0,
+					sizeof(DownPushConstants),
+					&pc,
+					renderInfo.frame);
+
+				const glm::ivec2 outputMipSize = glm::max(mipSize / 2, glm::ivec2(4));
+				glm::uvec2 groupCount = outputMipSize / glm::ivec2(16, 16);
+				groupCount += glm::uvec2(1, 1);
+				renderInfo.renderer->Dispatch({ groupCount.x, groupCount.y, 1 }, renderInfo.frame);
+
+				renderInfo.renderer->EndCommandLabel(renderInfo.frame);
+
+				sourceTexture = bloomTexture;
+				mipSize = outputMipSize;
 			}
+
+			downUniformWriter->WriteTexturesToFrame("sourceTexture", sourceTextureInfos);
+			downUniformWriter->Flush();
 		}
 
-		// Up Sample.
+		// Up Sample: bloom mip N → mip N-1 (additive blend).
 		{
 			PROFILER_SCOPE("UpSample");
-
-			const std::shared_ptr<BaseMaterial> baseMaterial = MaterialManager::GetInstance().LoadBaseMaterial(
-				std::filesystem::path("Materials") / "BloomUpSample.basemat");
-			const std::shared_ptr<Pipeline> pipeline = baseMaterial->GetPipeline(renderPassName);
-			if (!pipeline)
-			{
-				return;
-			}
-
-			// Create UniformWriters for up sample pass.
-			if (recreateResources)
-			{
-				for (int mipLevel = 0; mipLevel < mipCount - 1; mipLevel++)
-				{
-					GetOrCreateUniformWriter(
-						renderInfo.renderView,
-						pipeline,
-						Pipeline::DescriptorSetIndexType::RENDERER,
-						renderPassName,
-						"BloomUpUniformWriters[" + std::to_string(mipLevel) + "]");
-				}
-			}
+			
+			std::vector<UniformWriter::TextureInfo> sourceTextureInfos(mipCount, { blackTexture, 0 });
+			
+			renderInfo.renderer->BindPipeline(upPipeline, renderInfo.frame);
 
 			for (int mipLevel = mipCount - 1; mipLevel > 0; mipLevel--)
 			{
-				const std::string srcMipLevelString = std::to_string(mipLevel);
-				const std::string dstMipLevelString = std::to_string(mipLevel - 1);
+				sourceTextureInfos[mipLevel].baseMipLevel = mipLevel;
+				sourceTextureInfos[mipLevel].texture = bloomTexture;
+
+				renderInfo.renderer->BeginCommandLabel(std::format("UpSample[{}]", mipLevel - 1), { 1.0f, 1.0f, 0.0f }, renderInfo.frame);
 
 				renderInfo.renderer->PipelineBarrier(
 					BarrierBatch{}
-						.Stages(PipelineStage::FragmentShader, PipelineStage::FragmentShader)
-						.Memory(Access::ShaderRead | Access::ShaderWrite, Access::ShaderRead | Access::ShaderWrite),
+						.Stages(PipelineStage::ComputeShader, PipelineStage::ComputeShader)
+						.Image(bloomTexture, ImageLayout::General, ImageLayout::General, Access::ShaderWrite, Access::ShaderRead),
 					renderInfo.frame);
 
-				RenderPass::SubmitInfo submitInfo{};
-				submitInfo.frame = renderInfo.frame;
-				submitInfo.renderPass = renderInfo.renderPass;
-				submitInfo.frameBuffer = renderInfo.renderView->GetFrameBuffer("BloomFrameBuffers(" + dstMipLevelString + ")");
-				renderInfo.renderer->BeginRenderPass(submitInfo, "Bloom Up Sample [" + srcMipLevelString + "]", { 1.0f, 1.0f, 0.0f });
-
-				const std::shared_ptr<UniformWriter> downUniformWriter = renderInfo.renderView->GetUniformWriter("BloomUpUniformWriters[" + dstMipLevelString + "]");
-				downUniformWriter->WriteTextureToFrame("sourceTexture", renderInfo.renderView->GetFrameBuffer("BloomFrameBuffers(" + srcMipLevelString + ")")->GetAttachment(0));
-				downUniformWriter->Flush();
-
-				std::vector<NativeHandle> vertexBuffers;
-				std::vector<size_t> vertexBufferOffsets;
-				GetVertexBuffers(pipeline, plane, vertexBuffers, vertexBufferOffsets);
-
-				renderInfo.renderer->Render(
-					vertexBuffers,
-					vertexBufferOffsets,
-					plane->GetIndexBuffer()->GetNativeHandle(),
-					plane->GetLods()[0].indexOffset * sizeof(uint32_t),
-					plane->GetLods()[0].indexCount,
-					pipeline,
-					NativeHandle::Invalid(),
+				renderInfo.renderer->BindUniformWriters(
+					upPipeline,
+					{ upUniformWriter->GetNativeHandle() },
 					0,
-					1,
-					{
-						downUniformWriter->GetNativeHandle()
-					},
 					renderInfo.frame);
 
-				renderInfo.renderer->EndRenderPass(submitInfo);
+				const int dstMipLevel = mipLevel - 1;
+
+				struct UpPushConstants
+				{
+					int dstMipLevel;
+				} pc{};
+				pc.dstMipLevel = dstMipLevel;
+
+				renderInfo.renderer->PushConstants(
+					upPipeline,
+					ShaderStage::Compute,
+					0,
+					sizeof(UpPushConstants),
+					&pc,
+					renderInfo.frame);
+
+				const glm::ivec2 dstMipSize = glm::max(viewportSize / (1 << dstMipLevel), glm::ivec2(4));
+				glm::uvec2 groupCount = dstMipSize / glm::ivec2(16, 16);
+				groupCount += glm::uvec2(1, 1);
+				renderInfo.renderer->Dispatch({ groupCount.x, groupCount.y, 1 }, renderInfo.frame);
+				
+				renderInfo.renderer->EndCommandLabel(renderInfo.frame);
 			}
+
+			upUniformWriter->WriteTexturesToFrame("sourceTexture", sourceTextureInfos);
+			upUniformWriter->Flush();
 		}
+
+		renderInfo.renderer->PipelineBarrier(
+			BarrierBatch{}
+				.Stages(PipelineStage::ComputeShader, PipelineStage::FragmentShader | PipelineStage::ComputeShader)
+				.Image(bloomTexture, ImageLayout::General, ImageLayout::General, Access::ShaderWrite, Access::ShaderRead),
+			renderInfo.frame);
+
 		renderInfo.renderer->EndCommandLabel(renderInfo.frame);
 	};
 
-	CreateRenderPass(createInfo);
+	CreateComputePass(createInfo);
 }
-

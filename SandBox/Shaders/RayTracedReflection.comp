@@ -88,11 +88,12 @@ vec3 PerturbReflection(vec3 reflectionDir, vec3 normal, float roughness, vec3 se
     return dot(perturbed, normal) > 0.0f ? perturbed : reflectionDir;
 }
 
-vec4 TraceRay(vec3 origin, vec3 direction, vec4 shading)
+vec4 TraceRay(vec3 origin, vec3 direction, vec4 shading, out vec3 emissive)
 {
     vec3 currentOrigin = origin;
     vec3 currentDirection = direction;
     float currentRoughness = shading.y;
+
     vec3 color = vec3(0.0f);
 
     for (int bounce = 0; bounce < MAX_BOUNCE_COUNT; bounce++)
@@ -106,10 +107,11 @@ vec4 TraceRay(vec3 origin, vec3 direction, vec4 shading)
             currentOrigin,
             0.01f,
             currentDirection,
-            1000.0f);
+            camera.zFar);
         
         float roughnessVisibility = (1.0f - currentRoughness) * (1.0f - currentRoughness);
         color = vec3(mix(vec3(0.0f, 0.0f, 0.0f), texture(skyboxTexture, currentDirection).rgb, roughnessVisibility));
+        emissive = vec3(0.0f);
 
         bool isReflective = false;
 
@@ -155,6 +157,7 @@ vec4 TraceRay(vec3 origin, vec3 direction, vec4 shading)
                 vec2 uv = BarycentricLerp(uv0, uv1, uv2, barycentrics) * material.uvTransform.xy + material.uvTransform.zw;
 
                 vec4 albedoColor = texture(bindlessTextures[material.albedoTexture], uv) * material.albedoColor;
+                emissive = texture(bindlessTextures[material.emissiveTexture], uv).xyz * material.emissiveColor.xyz * material.emissiveFactor;
                 
                 if (material.useAlphaCutoff > 0)
                 {
@@ -277,6 +280,7 @@ vec4 TraceRay(vec3 origin, vec3 direction, vec4 shading)
                 }
 
                 color = vec3(mix(vec3(0.0f, 0.0f, 0.0f), color, roughnessVisibility));
+                emissive = vec3(mix(vec3(0.0f, 0.0f, 0.0f), emissive, roughnessVisibility));
 
                 if (currentShading.y < 1.0f && (bounce + 1) < MAX_BOUNCE_COUNT)
                 {
@@ -332,13 +336,12 @@ void main()
     vec3 directionWorldSpace = mat3(camera.inverseViewMat4) * pivot;
     directionWorldSpace = PerturbReflection(directionWorldSpace, normalWorldSpace, shading.y, vec3(originWorldSpace));
 
-    vec4 color = TraceRay(originWorldSpace, directionWorldSpace, shading);
-
-    vec4 emissive = vec4(0.0f);
+    vec3 emissive = vec3(0.0f);
+    vec4 color = TraceRay(originWorldSpace, directionWorldSpace, shading, emissive);
     
     ivec2 emissivePixelCoord = ivec2(uv * imageSize(outEmissive));
     vec4 emissiveSource = imageLoad(outEmissive, emissivePixelCoord);
     
     imageStore(outColor, pixelCoord, color);
-    imageStore(outEmissive, emissivePixelCoord, emissiveSource + emissive);
+    imageStore(outEmissive, emissivePixelCoord, emissiveSource + vec4(emissive, 1.0f));
 }

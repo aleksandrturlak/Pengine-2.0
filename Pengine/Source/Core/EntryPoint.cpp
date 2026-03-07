@@ -168,116 +168,123 @@ void EntryPoint::Run() const
 	
 	m_Application->OnStart();
 
-	while (mainWindow->IsRunning())
+	try
 	{
-		PROFILER_SCOPE(__FUNCTION__);
-
-		Time::GetInstance().Update();
-		AsyncAssetLoader::GetInstance().Update();
-
+		while (mainWindow->IsRunning())
 		{
-			PROFILER_SCOPE("EventSystem::ProcessEvents");
-			eventSystem.ProcessEvents();
-		}
+			PROFILER_SCOPE(__FUNCTION__);
 
-		{
-			PROFILER_SCOPE("Application::OnUpdate");
-			m_Application->OnUpdate();
-		}
+			Time::GetInstance().Update();
+			AsyncAssetLoader::GetInstance().Update();
 
-		if (const std::shared_ptr<Scene> scene = SceneManager::GetInstance().GetSceneByTag("Main"))
-		{
-			PROFILER_SCOPE("Scene::Update");
-			scene->Update(Time::GetDeltaTime());
-		}
-
-		for (const auto& [windowName, window] : WindowManager::GetInstance().GetWindows())
-		{
-			if (!window->IsRunning())
 			{
-				WindowManager::GetInstance().Destroy(window);
-				continue;
+				PROFILER_SCOPE("EventSystem::ProcessEvents");
+				eventSystem.ProcessEvents();
 			}
 
-			WindowManager::GetInstance().SetCurrentWindow(window);
-			window->NewFrame();
-
-			if (window->IsMinimized())
 			{
-				continue;
+				PROFILER_SCOPE("Application::OnUpdate");
+				m_Application->OnUpdate();
 			}
 
-			window->ImGuiBegin();
-			for (const auto& [viewportName, viewport] : window->GetViewportManager().GetViewports())
+			if (const std::shared_ptr<Scene> scene = SceneManager::GetInstance().GetSceneByTag("Main"))
 			{
-				if (const std::shared_ptr<Entity> camera = viewport->GetCamera().lock();
-					camera && camera->HasComponent<Camera>())
+				PROFILER_SCOPE("Scene::Update");
+				scene->Update(Time::GetDeltaTime());
+			}
+
+			for (const auto& [windowName, window] : WindowManager::GetInstance().GetWindows())
+			{
+				if (!window->IsRunning())
 				{
-					Camera& cameraComponent = camera->GetComponent<Camera>();
-					if (!cameraComponent.GetPassName().empty())
-					{
-						const std::shared_ptr<RenderView> renderView = cameraComponent.GetRendererTarget(viewportName);
-						const std::shared_ptr<FrameBuffer> frameBuffer = renderView->GetFrameBuffer(cameraComponent.GetPassName());
-						if (frameBuffer)
-						{
-							viewport->Update(frameBuffer->GetAttachment(cameraComponent.GetRenderTargetIndex()), window);
-							continue;
-						}
-
-						const std::shared_ptr<Texture> texture = renderView->GetStorageImage(cameraComponent.GetPassName());
-						if (texture)
-						{
-							viewport->Update(texture, window);
-							continue;
-						}
-					}
+					WindowManager::GetInstance().Destroy(window);
+					continue;
 				}
 
-				viewport->Update(TextureManager::GetInstance().GetWhite(), window);
-			}
+				WindowManager::GetInstance().SetCurrentWindow(window);
+				window->NewFrame();
 
-			m_Application->OnImGuiUpdate();
+				if (window->IsMinimized())
+				{
+					continue;
+				}
 
-			window->ImGuiEnd();
-
-			drawCallCount = 0;
-			triangleCount = 0;
-
-			if (void* frame = window->BeginFrame())
-			{
-				std::map<std::shared_ptr<Scene>, std::vector<Renderer::RenderViewportInfo>> viewportsByScene;
-
+				window->ImGuiBegin();
 				for (const auto& [viewportName, viewport] : window->GetViewportManager().GetViewports())
 				{
-					if (const std::shared_ptr<Entity> camera = viewport->GetCamera().lock())
+					if (const std::shared_ptr<Entity> camera = viewport->GetCamera().lock();
+						camera && camera->HasComponent<Camera>())
 					{
-						if (camera->HasComponent<Camera>())
+						Camera& cameraComponent = camera->GetComponent<Camera>();
+						if (!cameraComponent.GetPassName().empty())
 						{
-							Renderer::RenderViewportInfo renderViewportInfo{};
-							renderViewportInfo.camera = camera;
-							renderViewportInfo.renderView = camera->GetComponent<Camera>().GetRendererTarget(viewportName);
-							renderViewportInfo.projection = viewport->GetProjectionMat4();
-							renderViewportInfo.size = viewport->GetSize();
+							const std::shared_ptr<RenderView> renderView = cameraComponent.GetRendererTarget(viewportName);
+							const std::shared_ptr<FrameBuffer> frameBuffer = renderView->GetFrameBuffer(cameraComponent.GetPassName());
+							if (frameBuffer)
+							{
+								viewport->Update(frameBuffer->GetAttachment(cameraComponent.GetRenderTargetIndex()), window);
+								continue;
+							}
 
-							viewportsByScene[camera->GetScene()].emplace_back(renderViewportInfo);
+							const std::shared_ptr<Texture> texture = renderView->GetStorageImage(cameraComponent.GetPassName());
+							if (texture)
+							{
+								viewport->Update(texture, window);
+								continue;
+							}
 						}
 					}
+
+					viewport->Update(TextureManager::GetInstance().GetWhite(), window);
 				}
 
-				Renderer::Update(
-					frame,
-					window,
-					renderer,
-					viewportsByScene);
+				m_Application->OnImGuiUpdate();
 
-				window->ImGuiRenderPass();
-				window->EndFrame(frame);
+				window->ImGuiEnd();
+
+				drawCallCount = 0;
+				triangleCount = 0;
+
+				if (void* frame = window->BeginFrame())
+				{
+					std::map<std::shared_ptr<Scene>, std::vector<Renderer::RenderViewportInfo>> viewportsByScene;
+
+					for (const auto& [viewportName, viewport] : window->GetViewportManager().GetViewports())
+					{
+						if (const std::shared_ptr<Entity> camera = viewport->GetCamera().lock())
+						{
+							if (camera->HasComponent<Camera>())
+							{
+								Renderer::RenderViewportInfo renderViewportInfo{};
+								renderViewportInfo.camera = camera;
+								renderViewportInfo.renderView = camera->GetComponent<Camera>().GetRendererTarget(viewportName);
+								renderViewportInfo.projection = viewport->GetProjectionMat4();
+								renderViewportInfo.size = viewport->GetSize();
+
+								viewportsByScene[camera->GetScene()].emplace_back(renderViewportInfo);
+							}
+						}
+					}
+
+					Renderer::Update(
+						frame,
+						window,
+						renderer,
+						viewportsByScene);
+
+					window->ImGuiRenderPass();
+					window->EndFrame(frame);
+				}
 			}
+
+			device->FlushDeletionQueue();
+
+			++currentFrame;
 		}
-
-		device->FlushDeletionQueue();
-
-		++currentFrame;
+	}
+	catch(const std::exception& e)
+	{
+		Logger::Log("Ending main loop due to an exception!");
 	}
 
 	m_Application->OnClose();

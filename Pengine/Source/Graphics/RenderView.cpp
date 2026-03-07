@@ -5,8 +5,6 @@
 #include "../Core/Scene.h"
 #include "../Core/Serializer.h"
 
-#include "../Graphics/Device.h"
-
 #include <filesystem>
 
 using namespace Pengine;
@@ -161,8 +159,6 @@ void RenderView::SetStorageImage(const std::string& name, std::shared_ptr<Textur
 
 void RenderView::Resize(const glm::ivec2& size)
 {
-	device->WaitIdle();
-
 	for (const std::string& renderPassName : m_RenderPassOrder)
 	{
 		if (const std::shared_ptr<FrameBuffer> frameBuffer =

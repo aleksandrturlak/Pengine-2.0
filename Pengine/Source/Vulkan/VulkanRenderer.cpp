@@ -399,6 +399,30 @@ void VulkanRenderer::ClearDepthStencilImage(
 	GetVkDevice()->ClearDepthStencilImage(vkTexture->GetImage(), vkTexture->GetLayout(), &clearValue, 1, &range, vkFrame->CommandBuffer);
 }
 
+void VulkanRenderer::ClearColorImage(
+	std::shared_ptr<Texture> texture,
+	const glm::vec4& clearColor,
+	void* frame)
+{
+	const VulkanFrameInfo* vkFrame = static_cast<VulkanFrameInfo*>(frame);
+	const std::shared_ptr<VulkanTexture> vkTexture = std::static_pointer_cast<VulkanTexture>(texture);
+	
+	VkClearColorValue clearValue{};
+	clearValue.float32[0] = clearColor[0];
+	clearValue.float32[1] = clearColor[1];
+	clearValue.float32[2] = clearColor[2];
+	clearValue.float32[3] = clearColor[3];
+
+	VkImageSubresourceRange range{};
+	range.aspectMask = VulkanTexture::ConvertAspectMask(vkTexture->GetAspectMask());
+	range.baseMipLevel = 0;
+	range.levelCount = vkTexture->GetMipLevels();
+	range.baseArrayLayer = 0;
+	range.layerCount = vkTexture->GetLayerCount();
+
+	GetVkDevice()->ClearColorImage(vkTexture->GetImage(), vkTexture->GetLayout(), &clearValue, 1, &range, vkFrame->CommandBuffer);
+}
+
 void VulkanRenderer::FillBuffer(
 	NativeHandle buffer,
 	const size_t size,
