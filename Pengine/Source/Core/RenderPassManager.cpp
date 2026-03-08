@@ -448,6 +448,10 @@ void RenderPassManager::Initialize()
 	CreateSSR();
 	CreateRayTracedReflections();
 	CreateBlurReflections();
+	CreateDDGIProbeOffset();
+	CreateDDGIProbeUpdate();
+	CreateDDGIProbeBlend();
+	CreateDDGIProbeDebug();
 	CreateAntiAliasingAndComposePass();
 	CreateUI();
 	CreateDefaultReflection();

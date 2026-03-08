@@ -1,0 +1,9 @@
+Basemat:
+  Pipelines:
+    - RenderPass: DDGIProbeBlend
+      Type: Compute
+      Compute: Shaders/DDGIProbeBlend.comp
+      UniformWriters:
+        - Type: Renderer
+          Name: DDGIProbeBlend
+          Set: 0

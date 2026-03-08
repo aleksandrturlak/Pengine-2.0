@@ -176,6 +176,34 @@ namespace Pengine
 			bool fxaa = true;
 		} postProcess;
 
+		struct DDGI
+		{
+			bool isEnabled = false;
+
+			/** Grid dimensions (probes per axis). */
+			int gridX = 32;
+			int gridY = 10;
+			int gridZ = 32;
+
+			/** World-space distance between adjacent probes. */
+			float probeSpacing = 1.0f;
+
+			/** Rays cast per probe per frame. */
+			int raysPerProbe = 32;
+
+			/** Show irradiance-colored spheres at each probe position. */
+			bool visualizeProbes = true;
+
+			/**
+			 * When true the probe grid is centred on the camera each frame (scrolling grid).
+			 * When false the grid is anchored at fixedOrigin and does not move.
+			 */
+			bool followCamera = true;
+
+			/** World-space anchor position used when followCamera is false. */
+			glm::vec3 fixedOrigin = glm::vec3(0.0f);
+		} ddgi;
+
 		struct SSR
 		{
 			enum class Blur

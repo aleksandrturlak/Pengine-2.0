@@ -44,12 +44,12 @@ SpotLightShadows:
   FaceQuality: 3
 Bloom:
   IsEnabled: true
-  MipCount: 10
+  MipCount: 9
   BrightnessThreshold: 1
   Intensity: 1
   ResolutionScale: 3
 SSR:
-  IsEnabled: true
+  IsEnabled: false
   MaxDistance: 100
   Resolution: 1
   ResolutionBlurScale: 4
@@ -64,10 +64,20 @@ SSR:
 PostProcess:
   Gamma: 2.20000005
   ToneMapper: 1
-  FXAA: false
+  FXAA: true
 RayTracedShadows:
   DirectionalLight: true
   PointLight: true
   SpotLight: true
 RayTracedReflections:
   IsRayTraced: true
+DDGI:
+  IsEnabled: true
+  VisualizeProbes: false
+  GridX: 14
+  GridY: 6
+  GridZ: 10
+  ProbeSpacing: 1.95000005
+  RaysPerProbe: 96
+  FollowCamera: false
+  FixedOrigin: [0, 5.5, 0]

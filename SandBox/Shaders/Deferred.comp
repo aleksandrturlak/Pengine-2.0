@@ -3,6 +3,7 @@
 #extension GL_EXT_ray_query : enable
 
 #include "Shaders/Includes/Common.h"
+#include "Shaders/Includes/DDGI.h"
 
 layout(set = 1, binding = 0) uniform sampler2D albedoTexture;
 layout(set = 1, binding = 1) uniform sampler2D normalTexture;
@@ -17,6 +18,13 @@ layout(set = 1, binding = 9, r11f_g11f_b10f) uniform writeonly image2D outColor;
 layout(set = 1, binding = 10, r11f_g11f_b10f) uniform image2D outEmissive;
 layout(set = 1, binding = 11) uniform accelerationStructureEXT topLevelAS;
 layout(set = 1, binding = 12) uniform samplerCube skyboxTexture;
+layout(set = 1, binding = 13) uniform sampler2D ddgiIrradianceAtlas;
+layout(set = 1, binding = 14) uniform sampler2D ddgiVisibilityAtlas;
+layout(set = 1, binding = 15) uniform DDGIUniform
+{
+    DDGIData ddgi;
+};
+layout(set = 1, binding = 16) uniform sampler2D ddgiProbeOffsetAtlas;
 
 #include "Shaders/Includes/SetMacros/CameraSet.h"
 CAMERA_SET(0)
@@ -53,10 +61,6 @@ layout(set = 4, binding = 0, scalar) buffer readonly EntityBuffer
 };
 
 #include "Shaders/Includes/RayTracing.h"
-
-// -------------------------------------------------------------------------
-// Indirect lighting (one-bounce GI via ray queries)
-// -------------------------------------------------------------------------
 
 float IndirectHash(vec3 p)
 {
@@ -95,14 +99,13 @@ vec3 TraceIndirectLight(vec3 originWorldSpace, vec3 normalWorldSpace, vec3 albed
 
     for (int i = 0; i < RAY_COUNT; i++)
     {
-        // Primary ray direction — golden-ratio sequence gives good hemisphere coverage
         float r1 = fract(float(i) * INV_RAY_COUNT + seed);
         float r2 = fract(float(i) * GOLDEN_RATIO  + seed);
 
         vec3 currentOrigin = originWorldSpace;
         vec3 currentNormal = normalWorldSpace;
         vec3 currentDir    = CosineSampleHemisphere(normalWorldSpace, r1, r2);
-        vec3 throughput    = vec3(1.0f); // accumulated albedo tint along the path
+        vec3 throughput    = vec3(1.0f);
         vec3 pathContrib   = vec3(0.0f);
 
         for (int bounce = 0; bounce < BOUNCE_COUNT; bounce++)
@@ -151,7 +154,6 @@ vec3 TraceIndirectLight(vec3 originWorldSpace, vec3 normalWorldSpace, vec3 albed
                     rayQueryConfirmIntersectionEXT(rayQuery);
                     hitSomething = true;
 
-                    // World-space position and normal at hit point
                     vec3 v0 = QuatRotate(entityInfo.rotation, meshBufferInfoBuffer.vertexBufferPosition.vertices[idx0].position * entityInfo.scale) + entityInfo.position;
                     vec3 v1 = QuatRotate(entityInfo.rotation, meshBufferInfoBuffer.vertexBufferPosition.vertices[idx1].position * entityInfo.scale) + entityInfo.position;
                     vec3 v2 = QuatRotate(entityInfo.rotation, meshBufferInfoBuffer.vertexBufferPosition.vertices[idx2].position * entityInfo.scale) + entityInfo.position;
@@ -162,7 +164,6 @@ vec3 TraceIndirectLight(vec3 originWorldSpace, vec3 normalWorldSpace, vec3 albed
                     vec3 n2 = normalize(QuatRotate(entityInfo.rotation, normalize(meshBufferInfoBuffer.vertexBufferNormal.normals[idx2].normal) / entityInfo.scale));
                     vec3 hitNormal = normalize(BarycentricLerp(n0, n1, n2, barycentrics));
 
-                    // Direct lighting at the hit point with shadow ray
                     vec3 directLight = vec3(0.0f);
                     if (hasDirectionalLight == 1)
                     {
@@ -172,15 +173,12 @@ vec3 TraceIndirectLight(vec3 originWorldSpace, vec3 normalWorldSpace, vec3 albed
                         directLight  = hitAlbedo.xyz * directionalLight.color * directionalLight.intensity * NdotL * (1.0f - shadow);
                     }
 
-                    // Accumulate this bounce's direct contribution, tinted by path throughput
                     pathContrib += throughput * directLight + throughput * material.emissiveColor.xyz * material.emissiveFactor;
 
-                    // Attenuate throughput by hit surface albedo for the next bounce
                     vec3  metallicRoughness = texture(bindlessTextures[material.metallicRoughnessTexture], hitUV).xyz;
                     float hitMetallic       = metallicRoughness.b * material.metallicFactor;
                     throughput *= hitAlbedo.xyz * (1.0f - hitMetallic);
 
-                    // Prepare next bounce: new cosine-weighted direction around hit normal
                     float br1  = IndirectHash(hitPosition + vec3(float(bounce)));
                     float br2  = IndirectHash(hitPosition.yzx + vec3(float(bounce) + 0.5f));
                     currentOrigin = hitPosition;
@@ -189,7 +187,6 @@ vec3 TraceIndirectLight(vec3 originWorldSpace, vec3 normalWorldSpace, vec3 albed
                 }
             }
 
-            // Ray escaped to sky — add sky contribution and terminate this path
             if (!hitSomething)
             {
                 pathContrib += throughput * texture(skyboxTexture, currentDir).rgb;
@@ -397,8 +394,19 @@ void main()
 			}
 		}
 
-		// Indirect lighting — one-bounce GI via 4 cosine-weighted hemisphere rays
-		//vec3 normalWorldSpace = mat3(camera.inverseViewMat4) * normalViewSpace;
+		// Indirect diffuse via DDGI probe grid.
+		// Probes store cosine-weighted irradiance: ∫L(ω)cos(θ)dω/∫cos(θ)dω  ≈  ∫L(ω)cos(θ)dω / π
+		// Lambertian BRDF = albedo/π, so: albedo/π * π * probeIrradiance = albedo * probeIrradiance
+		vec3 normalWorldSpace = mat3(camera.inverseViewMat4) * normalViewSpace;
+		vec3 indirectIrradiance = SampleDDGIIrradiance(
+			positionWorldSpace,
+			normalWorldSpace,
+			ddgi,
+			ddgiIrradianceAtlas,
+			ddgiVisibilityAtlas,
+			ddgiProbeOffsetAtlas);
+		result += albedoColor * indirectIrradiance * ssao;
+
 		//result += TraceIndirectLight(positionWorldSpace, normalWorldSpace, albedoColor, shading.x);
 	}
 

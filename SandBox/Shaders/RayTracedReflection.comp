@@ -57,7 +57,9 @@ layout(set = 4, binding = 0) uniform Lights
 #include "Shaders/Includes/RayTracing.h"
 
 #define MAX_BOUNCE_COUNT 1
+#ifndef PI
 #define PI 3.14159265359f
+#endif
 
 float Hash(vec3 p)
 {
@@ -71,14 +73,14 @@ vec3 PerturbReflection(vec3 reflectionDir, vec3 normal, float roughness, vec3 se
     float r1 = Hash(seed);
     float r2 = Hash(seed + vec3(1.0f, 0.0f, 0.0f));
 
-    float phi    = 2.0f * PI * r1;
-    float alpha  = roughness * roughness;
+    float phi = 2.0f * PI * r1;
+    float alpha = roughness * roughness;
     float alpha2 = alpha * alpha;
     float cosTheta = sqrt((1.0f - r2) / max(1.0f + (alpha2 - 1.0f) * r2, 1e-6f));
     float sinTheta = sqrt(max(0.0f, 1.0f - cosTheta * cosTheta));
 
-    vec3 up       = abs(reflectionDir.y) < 0.999f ? vec3(0.0f, 1.0f, 0.0f) : vec3(1.0f, 0.0f, 0.0f);
-    vec3 tangent  = normalize(cross(up, reflectionDir));
+    vec3 up = abs(reflectionDir.y) < 0.999f ? vec3(0.0f, 1.0f, 0.0f) : vec3(1.0f, 0.0f, 0.0f);
+    vec3 tangent = normalize(cross(up, reflectionDir));
     vec3 bitangent = cross(reflectionDir, tangent);
 
     vec3 perturbed = normalize(tangent * (sinTheta * cos(phi)) +

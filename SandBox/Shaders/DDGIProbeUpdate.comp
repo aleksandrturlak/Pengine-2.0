@@ -1,0 +1,346 @@
+#version 460
+
+#extension GL_EXT_ray_query : enable
+
+#include "Shaders/Includes/Common.h"
+#include "Shaders/Includes/DDGI.h"
+
+#include "Shaders/Includes/SetMacros/CameraSet.h"
+CAMERA_SET(0)
+
+layout(set = 1, binding = 0) uniform DDGIUniform
+{
+    DDGIData ddgi;
+};
+
+layout(set = 1, binding = 1, rgba16f) uniform writeonly image2D outIrradiance;
+layout(set = 1, binding = 2, rg16f)   uniform writeonly image2D outVisibility;
+layout(set = 1, binding = 3) uniform samplerCube skyboxTexture;
+layout(set = 1, binding = 4) uniform accelerationStructureEXT topLevelAS;
+layout(set = 1, binding = 5) uniform sampler2D probeOffsets;
+layout(set = 1, binding = 6) uniform sampler2D persistentIrradiance;
+layout(set = 1, binding = 7) uniform sampler2D persistentVisibility;
+
+layout(set = 2, binding = 0) uniform sampler2D bindlessTextures[MAX_BINDLESS_TEXTURES];
+
+layout(set = 3, binding = 0, scalar) buffer readonly EntityBuffer
+{
+    EntityInfo entities[MAX_ENTITIES];
+};
+
+#include "Shaders/Includes/DirectionalLight.h"
+#include "Shaders/Includes/PointLight.h"
+#include "Shaders/Includes/SpotLight.h"
+#include "Shaders/Includes/RayTracing.h"
+#include "Shaders/Includes/SSS.h"
+
+layout(set = 4, binding = 0) uniform Lights
+{
+    PointLight pointLights[32];
+    int pointLightsCount;
+
+    SpotLight spotLights[32];
+    int spotLightsCount;
+
+    DirectionalLight directionalLight;
+    int hasDirectionalLight;
+
+    float brightnessThreshold;
+
+    PointLightShadows pointLightShadows;
+    SpotLightShadows  spotLightShadows;
+
+    SSS sss;
+};
+
+// ---------------------------------------------------------------------------
+// Work group: 8x8 = 64 threads.
+//  - gl_WorkGroupID.x  = probe linear index
+//  - gl_LocalInvocationID.xy = texel within the probe's irradiance patch
+//    (same for visibility, sampled separately in a second sub-loop)
+// ---------------------------------------------------------------------------
+layout(local_size_x = 8, local_size_y = 8, local_size_z = 1) in;
+
+// Fibonacci spiral to generate well-distributed ray directions over the sphere
+vec3 FibonacciSphereDir(uint i, uint n)
+{
+    float goldenRatio = 1.61803398875f;
+    float theta = acos(1.0f - 2.0f * (float(i) + 0.5f) / float(n));
+    float phi = 2.0f * PI * fract(float(i) * goldenRatio);
+    return vec3(sin(theta) * cos(phi), cos(theta), sin(theta) * sin(phi));
+}
+
+vec3 EvaluateDirectLighting(vec3 hitPosition, vec3 hitNormal, vec3 albedo)
+{
+    vec3 result = vec3(0.0f);
+
+    if (hasDirectionalLight == 1)
+    {
+        float NdotL = max(dot(hitNormal, directionalLight.directionWorldSpace), 0.0f);
+        if (NdotL > 0.0f)
+        {
+            float shadow = TraceShadowRay(0u, 0xFFu, hitPosition, 0.01f,
+                                          directionalLight.directionWorldSpace, camera.zFar);
+            result += albedo * directionalLight.color * directionalLight.intensity * NdotL * (1.0f - shadow);
+        }
+    }
+
+    for (int i = 0; i < pointLightsCount; i++)
+    {
+        vec3 toLight = pointLights[i].positionWorldSpace - hitPosition;
+        float distanceToPoint = length(toLight);
+        if (distanceToPoint < pointLights[i].radius)
+        {
+            vec3 direction = toLight / distanceToPoint;
+            float NdotL = max(dot(hitNormal, direction), 0.0f);
+            if (NdotL > 0.0f)
+            {
+                float shadow = TraceShadowRay(0u, 0xFFu, hitPosition, 0.01f, direction, distanceToPoint);
+                float attenuation = 1.0f - clamp(distanceToPoint / pointLights[i].radius, 0.0f, 1.0f);
+                attenuation *= attenuation;
+                result += albedo * pointLights[i].color * pointLights[i].intensity * NdotL * attenuation * (1.0f - shadow);
+            }
+        }
+    }
+
+    for (int i = 0; i < spotLightsCount; i++)
+    {
+        vec3 toLight = spotLights[i].positionWorldSpace - hitPosition;
+        float distanceToPoint = length(toLight);
+        if (distanceToPoint < spotLights[i].radius)
+        {
+            vec3 direction = toLight / distanceToPoint;
+            float NdotL = max(dot(hitNormal, direction), 0.0f);
+            if (NdotL > 0.0f)
+            {
+                vec3 lightDirection = normalize(mat3(camera.inverseViewMat4) * spotLights[i].directionViewSpace);
+                float cosTheta = dot(-direction, lightDirection);
+                float epsilon = spotLights[i].innerCutOff - spotLights[i].outerCutOff;
+                float intensity = clamp((cosTheta - cos(spotLights[i].outerCutOff)) / epsilon, 0.0f, 1.0f);
+                if (intensity > 0.0f)
+                {
+                    float shadow = TraceShadowRay(0u, 0xFFu, hitPosition, 0.01f, direction, distanceToPoint);
+                    float attenuation = 1.0f - clamp(distanceToPoint / spotLights[i].radius, 0.0f, 1.0f);
+                    attenuation *= attenuation;
+                    result += albedo * spotLights[i].color * spotLights[i].intensity * NdotL * intensity * attenuation * (1.0f - shadow);
+                }
+            }
+        }
+    }
+
+    return result;
+}
+
+vec4 TraceProbeRay(vec3 probePosition, vec3 direction)
+{
+    rayQueryEXT rayQuery;
+    rayQueryInitializeEXT(rayQuery, topLevelAS, 0u, 0xFFu, probePosition, 0.01f, direction, camera.zFar);
+
+    bool  hit     = false;
+    float hitDistance = camera.zFar;
+
+    while (rayQueryProceedEXT(rayQuery))
+    {
+        if (rayQueryGetIntersectionTypeEXT(rayQuery, false) == gl_RayQueryCandidateIntersectionTriangleEXT)
+        {
+            uint customId = rayQueryGetIntersectionInstanceCustomIndexEXT(rayQuery, false);
+
+            vec2 barycentrics2D = rayQueryGetIntersectionBarycentricsEXT(rayQuery, false);
+            vec3 barycentrics = vec3(1.0f - barycentrics2D.x - barycentrics2D.y, barycentrics2D.x, barycentrics2D.y);
+
+            EntityInfo entityInfo = entities[customId];
+            uint64_t materialBuffer = entityInfo.materialInfoBuffer.materialBuffers[GBUFFER_PASS];
+            DefaultMaterial material = MaterialBufferReference(materialBuffer).material;
+            MeshBufferInfoBuffer meshBuffer = entityInfo.meshInfoBuffer.meshBufferInfoBuffer;
+
+            uint primitiveId = rayQueryGetIntersectionPrimitiveIndexEXT(rayQuery, false);
+
+            uint idx0 = meshBuffer.indexBuffer.indices[primitiveId * 3 + 0].index;
+            uint idx1 = meshBuffer.indexBuffer.indices[primitiveId * 3 + 1].index;
+            uint idx2 = meshBuffer.indexBuffer.indices[primitiveId * 3 + 2].index;
+
+            vec2 uv0 = meshBuffer.vertexBufferPosition.vertices[idx0].uv;
+            vec2 uv1 = meshBuffer.vertexBufferPosition.vertices[idx1].uv;
+            vec2 uv2 = meshBuffer.vertexBufferPosition.vertices[idx2].uv;
+            vec2 uv = BarycentricLerp(uv0, uv1, uv2, barycentrics) * material.uvTransform.xy + material.uvTransform.zw;
+
+            vec4 albedoSample = texture(bindlessTextures[material.albedoTexture], uv) * material.albedoColor;
+
+            if (material.useAlphaCutoff > 0 && albedoSample.a < material.alphaCutoff)
+            {
+                continue;
+            }
+
+            rayQueryConfirmIntersectionEXT(rayQuery);
+            hit = true;
+
+            vec3 v0 = QuatRotate(entityInfo.rotation, meshBuffer.vertexBufferPosition.vertices[idx0].position * entityInfo.scale) + entityInfo.position;
+            vec3 v1 = QuatRotate(entityInfo.rotation, meshBuffer.vertexBufferPosition.vertices[idx1].position * entityInfo.scale) + entityInfo.position;
+            vec3 v2 = QuatRotate(entityInfo.rotation, meshBuffer.vertexBufferPosition.vertices[idx2].position * entityInfo.scale) + entityInfo.position;
+            vec3 hitPosition = BarycentricLerp(v0, v1, v2, barycentrics);
+            hitDistance = length(hitPosition - probePosition);
+
+            vec3 n0 = normalize(QuatRotate(entityInfo.rotation, normalize(meshBuffer.vertexBufferNormal.normals[idx0].normal) / entityInfo.scale));
+            vec3 n1 = normalize(QuatRotate(entityInfo.rotation, normalize(meshBuffer.vertexBufferNormal.normals[idx1].normal) / entityInfo.scale));
+            vec3 n2 = normalize(QuatRotate(entityInfo.rotation, normalize(meshBuffer.vertexBufferNormal.normals[idx2].normal) / entityInfo.scale));
+            vec3 hitNormal = normalize(BarycentricLerp(n0, n1, n2, barycentrics));
+
+            vec3 emissive = texture(bindlessTextures[material.emissiveTexture], uv).xyz
+                            * material.emissiveColor.xyz
+                            * material.emissiveFactor;
+            vec3 direct   = EvaluateDirectLighting(hitPosition, hitNormal, albedoSample.xyz);
+
+            // 2nd-bounce: sample the persistent atlas at the hit surface.
+            // Uses last frame's 1-bounce result — converges to stable 2-bounce GI
+            // with hysteresis over subsequent frames.
+            // Skip on frameIndex == 0: the persistent atlas is uninitialized and
+            // sampling it would produce NaN that propagates through the blend.
+            vec3 secondBounce = vec3(0.0f);
+            if (ddgi.frameIndex > 0u)
+            {
+                vec3 indirect = SampleDDGIIrradiance(
+                    hitPosition, hitNormal, ddgi,
+                    persistentIrradiance, persistentVisibility, probeOffsets);
+                secondBounce = albedoSample.xyz * max(indirect, vec3(0.0f));
+            }
+
+            return vec4(emissive + direct + secondBounce * 2.0f, hitDistance);
+        }
+    }
+
+    vec3 sky = texture(skyboxTexture, direction).rgb;
+    return vec4(sky, -1.0f);
+}
+
+// ---------------------------------------------------------------------------
+// main
+//
+// Each work group processes one probe.
+// 8x8 threads collectively write the irradiance and visibility atlases.
+//
+// Strategy:
+//   - Each thread is responsible for one octahedral texel.
+//   - The thread integrates the contribution of ALL rays that land in its texel's
+//     hemisphere direction using cosine weighting (NdotL).
+//   - For visibility we store the mean and mean² of hit distances.
+// ---------------------------------------------------------------------------
+void main()
+{
+    if (ddgi.isEnabled == 0) return;
+
+    uint probeLinearIdx = gl_WorkGroupID.x
+                        + gl_WorkGroupID.y * gl_NumWorkGroups.x;
+
+    uint totalProbes = ddgi.probeCountX * ddgi.probeCountY * ddgi.probeCountZ;
+    if (probeLinearIdx >= totalProbes) return;
+
+    uint pz = probeLinearIdx / (ddgi.probeCountX * ddgi.probeCountY);
+    uint py = (probeLinearIdx % (ddgi.probeCountX * ddgi.probeCountY)) / ddgi.probeCountX;
+    uint px = probeLinearIdx % ddgi.probeCountX;
+
+    vec3 probePosition = DDGIProbeWorldPosOffset(ivec3(px, py, pz), ddgi, probeOffsets);
+
+    // ---------------------------------------------------------------------------
+    // Each thread handles one octahedral texel for BOTH irradiance and visibility.
+    // Irradiance texels: irradianceProbeSize x irradianceProbeSize
+    // Visibility texels: visibilityProbeSize x visibilityProbeSize
+    // ---------------------------------------------------------------------------
+
+    // --- Irradiance texel ---
+    {
+        const uint borderSize  = 1u;
+        const uint probeTexels = ddgi.irradianceProbeSize;
+        const uint probePitch  = probeTexels + 2u * borderSize;
+        const uint probesPerRow = uint(ddgi.irradianceAtlasSize.x) / probePitch;
+
+        uvec2 localTexel = uvec2(gl_LocalInvocationID.xy);
+        // We may have more threads than irradiance texels (8x8 == 8x8, so exactly one thread per texel)
+
+        uvec2 probeAtlasBase = uvec2(
+            (probeLinearIdx % probesPerRow) * probePitch,
+            (probeLinearIdx / probesPerRow) * probePitch);
+
+        ivec2 atlasCoord = ivec2(probeAtlasBase) + ivec2(borderSize) + ivec2(localTexel);
+
+        // Direction this texel represents.
+        // Must match the sampling formula in DDGI.h:  innerOffset = 0.5 + octNorm*(N-1)
+        // which maps texel i to octNorm = i/(N-1), i.e. oct = i/(N-1)*2-1.
+        vec2 oct = vec2(localTexel) / float(probeTexels - 1u) * 2.0f - 1.0f; // [-1,1]
+        vec3 texelDirection = DDGIOctDecode(oct);
+
+        vec3 accumRadiance = vec3(0.0f);
+        float accumWeight = 0.0f;
+
+        uint numRays = ddgi.raysPerProbe;
+        for (uint ri = 0u; ri < numRays; ri++)
+        {
+            vec3 rayDirection = FibonacciSphereDir(ri, numRays);
+            float NdotD = max(dot(rayDirection, texelDirection), 0.0f);
+            if (NdotD <= 0.0f) continue;
+
+            vec4 rayResult = TraceProbeRay(probePosition, rayDirection);
+            accumRadiance += rayResult.rgb * NdotD;
+            accumWeight += NdotD;
+        }
+
+        vec3 irradiance = (accumWeight > 1e-6f) ? (accumRadiance / accumWeight) : vec3(0.0f);
+        imageStore(outIrradiance, atlasCoord, vec4(irradiance, 1.0f));
+    }
+
+    // --- Visibility texel ---
+    // visibilityProbeSize can be larger (e.g. 16). Each workgroup has 64 threads (8x8).
+    // If visibilityProbeSize > 8, we loop over chunks.
+    {
+        const uint borderSize = 1u;
+        const uint probeTexels = ddgi.visibilityProbeSize; // e.g. 16
+        const uint probePitch = probeTexels + 2u * borderSize;
+        const uint probesPerRow = uint(ddgi.visibilityAtlasSize.x) / probePitch;
+
+        uvec2 probeAtlasBase = uvec2(
+            (probeLinearIdx % probesPerRow) * probePitch,
+            (probeLinearIdx / probesPerRow) * probePitch);
+
+        uint numRays = ddgi.raysPerProbe;
+
+        // Each 8x8 group handles visibilityProbeSize² texels by tiling
+        uint tilesPerRow = (probeTexels + 7u) / 8u;
+        for (uint tile = 0u; tile < tilesPerRow * tilesPerRow; tile++)
+        {
+            uvec2 tileBase = uvec2(tile % tilesPerRow, tile / tilesPerRow) * 8u;
+            uvec2 localTexel = tileBase + uvec2(gl_LocalInvocationID.xy);
+            if (any(greaterThanEqual(localTexel, uvec2(probeTexels)))) continue;
+
+            ivec2 atlasCoord = ivec2(probeAtlasBase) + ivec2(borderSize) + ivec2(localTexel);
+
+            vec2 oct = vec2(localTexel) / float(probeTexels - 1u) * 2.0f - 1.0f;
+            vec3 texelDirection = DDGIOctDecode(oct);
+
+            float accumMean = 0.0f;
+            float accumMeanSq = 0.0f;
+            float accumWeight = 0.0f;
+
+            for (uint ri = 0u; ri < numRays; ri++)
+            {
+                vec3 rayDirection = FibonacciSphereDir(ri, numRays);
+                float NdotD = max(dot(rayDirection, texelDirection), 0.0f);
+                if (NdotD <= 0.0f) continue;
+
+                vec4 rayResult = TraceProbeRay(probePosition, rayDirection);
+                float dist = (rayResult.w < 0.0f) ? camera.zFar : rayResult.w;
+
+                accumMean += dist * NdotD;
+                accumMeanSq += dist * dist * NdotD;
+                accumWeight += NdotD;
+            }
+
+            vec2 visibility = vec2(0.0f);
+            if (accumWeight > 1e-6f)
+            {
+                visibility.x = accumMean / accumWeight;
+                visibility.y = accumMeanSq / accumWeight;
+            }
+
+            imageStore(outVisibility, atlasCoord, vec4(visibility, 0.0f, 1.0f));
+        }
+    }
+}

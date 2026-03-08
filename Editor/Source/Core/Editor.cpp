@@ -1480,6 +1480,44 @@ void Editor::GraphicsSettingsInfo(GraphicsSettings& graphicsSettings)
 				isChangedToSerialize += ImGui::Checkbox("Ray Traced Reflections", &graphicsSettings.rayTracing.reflections.isRayTraced);
 				ImGui::PopID();
 			}
+
+			if (ImGui::CollapsingHeader("Global Illumination##RayTracing"))
+			{
+				Indent indent;
+
+				ImGui::PushID("Ray Tracing Global Illumination");
+				isChangedToSerialize += ImGui::Checkbox("DDGI", &graphicsSettings.ddgi.isEnabled);
+				ImGui::PopID();
+
+				if (graphicsSettings.ddgi.isEnabled)
+				{
+					Indent indent;
+
+					ImGui::PushID("DDGI Visualize Probes");
+					isChangedToSerialize += ImGui::Checkbox("Visualize Probes", &graphicsSettings.ddgi.visualizeProbes);
+					ImGui::PopID();
+
+					ImGui::PushID("DDGI Grid X");
+					isChangedToSerialize += ImGui::DragInt("Grid X", &graphicsSettings.ddgi.gridX, 1, 1, 64);
+					ImGui::PopID();
+
+					ImGui::PushID("DDGI Grid Y");
+					isChangedToSerialize += ImGui::DragInt("Grid Y", &graphicsSettings.ddgi.gridY, 1, 1, 32);
+					ImGui::PopID();
+
+					ImGui::PushID("DDGI Grid Z");
+					isChangedToSerialize += ImGui::DragInt("Grid Z", &graphicsSettings.ddgi.gridZ, 1, 1, 64);
+					ImGui::PopID();
+
+					ImGui::PushID("DDGI Probe Spacing");
+					isChangedToSerialize += ImGui::DragFloat("Probe Spacing", &graphicsSettings.ddgi.probeSpacing, 0.05f, 0.1f, 10.0f);
+					ImGui::PopID();
+
+					ImGui::PushID("DDGI Rays Per Probe");
+					isChangedToSerialize += ImGui::DragInt("Rays Per Probe", &graphicsSettings.ddgi.raysPerProbe, 8, 8, 512);
+					ImGui::PopID();
+				}
+			}
 		}
 
 		if (isChangedToSerialize && std::filesystem::exists(graphicsSettings.GetFilepath()))

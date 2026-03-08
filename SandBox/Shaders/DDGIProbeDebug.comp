@@ -1,0 +1,135 @@
+#version 460
+
+#include "Shaders/Includes/Common.h"
+#include "Shaders/Includes/DDGI.h"
+
+#include "Shaders/Includes/SetMacros/CameraSet.h"
+CAMERA_SET(0)
+
+layout(set = 1, binding = 0) uniform DDGIDebugUniform
+{
+    DDGIData ddgi;
+};
+layout(set = 1, binding = 1) uniform sampler2D probeOffsets;
+layout(set = 1, binding = 2) uniform sampler2D ddgiIrradianceAtlas;
+layout(set = 1, binding = 3) uniform sampler2D depthTexture;
+layout(set = 1, binding = 4, r11f_g11f_b10f) uniform writeonly image2D outColor;
+
+layout(local_size_x = 8, local_size_y = 8, local_size_z = 1) in;
+
+// ---------------------------------------------------------------------------
+// Shared probe batch — 64 probes projected per batch, shared across the wg.
+// Each thread loads one probe, all 64 threads test their pixel against it.
+// ---------------------------------------------------------------------------
+shared vec3 s_ProbeWorld[64];
+shared vec4 s_ProbeClip[64];   // NOT yet divided by w
+
+// Ray-sphere intersection; returns t > 0 on hit, -1 on miss.
+float RaySphereIntersect(vec3 ro, vec3 rd, vec3 center, float radius)
+{
+    vec3  oc   = ro - center;
+    float b    = dot(oc, rd);
+    float c    = dot(oc, oc) - radius * radius;
+    float disc = b * b - c;
+    if (disc < 0.0) return -1.0;
+    float sq = sqrt(disc);
+    float t  = -b - sq;
+    if (t < 1e-3) t = -b + sq;
+    return (t > 1e-3) ? t : -1.0;
+}
+
+void main()
+{
+    if (ddgi.isEnabled == 0) return;
+
+    ivec2 pixel   = ivec2(gl_GlobalInvocationID.xy);
+    ivec2 viewSize = ivec2(camera.viewportSize);
+    bool  isActive  = !any(greaterThanEqual(pixel, viewSize));
+
+    // Per-pixel setup (only used when active)
+    vec3  cameraPos = vec3(camera.inverseViewMat4[3]);
+    vec2  pixelNDC  = vec2(0.0);
+    vec3  rayDir    = vec3(0.0, 0.0, 1.0);
+    float sceneT    = camera.zFar; // Euclidean distance to scene surface — depth-convention-independent
+
+    if (isActive)
+    {
+        pixelNDC = (vec2(pixel) + 0.5) / vec2(viewSize) * 2.0 - 1.0;
+        vec4 viewRay = inverse(camera.projectionMat4) * vec4(pixelNDC, 1.0, 1.0);
+        viewRay     /= viewRay.w;
+        rayDir       = normalize(mat3(camera.inverseViewMat4) * normalize(viewRay.xyz));
+
+        float sceneDepth = texelFetch(depthTexture, ivec2(pixel.x, camera.viewportSize.y - pixel.y), 0).r;
+        if (sceneDepth > 0.0) // not sky/background — reverse-Z: far=0, near=1
+        {
+            vec4 sv = inverse(camera.projectionMat4) * vec4(pixelNDC, sceneDepth, 1.0);
+            sv /= sv.w;
+            vec3 sceneWorld = (camera.inverseViewMat4 * vec4(sv.xyz, 1.0)).xyz;
+            sceneT = length(sceneWorld - cameraPos);
+        }
+    }
+
+    const float sphereRadius = ddgi.probeSpacing * 0.08;
+    // NDC-space radius scale factor (|proj[1][1]| = 1/tan(fov_y/2))
+    const float fovScale     = abs(camera.projectionMat4[1][1]);
+
+    float minT       = sceneT;
+    uint  hitIdx     = ~0u;
+    vec3  hitNormal  = vec3(0.0);
+
+    uint totalProbes = ddgi.probeCountX * ddgi.probeCountY * ddgi.probeCountZ;
+    uint numBatches  = (totalProbes + 63u) / 64u;
+
+    for (uint batch = 0u; batch < numBatches; batch++)
+    {
+        // ----- Load phase: each thread fetches one probe -----
+        uint loadIdx = batch * 64u + gl_LocalInvocationIndex;
+        if (loadIdx < totalProbes)
+        {
+            uint lpz    = loadIdx / (ddgi.probeCountX * ddgi.probeCountY);
+            uint lpy    = (loadIdx % (ddgi.probeCountX * ddgi.probeCountY)) / ddgi.probeCountX;
+            uint lpx    = loadIdx % ddgi.probeCountX;
+            vec3 world  = DDGIProbeWorldPosOffset(ivec3(lpx, lpy, lpz), ddgi, probeOffsets);
+            s_ProbeWorld[gl_LocalInvocationIndex] = world;
+            s_ProbeClip[gl_LocalInvocationIndex]  = camera.projectionMat4 * camera.viewMat4 * vec4(world, 1.0);
+        }
+        barrier();
+        memoryBarrierShared();
+
+        // ----- Test phase: active threads check all probes in batch -----
+        if (isActive)
+        {
+            uint batchSize = min(64u, totalProbes - batch * 64u);
+            for (uint i = 0u; i < batchSize; i++)
+            {
+                vec4 clip  = s_ProbeClip[i];
+                if (clip.w <= 0.0) continue;
+
+                vec2 probeNDC  = clip.xy / clip.w;
+                float ndcRadius = max(sphereRadius * fovScale / clip.w, 0.02);
+
+                // Cheap 2D screen-space reject before full ray test
+                if (length(pixelNDC - probeNDC) > ndcRadius + 0.015) continue;
+
+                vec3  probeWorld = s_ProbeWorld[i];
+                float t          = RaySphereIntersect(cameraPos, rayDir, probeWorld, sphereRadius);
+                if (t < 0.0 || t >= minT) continue;
+
+                vec3 hitPos = cameraPos + t * rayDir;
+                minT    = t;
+                hitIdx  = batch * 64u + i;
+                hitNormal = normalize(hitPos - probeWorld);
+            }
+        }
+
+        barrier();
+    }
+
+    if (isActive && hitIdx != ~0u)
+    {
+        vec2 uv          = DDGIIrradianceAtlasUV(hitIdx, hitNormal, ddgi);
+        vec3 irradiance  = texture(ddgiIrradianceAtlas, uv).rgb;
+        ivec2 outPixel   = ivec2(pixel.x, int(camera.viewportSize.y) - pixel.y);
+        imageStore(outColor, outPixel, vec4(irradiance, 1.0));
+    }
+}

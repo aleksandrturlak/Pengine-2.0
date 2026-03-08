@@ -2,6 +2,7 @@
 
 #include "../Logger.h"
 #include "../BindlessUniformWriter.h"
+#include "../DDGIRenderer.h"
 #include "../MaterialManager.h"
 #include "../MeshManager.h"
 #include "../SceneManager.h"
@@ -66,7 +67,34 @@ void RenderPassManager::CreateDeferred()
 		{
 			renderUniformWriter->WriteAccelerationStructureToFrame("topLevelAS", renderInfo.scene->GetTLAS());
 		}
-		
+
+		// DDGI — bind probe atlases and upload grid data UBO
+		{
+			DDGIRenderer* ddgi = (DDGIRenderer*)renderInfo.renderView->GetCustomData("DDGIRenderer");
+			DDGIRenderer::DDGIData ddgiData{};
+			if (ddgi && ddgi->m_IsEnabled && ddgi->m_IrradianceAtlas && ddgi->m_VisibilityAtlas)
+			{
+				const glm::vec3 cameraPos = renderInfo.camera
+					? renderInfo.camera->GetComponent<Transform>().GetPosition()
+					: glm::vec3(0.0f);
+				ddgiData = ddgi->BuildShaderData(cameraPos);
+				renderUniformWriter->WriteTextureToFrame("ddgiIrradianceAtlas", ddgi->m_IrradianceAtlas);
+				renderUniformWriter->WriteTextureToFrame("ddgiVisibilityAtlas",  ddgi->m_VisibilityAtlas);
+			}
+
+			const std::shared_ptr<Buffer> ddgiBuffer = GetOrCreateBuffer(
+				renderInfo.renderView,
+				renderUniformWriter,
+				"DDGIUniform",
+				{},
+				{ Buffer::Usage::UNIFORM_BUFFER },
+				MemoryType::CPU,
+				true);
+			baseMaterial->WriteToBuffer(ddgiBuffer, "DDGIUniform", "ddgi", ddgiData);
+
+			renderUniformWriter->WriteBufferToFrame("DDGIUniform", ddgiBuffer);
+		}
+
 		std::vector<NativeHandle> uniformWriterNativeHandles;
 		std::vector<std::shared_ptr<UniformWriter>> uniformWriters;
 		GetUniformWriters(pipeline, baseMaterial, nullptr, renderInfo, uniformWriters, uniformWriterNativeHandles);

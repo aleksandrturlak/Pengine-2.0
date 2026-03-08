@@ -32,6 +32,10 @@ namespace Pengine
 	const std::string HiZPyramid = "HiZPyramid";
 	const std::string UI = "UI";
 	const std::string GPUSkinning = "GPUSkinning";
+	const std::string DDGIProbeOffset = "DDGIProbeOffset";
+	const std::string DDGIProbeUpdate = "DDGIProbeUpdate";
+	const std::string DDGIProbeBlend = "DDGIProbeBlend";
+	const std::string DDGIProbeDebug = "DDGIProbeDebug";
 
 	class FrameBuffer;
 	class Window;

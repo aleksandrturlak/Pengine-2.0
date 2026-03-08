@@ -4,6 +4,7 @@
 #include "LineRenderer.h"
 #include "SSAORenderer.h"
 #include "CSMRenderer.h"
+#include "DDGIRenderer.h"
 
 #include "../Graphics/ComputePass.h"
 #include "../Graphics/RenderPass.h"
@@ -167,6 +168,14 @@ namespace Pengine
 		void CreateBlurReflections();
 
 		void CreateRayTracedReflections();
+
+		void CreateDDGIProbeOffset();
+
+		void CreateDDGIProbeUpdate();
+
+		void CreateDDGIProbeBlend();
+
+		void CreateDDGIProbeDebug();
 
 		void CreateSSAO();
 

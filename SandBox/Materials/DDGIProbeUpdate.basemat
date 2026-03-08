@@ -1,0 +1,32 @@
+Basemat:
+  Pipelines:
+    - RenderPass: DDGIProbeUpdate
+      Type: Compute
+      Compute: Shaders/DDGIProbeUpdate.comp
+      UniformWriters:
+        - Type: Renderer
+          Name: Camera
+          Set: 0
+        - Type: Renderer
+          Name: DDGIProbeUpdate
+          Set: 1
+        - Type: Bindless
+          Set: 2
+        - Type: Scene
+          Name: Scene
+          Set: 3
+        - Type: Renderer
+          Name: Lights
+          Set: 4
+      Uniforms:
+        - Name: skyboxTexture
+          TextureAttachment: "Atmosphere[0]"
+        - Name: probeOffsets
+          TextureAttachment: "DDGIProbeOffsets"
+          TextureAttachmentDefault: "Black"
+        - Name: persistentIrradiance
+          TextureAttachment: "DDGIIrradiance"
+          TextureAttachmentDefault: "Black"
+        - Name: persistentVisibility
+          TextureAttachment: "DDGIVisibility"
+          TextureAttachmentDefault: "Black"

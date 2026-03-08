@@ -1,0 +1,17 @@
+Basemat:
+  Pipelines:
+    - RenderPass: DDGIProbeDebug
+      Type: Compute
+      Compute: Shaders/DDGIProbeDebug.comp
+      UniformWriters:
+        - { Type: Renderer, Name: Camera, Set: 0 }
+        - { Type: Renderer, Name: DDGIProbeDebug, Set: 1 }
+      Uniforms:
+        - Name: probeOffsets
+          TextureAttachment: "DDGIProbeOffsets"
+          TextureAttachmentDefault: "Black"
+        - Name: ddgiIrradianceAtlas
+          TextureAttachment: "DDGIIrradiance"
+          TextureAttachmentDefault: "Black"
+        - Name: depthTexture
+          TextureAttachment: "GBuffer[4]"

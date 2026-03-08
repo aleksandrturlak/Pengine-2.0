@@ -5735,6 +5735,23 @@ void Serializer::SerializeGraphicsSettings(const GraphicsSettings& graphicsSetti
 	out << YAML::EndMap;
 	//
 
+	// DDGI.
+	out << YAML::Key << "DDGI";
+	out << YAML::Value << YAML::BeginMap;
+
+	out << YAML::Key << "IsEnabled" << YAML::Value << graphicsSettings.ddgi.isEnabled;
+	out << YAML::Key << "VisualizeProbes" << YAML::Value << graphicsSettings.ddgi.visualizeProbes;
+	out << YAML::Key << "GridX" << YAML::Value << graphicsSettings.ddgi.gridX;
+	out << YAML::Key << "GridY" << YAML::Value << graphicsSettings.ddgi.gridY;
+	out << YAML::Key << "GridZ" << YAML::Value << graphicsSettings.ddgi.gridZ;
+	out << YAML::Key << "ProbeSpacing" << YAML::Value << graphicsSettings.ddgi.probeSpacing;
+	out << YAML::Key << "RaysPerProbe" << YAML::Value << graphicsSettings.ddgi.raysPerProbe;
+	out << YAML::Key << "FollowCamera" << YAML::Value << graphicsSettings.ddgi.followCamera;
+	out << YAML::Key << "FixedOrigin" << YAML::Value << graphicsSettings.ddgi.fixedOrigin;
+
+	out << YAML::EndMap;
+	//
+
 	out << YAML::EndMap;
 
 	WriteAtomically(graphicsSettings.GetFilepath(), std::ios::out, [&](std::ofstream& fout)
@@ -6087,6 +6104,54 @@ GraphicsSettings Serializer::DeserializeGraphicsSettings(const std::filesystem::
 		if (const auto& isRayTracedData = rayTracedReflectionsData["IsRayTraced"])
 		{
 			graphicsSettings.rayTracing.reflections.isRayTraced = isRayTracedData.as<bool>();
+		}
+	}
+
+	if (const auto& ddgiData = data["DDGI"])
+	{
+		if (const auto& isEnabledData = ddgiData["IsEnabled"])
+		{
+			graphicsSettings.ddgi.isEnabled = isEnabledData.as<bool>();
+		}
+
+		if (const auto& visualizeProbesData = ddgiData["VisualizeProbes"])
+		{
+			graphicsSettings.ddgi.visualizeProbes = visualizeProbesData.as<bool>();
+		}
+
+		if (const auto& gridXData = ddgiData["GridX"])
+		{
+			graphicsSettings.ddgi.gridX = glm::clamp(gridXData.as<int>(), 1, 64);
+		}
+
+		if (const auto& gridYData = ddgiData["GridY"])
+		{
+			graphicsSettings.ddgi.gridY = glm::clamp(gridYData.as<int>(), 1, 32);
+		}
+
+		if (const auto& gridZData = ddgiData["GridZ"])
+		{
+			graphicsSettings.ddgi.gridZ = glm::clamp(gridZData.as<int>(), 1, 64);
+		}
+
+		if (const auto& probeSpacingData = ddgiData["ProbeSpacing"])
+		{
+			graphicsSettings.ddgi.probeSpacing = glm::clamp(probeSpacingData.as<float>(), 0.1f, 10.0f);
+		}
+
+		if (const auto& raysPerProbeData = ddgiData["RaysPerProbe"])
+		{
+			graphicsSettings.ddgi.raysPerProbe = glm::clamp(raysPerProbeData.as<int>(), 8, 512);
+		}
+
+		if (const auto& followCameraData = ddgiData["FollowCamera"])
+		{
+			graphicsSettings.ddgi.followCamera = followCameraData.as<bool>();
+		}
+
+		if (const auto& fixedOriginData = ddgiData["FixedOrigin"])
+		{
+			graphicsSettings.ddgi.fixedOrigin = fixedOriginData.as<glm::vec3>();
 		}
 	}
 
