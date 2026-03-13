@@ -238,7 +238,8 @@ void RenderPassManager::PrepareUniformsPerViewportBeforeDraw(const RenderPass::R
 		FATAL_ERROR("DefaultReflection base material is broken! No pipeline found!");
 	}
 
-	const std::shared_ptr<UniformWriter> renderUniformWriter = GetOrCreateUniformWriter(renderInfo.renderView, pipeline, Pipeline::DescriptorSetIndexType::RENDERER, "Camera");
+	const std::shared_ptr<UniformWriter> renderUniformWriter = GetOrCreateUniformWriter(
+		renderInfo.renderView, pipeline, Pipeline::DescriptorSetIndexType::RENDERER, "Camera");
 	const std::string cameraBufferName = "CameraBuffer";
 	const std::shared_ptr<Buffer> cameraBuffer = GetOrCreateBuffer(
 		renderInfo.renderView,
@@ -248,6 +249,16 @@ void RenderPassManager::PrepareUniformsPerViewportBeforeDraw(const RenderPass::R
 		{ Buffer::Usage::UNIFORM_BUFFER },
 		MemoryType::CPU, true);
 	
+	const std::string csmBufferName = "CSMBuffer";
+		const std::shared_ptr<Buffer> csmBuffer = GetOrCreateBuffer(
+			renderInfo.renderView,
+			renderUniformWriter,
+			csmBufferName,
+			{},
+			{ Buffer::Usage::UNIFORM_BUFFER },
+			MemoryType::CPU,
+			true);
+
 	const Camera& camera = renderInfo.camera->GetComponent<Camera>();
 	const Transform& cameraTransform = renderInfo.camera->GetComponent<Transform>();
 	const glm::mat4 viewProjectionMat4 = renderInfo.projection * camera.GetViewMat4();

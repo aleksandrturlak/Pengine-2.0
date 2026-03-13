@@ -23,6 +23,7 @@
 #include "../../Components/SkeletalAnimator.h"
 #include "../../Components/Transform.h"
 #include "../../Graphics/Device.h"
+#include "../../Graphics/BarrierBatch.h"
 #include "../../Graphics/Renderer.h"
 #include "../../Graphics/RenderView.h"
 #include "../../Graphics/GraphicsPipeline.h"
@@ -91,22 +92,20 @@ void RenderPassManager::CreateSSAO()
 			{
 				ssaoTexture = Texture::Create(createInfo);
 				renderInfo.renderView->SetStorageImage(passName, ssaoTexture);
-				GetOrCreateUniformWriter(
-					renderInfo.renderView,
-					pipeline,
-					Pipeline::DescriptorSetIndexType::RENDERER,
-					passName)->WriteTextureToAllFrames("outColor", ssaoTexture);
 			}
 		}
 
 		if (currentViewportSize != ssaoTexture->GetSize())
 		{
-			const std::shared_ptr<UniformWriter> renderUniformWriter = GetOrCreateUniformWriter(
-				renderInfo.renderView, pipeline, Pipeline::DescriptorSetIndexType::RENDERER, passName);
 			const std::shared_ptr<Texture> ssaoTexture = Texture::Create(createInfo);
 			renderInfo.renderView->SetStorageImage(passName, ssaoTexture);
-			renderUniformWriter->WriteTextureToAllFrames("outColor", ssaoTexture);
 		}
+
+		GetOrCreateUniformWriter(
+			renderInfo.renderView,
+			pipeline,
+			Pipeline::DescriptorSetIndexType::RENDERER,
+			passName)->WriteTextureToFrame("outColor", ssaoTexture);
 
 		if (ssaoRenderer->GetKernelSize() != ssaoSettings.kernelSize)
 		{
@@ -152,6 +151,12 @@ void RenderPassManager::CreateSSAO()
 			glm::uvec2 groupCount = currentViewportSize / glm::ivec2(16, 16);
 			groupCount += glm::uvec2(1, 1);
 			renderInfo.renderer->Compute(pipeline, { groupCount.x, groupCount.y, 1 }, uniformWriterNativeHandles, renderInfo.frame);
+
+			renderInfo.renderer->PipelineBarrier(
+				BarrierBatch{}
+					.Stages(PipelineStage::ComputeShader, PipelineStage::ComputeShader)
+					.Image(ssaoTexture, ImageLayout::General, ImageLayout::General, Access::ShaderWrite, Access::ShaderRead),
+				renderInfo.frame);
 
 			renderInfo.renderer->EndCommandLabel(renderInfo.frame);
 		}
@@ -206,8 +211,6 @@ void RenderPassManager::CreateSSAOBlur()
 			{
 				ssaoBlurTexture = Texture::Create(createInfo);
 				renderInfo.renderView->SetStorageImage(passName, ssaoBlurTexture);
-				GetOrCreateUniformWriter(
-					renderInfo.renderView, pipeline, Pipeline::DescriptorSetIndexType::RENDERER, passName)->WriteTextureToAllFrames("outColor", ssaoBlurTexture);
 			}
 		}
 
@@ -217,8 +220,9 @@ void RenderPassManager::CreateSSAOBlur()
 		{
 			const std::shared_ptr<Texture> ssaoBlurTexture = Texture::Create(createInfo);
 			renderInfo.renderView->SetStorageImage(passName, ssaoBlurTexture);
-			renderUniformWriter->WriteTextureToAllFrames("outColor", ssaoBlurTexture);
 		}
+
+		renderUniformWriter->WriteTextureToFrame("outColor", ssaoBlurTexture);
 
 		WriteRenderViews(renderInfo.renderView, renderInfo.scene->GetRenderView(), pipeline, renderUniformWriter);
 

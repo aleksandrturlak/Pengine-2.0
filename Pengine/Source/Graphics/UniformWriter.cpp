@@ -65,7 +65,7 @@ void UniformWriter::WriteAccelerationStructureToAllFrames(
 	uint32_t location,
 	const std::shared_ptr<AccelerationStructure>& accelerationStructure)
 {
-	for (size_t i = 0; i < Vk::frameInFlightCount; i++)
+	for (size_t i = 0; i < m_Writes.size(); i++)
 	{
 		WriteAccelerationStructureToFrame(location, accelerationStructure, i);
 	}
@@ -101,7 +101,7 @@ void UniformWriter::WriteBufferToAllFrames(
 	size_t size,
 	size_t offset)
 {
-	for (size_t i = 0; i < Vk::frameInFlightCount; i++)
+	for (size_t i = 0; i < m_Writes.size(); i++)
 	{
 		WriteBufferToFrame(location, buffer, size, offset, i);
 	}
@@ -155,7 +155,7 @@ void UniformWriter::WriteTexturesToAllFrames(
 	const std::vector<TextureInfo>& textureInfos,
 	uint32_t dstArrayElement)
 {
-	for (size_t i = 0; i < Vk::frameInFlightCount; i++)
+	for (size_t i = 0; i < m_Writes.size(); i++)
 	{
 		WriteTexturesToFrame(location, textureInfos, dstArrayElement, i, i);
 	}
@@ -177,7 +177,7 @@ void UniformWriter::WriteAccelerationStructureToAllFrames(
 	const std::string& name,
 	const std::shared_ptr<AccelerationStructure>& accelerationStructure)
 {
-	for (size_t i = 0; i < Vk::frameInFlightCount; i++)
+	for (size_t i = 0; i < m_Writes.size(); i++)
 	{
 		WriteAccelerationStructureToFrame(name, accelerationStructure, i);
 	}
@@ -203,7 +203,7 @@ void UniformWriter::WriteBufferToAllFrames(
 	size_t size,
 	size_t offset)
 {
-	for (size_t i = 0; i < Vk::frameInFlightCount; i++)
+	for (size_t i = 0; i < m_Writes.size(); i++)
 	{
 		WriteBufferToFrame(name, buffer, size, offset, i);
 	}
@@ -250,7 +250,7 @@ void UniformWriter::WriteTexturesToAllFrames(
 	const std::vector<TextureInfo>& textureInfos,
 	uint32_t dstArrayElement)
 {
-	for (size_t i = 0; i < Vk::frameInFlightCount; i++)
+	for (size_t i = 0; i < m_Writes.size(); i++)
 	{
 		WriteTexturesToFrame(name, textureInfos, dstArrayElement, i, i);
 	}
@@ -279,8 +279,8 @@ void UniformWriter::DeleteBuffer(const std::string& name)
 	const uint32_t location = m_UniformLayout->GetBindingLocationByName(name);
 	if (location != -1)
 	{
-		m_TextureInfosByName.erase(name);
-		m_TextureNameByLocation.erase(location);
+		m_BuffersByName.erase(name);
+		m_BufferNameByLocation.erase(location);
 	}
 }
 
@@ -289,8 +289,8 @@ void UniformWriter::DeleteTexture(const std::string &name)
 	const uint32_t location = m_UniformLayout->GetBindingLocationByName(name);
 	if (location != -1)
 	{
-		m_BuffersByName.erase(name);
-		m_BufferNameByLocation.erase(location);
+		m_TextureInfosByName.erase(name);
+		m_TextureNameByLocation.erase(location);
 	}
 }
 

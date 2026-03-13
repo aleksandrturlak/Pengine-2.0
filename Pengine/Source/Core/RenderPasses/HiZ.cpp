@@ -93,6 +93,7 @@ void RenderPassManager::CreateHiZPyramid()
 		{
 			hiZTexture = Texture::Create(textureCreateInfo);
 			renderInfo.renderView->SetStorageImage(passName, hiZTexture);
+			needToWriteToUniformWriter = true;
 		}
 
 		if (needToWriteToUniformWriter)

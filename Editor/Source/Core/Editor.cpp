@@ -1516,6 +1516,17 @@ void Editor::GraphicsSettingsInfo(GraphicsSettings& graphicsSettings)
 					ImGui::PushID("DDGI Rays Per Probe");
 					isChangedToSerialize += ImGui::DragInt("Rays Per Probe", &graphicsSettings.ddgi.raysPerProbe, 8, 8, 512);
 					ImGui::PopID();
+
+					ImGui::PushID("DDGI Follow Camera");
+					isChangedToSerialize += ImGui::Checkbox("Follow Camera", &graphicsSettings.ddgi.followCamera);
+					ImGui::PopID();
+
+					if (!graphicsSettings.ddgi.followCamera)
+					{
+						ImGui::PushID("DDGI Fixed Origin");
+						isChangedToSerialize += ImGui::DragFloat3("Fixed Origin", &graphicsSettings.ddgi.fixedOrigin.x, 0.5f);
+						ImGui::PopID();
+					}
 				}
 			}
 		}

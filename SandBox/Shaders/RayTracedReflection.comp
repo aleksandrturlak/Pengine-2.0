@@ -66,9 +66,9 @@ float Hash(vec3 p)
     return fract(sin(dot(p.xy, vec2(127.1f, 311.7f))) * 43758.5453123f * p.z);
 }
 
-vec3 PerturbReflection(vec3 reflectionDir, vec3 normal, float roughness, vec3 seed)
+vec3 PerturbReflection(vec3 reflectionDirection, vec3 normal, float roughness, vec3 seed)
 {
-    if (roughness <= 0.0f) return reflectionDir;
+    if (roughness <= 0.0f) return reflectionDirection;
 
     float r1 = Hash(seed);
     float r2 = Hash(seed + vec3(1.0f, 0.0f, 0.0f));
@@ -79,15 +79,15 @@ vec3 PerturbReflection(vec3 reflectionDir, vec3 normal, float roughness, vec3 se
     float cosTheta = sqrt((1.0f - r2) / max(1.0f + (alpha2 - 1.0f) * r2, 1e-6f));
     float sinTheta = sqrt(max(0.0f, 1.0f - cosTheta * cosTheta));
 
-    vec3 up = abs(reflectionDir.y) < 0.999f ? vec3(0.0f, 1.0f, 0.0f) : vec3(1.0f, 0.0f, 0.0f);
-    vec3 tangent = normalize(cross(up, reflectionDir));
-    vec3 bitangent = cross(reflectionDir, tangent);
+    vec3 up = abs(reflectionDirection.y) < 0.999f ? vec3(0.0f, 1.0f, 0.0f) : vec3(1.0f, 0.0f, 0.0f);
+    vec3 tangent = normalize(cross(up, reflectionDirection));
+    vec3 bitangent = cross(reflectionDirection, tangent);
 
     vec3 perturbed = normalize(tangent * (sinTheta * cos(phi)) +
                                bitangent * (sinTheta * sin(phi)) +
-                               reflectionDir * cosTheta);
+                               reflectionDirection * cosTheta);
 
-    return dot(perturbed, normal) > 0.0f ? perturbed : reflectionDir;
+    return dot(perturbed, normal) > 0.0f ? perturbed : reflectionDirection;
 }
 
 vec4 TraceRay(vec3 origin, vec3 direction, vec4 shading, out vec3 emissive)
