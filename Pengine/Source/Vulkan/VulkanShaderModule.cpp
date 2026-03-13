@@ -33,6 +33,12 @@ void VulkanShaderModule::Reload(bool useCache)
 
 	m_IsReloading.store(true);
 
+	struct ReloadGuard
+	{
+		std::atomic<bool>& flag;
+		~ReloadGuard() { flag.store(false); flag.notify_all(); }
+	} guard{ m_IsReloading };
+
 	shaderc::CompileOptions options{};
 	options.SetOptimizationLevel(shaderc_optimization_level_zero);
 	options.SetIncluder(std::make_unique<ShaderIncluder>());
@@ -61,7 +67,4 @@ void VulkanShaderModule::Reload(bool useCache)
 	}
 
 	VulkanPipelineUtils::CreateShaderModule(spv, &m_ShaderModule);
-
-	m_IsReloading.store(false);
-	m_IsReloading.notify_all();
 }

@@ -32,12 +32,15 @@ std::shared_ptr<ShaderModule> ShaderModuleManager::CreateShaderModule(
 
 	const std::shared_ptr<ShaderModule> shaderModule = ShaderModule::Create(filepath, type);
 
+	std::lock_guard<std::mutex> lock(m_ShaderModuleMutex);
+
+	if (shaderModule->IsValid())
 	{
-		std::lock_guard<std::mutex> lock(m_ShaderModuleMutex);
 		m_ShaderModulesByFilepath[filepath] = shaderModule;
-		m_CreatingShaderModules.erase(filepath);
-		m_CreatingShaderModuleConditionVariable.notify_all();
 	}
+
+	m_CreatingShaderModules.erase(filepath);
+	m_CreatingShaderModuleConditionVariable.notify_all();
 
 	return shaderModule;
 }
