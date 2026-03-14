@@ -27,3 +27,12 @@ Basemat:
           TextureAttachment: "GBuffer[3]"
         - Name: depthTexture
           TextureAttachment: "GBuffer[4]"
+        - Name: ddgiIrradianceAtlas
+          TextureAttachment: "DDGIIrradiance"
+          TextureAttachmentDefault: "Black"
+        - Name: ddgiVisibilityAtlas
+          TextureAttachment: "DDGIVisibility"
+          TextureAttachmentDefault: "Black"
+        - Name: ddgiProbeOffsetAtlas
+          TextureAttachment: "DDGIProbeOffsets"
+          TextureAttachmentDefault: "Black"

@@ -342,6 +342,17 @@ void RenderPassManager::CreateRayTracedReflections()
 			renderUniformWriter->WriteTextureToFrame("skyboxTexture", frameBuffer->GetAttachment(0));
 		}
 
+		const std::shared_ptr<Buffer> ddgiBuffer = GetOrCreateBuffer(
+			renderInfo.renderView,
+			renderUniformWriter,
+			"DDGIUniform",
+			{},
+			{ Buffer::Usage::UNIFORM_BUFFER },
+			MemoryType::CPU,
+			true);
+
+		renderUniformWriter->WriteBufferToFrame("DDGIUniform", ddgiBuffer);
+
 		const glm::vec2 viewportScale = glm::vec2(resolutionScales[ssrSettings.resolutionScale]);
 		const std::shared_ptr<Buffer> reflectionsBuffer = GetOrCreateBuffer(
 			renderInfo.renderView,
