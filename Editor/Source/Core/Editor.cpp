@@ -1437,10 +1437,6 @@ void Editor::GraphicsSettingsInfo(GraphicsSettings& graphicsSettings)
 
 		if (ImGui::CollapsingHeader("Post Process"))
 		{
-			ImGui::PushID("Post Process FXAA");
-			isChangedToSerialize += ImGui::Checkbox("FXAA", &graphicsSettings.postProcess.fxaa);
-			ImGui::PopID();
-
 			ImGui::PushID("Post Process Gamma");
 			isChangedToSerialize += ImGui::SliderFloat("Gamma", &graphicsSettings.postProcess.gamma, 0.0f, 3.0f);
 			ImGui::PopID();
@@ -1450,6 +1446,38 @@ void Editor::GraphicsSettingsInfo(GraphicsSettings& graphicsSettings)
 			ImGui::PushID("Post Process Tone Mapper");
 			isChangedToSerialize += ImGui::Combo("Tone Mapper", toneMapperIndex, toneMappers, (int)GraphicsSettings::PostProcess::ToneMapper::COUNT);
 			ImGui::PopID();
+		}
+
+		if (ImGui::CollapsingHeader("Antialiasing"))
+		{
+			Indent indent;
+
+			const char* const aaModes[] = { "None", "FXAA", "TAA" };
+			int* aaModeIndex = (int*)(&graphicsSettings.antialiasing.mode);
+			ImGui::PushID("Antialiasing Mode");
+			isChangedToSerialize += ImGui::Combo("Mode", aaModeIndex, aaModes, (int)GraphicsSettings::Antialiasing::Mode::COUNT);
+			ImGui::PopID();
+
+			if (graphicsSettings.antialiasing.mode == GraphicsSettings::Antialiasing::Mode::TAA)
+			{
+				Indent indent;
+
+				ImGui::PushID("TAA Jitter Scale");
+				isChangedToSerialize += ImGui::SliderFloat("Jitter Scale", &graphicsSettings.antialiasing.taa.jitterScale, 0.0f, 1.0f);
+				ImGui::PopID();
+
+				ImGui::PushID("TAA Variance Gamma");
+				isChangedToSerialize += ImGui::SliderFloat("Variance Gamma", &graphicsSettings.antialiasing.taa.varianceGamma, 0.5f, 4.0f);
+				ImGui::PopID();
+
+				ImGui::PushID("TAA Min Blend Factor");
+				isChangedToSerialize += ImGui::SliderFloat("Min Blend Factor", &graphicsSettings.antialiasing.taa.minBlendFactor, 0.5f, 0.99f);
+				ImGui::PopID();
+
+				ImGui::PushID("TAA Max Blend Factor");
+				isChangedToSerialize += ImGui::SliderFloat("Max Blend Factor", &graphicsSettings.antialiasing.taa.maxBlendFactor, 0.5f, 0.99f);
+				ImGui::PopID();
+			}
 		}
 
 		if (ImGui::CollapsingHeader("Ray Tracing"))

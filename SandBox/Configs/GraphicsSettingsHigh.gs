@@ -49,22 +49,27 @@ Bloom:
   Intensity: 1
   ResolutionScale: 3
 SSR:
-  IsEnabled: false
+  IsEnabled: true
   MaxDistance: 100
   Resolution: 1
-  ResolutionBlurScale: 4
-  ResolutionScale: 3
+  ResolutionBlurScale: 3
+  ResolutionScale: 2
   StepCount: 20
   Thickness: 500
   BlurRange: 1
   BlurOffset: 1
   MipMultiplier: 0
   UseSkyBoxFallback: true
-  Blur: 0
+  Blur: 1
 PostProcess:
   Gamma: 2.20000005
   ToneMapper: 1
-  FXAA: true
+Antialiasing:
+  Mode: 2
+  TAAJitterScale: 0.5
+  TAAVarianceGamma: 0.5
+  TAAMinBlendFactor: 0.850000024
+  TAAMaxBlendFactor: 0.970000029
 RayTracedShadows:
   DirectionalLight: true
   PointLight: true
@@ -72,7 +77,7 @@ RayTracedShadows:
 RayTracedReflections:
   IsRayTraced: true
 DDGI:
-  IsEnabled: true
+  IsEnabled: false
   VisualizeProbes: false
   GridX: 14
   GridY: 6

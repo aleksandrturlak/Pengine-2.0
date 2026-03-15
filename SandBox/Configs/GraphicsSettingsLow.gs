@@ -1,5 +1,5 @@
 HiZOcclusionCulling:
-  IsEnabled: true
+  IsEnabled: false
   DepthBias: 0.0199999996
 SSAO:
   IsEnabled: false
@@ -62,4 +62,25 @@ SSR:
 PostProcess:
   Gamma: 2.20000005
   ToneMapper: 1
-  FXAA: false
+Antialiasing:
+  Mode: 0
+  TAAJitterScale: 0.5
+  TAAVarianceGamma: 1.5
+  TAAMinBlendFactor: 0.850000024
+  TAAMaxBlendFactor: 0.970000029
+RayTracedShadows:
+  DirectionalLight: false
+  PointLight: false
+  SpotLight: false
+RayTracedReflections:
+  IsRayTraced: false
+DDGI:
+  IsEnabled: false
+  VisualizeProbes: true
+  GridX: 32
+  GridY: 10
+  GridZ: 32
+  ProbeSpacing: 4.5999999
+  RaysPerProbe: 32
+  FollowCamera: false
+  FixedOrigin: [0, 0, 0]

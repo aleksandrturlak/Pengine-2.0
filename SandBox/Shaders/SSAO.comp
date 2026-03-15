@@ -33,9 +33,8 @@ void main()
 	vec2 screenPosition = uv * 2.0f - 1.0f;
 	uv.y = 1.0f - uv.y;
 
-	vec2 viewRay;
-	viewRay.x = -screenPosition.x * camera.aspectRatio * camera.tanHalfFOV;
-    viewRay.y = -screenPosition.y * camera.tanHalfFOV;
+    vec2 viewRay = ComputeViewRay(screenPosition, vec2(0.0f), camera.aspectRatio, camera.tanHalfFOV);
+    viewRay.y = -viewRay.y; // negate y: this shader flips uv.y for texture sampling
 
     vec3 positionViewSpace = CalculatePositionFromDepth(
         texture(depthTexture, uv).x,

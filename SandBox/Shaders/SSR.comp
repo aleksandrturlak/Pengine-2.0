@@ -57,9 +57,8 @@ vec3 PerturbReflection(vec3 reflectionDirection, vec3 normal, float roughness, v
 
 vec2 ComputeViewRay(vec2 uv)
 {
-    vec2 screenPos = uv * 2.0f - 1.0f;
-    return vec2(-screenPos.x * camera.aspectRatio * camera.tanHalfFOV,
-                 screenPos.y * camera.tanHalfFOV);
+    vec2 screenPosition = uv * 2.0f - 1.0f;
+    return ComputeViewRay(screenPosition, vec2(0.0f), camera.aspectRatio, camera.tanHalfFOV);
 }
 
 void RayMarch(
@@ -245,7 +244,6 @@ void main()
 
 	ivec2 pixelCoord = ivec2(gl_GlobalInvocationID.xy);
     vec2 uv = (vec2(pixelCoord) + vec2(0.5f)) / viewportSize;
-
 	vec2 viewRay = ComputeViewRay(uv);
 
     vec3 normalViewSpace = normalize(OctDecode(texture(normalTexture, uv).xy));
@@ -271,7 +269,7 @@ void main()
         return;
     }
 
-    pivot = PerturbReflection(pivot, normalViewSpace, shading.y, positionViewSpace);
+    pivot = PerturbReflection(pivot, normalViewSpace, shading.y, vec3(uv.x, uv.y, uv.x * uv.y));
 
     vec4 color;
     vec2 hitFragmentUV;

@@ -1,0 +1,15 @@
+Basemat:
+  Pipelines:
+    - RenderPass: MotionVectors
+      Type: Compute
+      Compute: Shaders/MotionVectors.comp
+      UniformWriters:
+        - Type: Renderer
+          Name: Camera
+          Set: 0
+        - Type: Renderer
+          Name: MotionVectors
+          Set: 1
+      Uniforms:
+        - Name: depthTexture
+          TextureAttachment: "GBuffer[4]"

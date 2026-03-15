@@ -102,6 +102,7 @@ set(RENDER_PASSES_SOURCES
 	Core/RenderPasses/DDGI.cpp
 	Core/RenderPasses/SSAO.cpp
 	Core/RenderPasses/SSS.cpp
+	Core/RenderPasses/TAA.cpp
 	Core/RenderPasses/Transparent.cpp
 )
 source_group("RenderPasses" FILES ${RENDER_PASSES_SOURCES})

@@ -334,9 +334,7 @@ void main()
     vec2 uv = (vec2(pixelCoord) + vec2(0.5f)) / viewportSize;
 	vec2 screenPosition = uv * 2.0f - 1.0f;
 
-	vec2 viewRay;
-	viewRay.x = -screenPosition.x * camera.aspectRatio * camera.tanHalfFOV;
-    viewRay.y = screenPosition.y * camera.tanHalfFOV;
+    vec2 viewRay = ComputeViewRay(screenPosition, camera.jitterXY, camera.aspectRatio, camera.tanHalfFOV);
 
     vec3 normalViewSpace = OctDecode(texture(normalTexture, uv).xy);
     vec4 shading = texture(shadingTexture, uv);
@@ -356,8 +354,10 @@ void main()
 
     vec3 originWorldSpace    = vec4(camera.inverseViewMat4 * vec4(positionViewSpace, 1.0f)).xyz;
     vec3 normalWorldSpace    = mat3(camera.inverseViewMat4) * normalize(normalViewSpace);
+    // Bias origin along surface normal to prevent self-intersection from jittered G-buffer position reconstruction
+    originWorldSpace += normalWorldSpace * max(0.01f * abs(positionViewSpace.z), 0.001f);
     vec3 directionWorldSpace = mat3(camera.inverseViewMat4) * pivot;
-    directionWorldSpace = PerturbReflection(directionWorldSpace, normalWorldSpace, shading.y, vec3(originWorldSpace));
+    directionWorldSpace = PerturbReflection(directionWorldSpace, normalWorldSpace, shading.y, vec3(uv.x, uv.y, uv.x * uv.y));
 
     vec3 emissive = vec3(0.0f);
     vec4 color = TraceRay(originWorldSpace, directionWorldSpace, shading, emissive);

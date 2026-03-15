@@ -173,8 +173,28 @@ namespace Pengine
 
 			ToneMapper toneMapper = ToneMapper::ACES;
 			float gamma = 2.2f;
-			bool fxaa = true;
 		} postProcess;
+
+		struct Antialiasing
+		{
+			enum class Mode : int
+			{
+				NONE = 0,
+				FXAA = 1,
+				TAA  = 2,
+				COUNT
+			};
+
+			Mode mode = Mode::TAA;
+
+			struct TAA
+			{
+				float jitterScale    = 1.0f;
+				float varianceGamma  = 2.5f;
+				float minBlendFactor = 0.90f;
+				float maxBlendFactor = 0.98f;
+			} taa;
+		} antialiasing;
 
 		struct DDGI
 		{

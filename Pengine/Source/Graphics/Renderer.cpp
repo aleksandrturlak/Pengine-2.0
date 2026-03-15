@@ -89,6 +89,15 @@ void Renderer::Update(
 			renderInfo.viewportSize = viewport.size;
 			renderInfo.renderView = viewport.renderView;
 
+			if (renderInfo.scene->GetGraphicsSettings().antialiasing.mode == GraphicsSettings::Antialiasing::Mode::TAA)
+			{
+				renderInfo.projection = RenderPassManager::JitteredProjectionMat4(renderInfo);
+			}
+			else
+			{
+				renderInfo.renderView->DeleteCustomData("TAAData");
+			}
+
 			RenderPassManager::PrepareUniformsPerViewportBeforeDraw(renderInfo);
 			RenderPassManager::ProcessLights(renderInfo);
 

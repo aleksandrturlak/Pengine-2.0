@@ -38,6 +38,8 @@ namespace Pengine
 		DDGIProbeDebug,
 		Bloom,
 		ToneMapping,
+		MotionVectors,
+		TAA,
 		AntiAliasingAndCompose,
 	};
 

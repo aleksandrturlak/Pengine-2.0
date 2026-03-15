@@ -197,6 +197,39 @@ bool RenderPassManager::BindAndFlushUniformWriters(
 	return true;
 }
 
+glm::mat4 RenderPassManager::JitteredProjectionMat4(const RenderPass::RenderCallbackInfo& renderInfo)
+{
+	TAAData* taaData = (TAAData*)renderInfo.renderView->GetCustomData("TAAData");
+	if (!taaData)
+	{
+		taaData = new TAAData();
+		renderInfo.renderView->SetCustomData("TAAData", taaData);
+	}
+
+	// Van der Corput / Halton sequence
+	auto Halton = [](uint32_t idx, uint32_t base) -> float
+	{
+		float f = 1.0f, r = 0.0f;
+		while (idx > 0) { f /= float(base); r += f * float(idx % base); idx /= base; }
+		return r;
+	};
+
+	const glm::vec2 viewportSizeForJitter = renderInfo.viewportSize;
+	const uint32_t sampleIdx = taaData->jitterIndex + 1; // start at 1 to avoid degenerate 0 sample
+	const float jitterScale = renderInfo.scene->GetGraphicsSettings().antialiasing.taa.jitterScale;
+	taaData->jitterXY = {
+		(Halton(sampleIdx, 2) - 0.5f) * 2.0f / viewportSizeForJitter.x * jitterScale,
+		(Halton(sampleIdx, 3) - 0.5f) * 2.0f / viewportSizeForJitter.y * jitterScale
+	};
+
+	const glm::mat4 projectionMat4 = renderInfo.projection;
+	glm::mat4 jitteredProjectionMat4 = projectionMat4;
+	jitteredProjectionMat4[2][0] += taaData->jitterXY.x;
+	jitteredProjectionMat4[2][1] += taaData->jitterXY.y;
+
+	return jitteredProjectionMat4;
+}
+
 void RenderPassManager::CreateDefaultReflection()
 {
 	RenderPass::ClearDepth clearDepth{};
@@ -261,6 +294,9 @@ void RenderPassManager::PrepareUniformsPerViewportBeforeDraw(const RenderPass::R
 
 	const Camera& camera = renderInfo.camera->GetComponent<Camera>();
 	const Transform& cameraTransform = renderInfo.camera->GetComponent<Transform>();
+
+	TAAData* taaData = (TAAData*)renderInfo.renderView->GetCustomData("TAAData");
+
 	const glm::mat4 viewProjectionMat4 = renderInfo.projection * camera.GetViewMat4();
 	const glm::mat4 previousViewProjectionMat4 = reflectionBaseMaterial->GetBufferValue<glm::mat4>(cameraBuffer, cameraBufferName, "camera.viewProjectionMat4");
 	reflectionBaseMaterial->WriteToBuffer(
@@ -289,11 +325,17 @@ void RenderPassManager::PrepareUniformsPerViewportBeforeDraw(const RenderPass::R
 		"camera.inverseViewMat4",
 		inverseViewMat4);
 
+	glm::mat4 unjitteredProjectionMat4 = renderInfo.projection;
+	if (taaData)
+	{
+		unjitteredProjectionMat4[2][0] -= taaData->jitterXY.x;
+		unjitteredProjectionMat4[2][1] -= taaData->jitterXY.y;
+	}
 	reflectionBaseMaterial->WriteToBuffer(
 		cameraBuffer,
 		cameraBufferName,
 		"camera.projectionMat4",
-		renderInfo.projection);
+		unjitteredProjectionMat4);
 
 	const glm::mat4 inverseRotationMat4 = glm::inverse(cameraTransform.GetRotationMat4());
 	reflectionBaseMaterial->WriteToBuffer(
@@ -393,6 +435,26 @@ void RenderPassManager::PrepareUniformsPerViewportBeforeDraw(const RenderPass::R
 		cameraBufferName,
 		"camera.wind.frequency",
 		windSettings.frequency);
+
+	const glm::vec2 jitterXY = taaData ? taaData->jitterXY : glm::vec2(0.0f);
+	const glm::vec2 previousJitterXY = taaData ? taaData->previousJitterXY : glm::vec2(0.0f);
+	if (taaData)
+	{
+		taaData->previousJitterXY = taaData->jitterXY;
+		taaData->jitterIndex = (taaData->jitterIndex + 1) % 8;
+	}
+
+	reflectionBaseMaterial->WriteToBuffer(
+		cameraBuffer,
+		cameraBufferName,
+		"camera.jitterXY",
+		jitterXY);
+
+	reflectionBaseMaterial->WriteToBuffer(
+		cameraBuffer,
+		cameraBufferName,
+		"camera.previousJitterXY",
+		previousJitterXY);
 }
 
 std::shared_ptr<Texture> RenderPassManager::ScaleTexture(
@@ -451,6 +513,8 @@ void RenderPassManager::Initialize()
 	CreateAtmosphere();
 	CreateTransparent();
 	CreateToneMappingPass();
+	CreateMotionVectorsPass();
+	CreateTAAPass();
 	CreateSSAO();
 	CreateSSAOBlur();
 	CreateSSS();

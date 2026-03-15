@@ -27,7 +27,20 @@ struct Camera
 	vec3 positionViewSpace;
 	vec3 positionWorldSpace;
 	Wind wind;
+	vec2 jitterXY;
+	vec2 previousJitterXY;
 };
+
+// Computes the view-space ray (x, +y) for a screen pixel with TAA jitter correction.
+// The jittered projection shifts NDC by -jitterXY, so add it back to recover the true fragment NDC.
+// screenPosition = uv * 2.0 - 1.0, computed BEFORE any uv.y flip.
+// Shaders that also flip uv.y for texture sampling should negate the returned .y component.
+vec2 ComputeViewRay(vec2 screenPosition, vec2 jitterXY, float aspectRatio, float tanHalfFOV)
+{
+    vec2 corrected = screenPosition + jitterXY;
+    return vec2(-corrected.x * aspectRatio * tanHalfFOV,
+                 corrected.y * tanHalfFOV);
+}
 
 vec3 CalculatePositionFromDepth(
 	in float depth,

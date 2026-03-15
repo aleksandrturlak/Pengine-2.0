@@ -51,9 +51,7 @@ void main()
     vec2 screenUV = (vec2(pixelCoord) + vec2(0.5f)) / camera.viewportSize;
 	vec2 screenPosition = screenUV * 2.0f - 1.0f;
 	
-	vec2 viewRay;
-	viewRay.x = -screenPosition.x * camera.aspectRatio * camera.tanHalfFOV;
-    viewRay.y = screenPosition.y * camera.tanHalfFOV;
+    vec2 viewRay = ComputeViewRay(screenPosition, vec2(0.0f), camera.aspectRatio, camera.tanHalfFOV);
 
     vec3 positionViewSpace = CalculatePositionFromDepth(
        texture(depthGBufferTexture, screenUV).x,

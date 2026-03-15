@@ -36,6 +36,8 @@ namespace Pengine
 	const std::string DDGIProbeUpdate = "DDGIProbeUpdate";
 	const std::string DDGIProbeBlend = "DDGIProbeBlend";
 	const std::string DDGIProbeDebug = "DDGIProbeDebug";
+	const std::string MotionVectors = "MotionVectors";
+	const std::string TAA = "TAA";
 
 	class FrameBuffer;
 	class Window;

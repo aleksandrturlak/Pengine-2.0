@@ -193,7 +193,7 @@ void RenderPassManager::CreateAntiAliasingAndComposePass()
 			true);
 
 		const glm::vec2 viewportSize = renderInfo.viewportSize;
-		const int fxaa = graphicsSettings.postProcess.fxaa;
+		const int fxaa = (graphicsSettings.antialiasing.mode == GraphicsSettings::Antialiasing::Mode::FXAA) ? 1 : 0;
 		baseMaterial->WriteToBuffer(postProcessBuffer, "PostProcessBuffer", "viewportSize", viewportSize);
 		baseMaterial->WriteToBuffer(postProcessBuffer, "PostProcessBuffer", "fxaa", fxaa);
 

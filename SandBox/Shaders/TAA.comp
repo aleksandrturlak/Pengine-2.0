@@ -1,0 +1,185 @@
+#version 450
+
+#include "Shaders/Includes/SetMacros/CameraSet.h"
+CAMERA_SET(0)
+
+layout(set = 1, binding = 1) uniform sampler2D colorTexture;
+layout(set = 1, binding = 2) uniform sampler2D historyTexture;
+layout(set = 1, binding = 3) uniform sampler2D motionVectorTexture;
+layout(set = 1, binding = 4) uniform sampler2D depthTexture;
+
+layout(set = 1, binding = 5) uniform TAABuffer
+{
+    int frameIndex;
+    float varianceGamma;
+    float minBlendFactor;
+    float maxBlendFactor;
+};
+
+layout(set = 1, binding = 6, r11f_g11f_b10f) uniform writeonly image2D outColor;
+
+float Luminance(vec3 color)
+{
+    return dot(color, vec3(0.2126f, 0.7152f, 0.0722f));
+}
+
+// Clips historyColor into the AABB defined by [aabbMin, aabbMax]
+vec3 ClipAABB(vec3 aabbMin, vec3 aabbMax, vec3 historyColor)
+{
+    vec3 center  = (aabbMin + aabbMax) * 0.5f;
+    vec3 extents = (aabbMax - aabbMin) * 0.5f + 0.0001f;
+    vec3 offset  = historyColor - center;
+    vec3 ts      = abs(extents / max(abs(offset), vec3(0.0001f)));
+    float t      = min(1.0f, min(ts.x, min(ts.y, ts.z)));
+    return center + offset * t;
+}
+
+// 5-tap optimized Catmull-Rom filter for history texture sampling.
+// Reduces aliasing in the reprojected history vs plain bilinear.
+vec3 SampleHistoryCatmullRom(vec2 uv)
+{
+    vec2 texSize    = camera.viewportSize;
+    vec2 invTexSize = 1.0f / texSize;
+
+    vec2 pos = uv * texSize;
+    vec2 tc1 = floor(pos - 0.5f) + 0.5f;
+    vec2 f   = pos - tc1;
+    vec2 f2  = f * f;
+    vec2 f3  = f * f2;
+
+    vec2 w0  = f2 - 0.5f * (f3 + f);
+    vec2 w1  = 1.5f * f3 - 2.5f * f2 + 1.0f;
+    vec2 w3  = 0.5f * (f3 - f2);
+    vec2 w2  = 1.0f - w0 - w1 - w3;
+
+    vec2 w12  = w1 + w2;
+    vec2 tc0  = (tc1 - 1.0f) * invTexSize;
+    vec2 tc3  = (tc1 + 2.0f) * invTexSize;
+    vec2 tc12 = (tc1 + w2 / w12) * invTexSize;
+
+    vec3 result =
+        texture(historyTexture, vec2(tc12.x, tc0.y )).rgb * (w12.x * w0.y ) +
+        texture(historyTexture, vec2(tc0.x,  tc12.y)).rgb * (w0.x  * w12.y) +
+        texture(historyTexture, vec2(tc12.x, tc12.y)).rgb * (w12.x * w12.y) +
+        texture(historyTexture, vec2(tc3.x,  tc12.y)).rgb * (w3.x  * w12.y) +
+        texture(historyTexture, vec2(tc12.x, tc3.y )).rgb * (w12.x * w3.y );
+
+    float totalW = w12.x * w0.y + w0.x * w12.y + w12.x * w12.y + w3.x * w12.y + w12.x * w3.y;
+    return result / max(totalW, 0.0001f);
+}
+
+layout(local_size_x = 8, local_size_y = 8, local_size_z = 1) in;
+void main()
+{
+    ivec2 pixelCoord  = ivec2(gl_GlobalInvocationID.xy);
+    vec2  viewportSize = camera.viewportSize;
+
+    if (pixelCoord.x >= int(viewportSize.x) || pixelCoord.y >= int(viewportSize.y))
+    {
+        return;
+    }
+
+    vec2 uv = (vec2(pixelCoord) + 0.5f) / viewportSize;
+
+    // First frame: no history, output current color directly
+    if (frameIndex == 0)
+    {
+        imageStore(outColor, pixelCoord, vec4(texelFetch(colorTexture, pixelCoord, 0).rgb, 1.0f));
+        return;
+    }
+
+    // Step 1: Find closest depth in 3x3 neighborhood (reverse-Z: highest = nearest)
+    ivec2 closestOffset = ivec2(0, 0);
+    float closestDepth  = 0.0f;
+    for (int x = -1; x <= 1; ++x)
+    {
+        for (int y = -1; y <= 1; ++y)
+        {
+            ivec2 sc = clamp(pixelCoord + ivec2(x, y), ivec2(0), ivec2(viewportSize) - 1);
+            float d  = texelFetch(depthTexture, sc, 0).r;
+            if (d > closestDepth) { closestDepth = d; closestOffset = ivec2(x, y); }
+        }
+    }
+
+    // Step 2: Sample velocity from closest fragment
+    ivec2 closestCoord = clamp(pixelCoord + closestOffset, ivec2(0), ivec2(viewportSize) - 1);
+    vec2  velocity     = texelFetch(motionVectorTexture, closestCoord, 0).rg;
+
+    // Step 3: Reproject and sample history with Catmull-Rom filter
+    vec2 reprojectedUV = uv - velocity;
+    vec3 historyColor  = SampleHistoryCatmullRom(reprojectedUV);
+
+    // Step 4: Sample 3x3 neighborhood with Gaussian subsample filter.
+    // Weights by distance from pixel center — reduces aliasing in current sample.
+    vec3  neighborMin    = vec3(1e10f);
+    vec3  neighborMax    = vec3(-1e10f);
+    vec3  m1             = vec3(0.0f);
+    vec3  m2             = vec3(0.0f);
+    vec3  sampleTotal    = vec3(0.0f);
+    float sampleWeight   = 0.0f;
+
+    for (int x = -1; x <= 1; ++x)
+    {
+        for (int y = -1; y <= 1; ++y)
+        {
+            ivec2 sc = clamp(pixelCoord + ivec2(x, y), ivec2(0), ivec2(viewportSize) - 1);
+            vec3  c  = texelFetch(colorTexture, sc, 0).rgb;
+            float w  = exp(-float(x * x + y * y) * 0.5f);   // Gaussian, sigma = 1
+            sampleTotal  += c * w;
+            sampleWeight += w;
+            neighborMin   = min(neighborMin, c);
+            neighborMax   = max(neighborMax, c);
+            m1 += c;
+            m2 += c * c;
+        }
+    }
+    vec3 currentColor = sampleTotal / sampleWeight;
+
+    // Step 5: History constraint — RGB clamp then variance clip (book's best quality mode).
+    // Pre-clamping to neighborMin/Max before variance clip reduces over-darkening artifacts.
+    const float rcpN = 1.0f / 9.0f;
+    vec3 mu    = m1 * rcpN;
+    vec3 sigma = sqrt(max(m2 * rcpN - mu * mu, vec3(0.0f)));
+    historyColor = clamp(historyColor, neighborMin, neighborMax);
+    historyColor = ClipAABB(mu - varianceGamma * sigma, mu + varianceGamma * sigma, historyColor);
+
+    // Reject out-of-screen history
+    if (reprojectedUV.x < 0.0f || reprojectedUV.x > 1.0f ||
+        reprojectedUV.y < 0.0f || reprojectedUV.y > 1.0f)
+    {
+        imageStore(outColor, pixelCoord, vec4(currentColor, 1.0f));
+        return;
+    }
+
+    // Step 6: Resolve
+    //
+    // 6a: Temporal filter — per-channel history weight from relative color range.
+    //     Flat areas: low range → history stays near minBlendFactor.
+    //     Edges/motion: high range → history pushed toward maxBlendFactor.
+    vec3 neighborRange  = neighborMax - neighborMin;
+    vec3 temporalWeight = clamp(neighborRange / max(currentColor, vec3(0.0001f)), vec3(0.0f), vec3(1.0f));
+    vec3 historyW = clamp(mix(vec3(minBlendFactor), vec3(maxBlendFactor), temporalWeight), vec3(0.0f), vec3(1.0f));
+    vec3 currentW = vec3(1.0f) - historyW;
+
+    // 6b: Luminance difference filter — suppresses fireflies in the current frame.
+    //     Compress colors to avoid HDR bias, then measure normalized luminance divergence.
+    //     When current lum >> history lum (firefly): kFeedback → 0 → reduce current contribution.
+    vec3  compressedCurrent = currentColor / (max(max(currentColor.r, currentColor.g), currentColor.b) + 1.0f);
+    vec3  compressedHistory = historyColor / (max(max(historyColor.r, historyColor.g), historyColor.b) + 1.0f);
+    float lumCS = Luminance(compressedCurrent);
+    float lumHS = Luminance(compressedHistory);
+
+    float unbiasedDiff   = abs(lumCS - lumHS) / max(lumCS, max(lumHS, 0.2f));
+    float unbiasedWeight = 1.0f - unbiasedDiff;
+    float kFeedback      = unbiasedWeight * unbiasedWeight;  // squash small diffs
+    currentW *= kFeedback;   // reduce current frame weight when luminance diverges
+
+    // 6c: Inverse luminance weighting — compressed-lum division suppresses bright outliers
+    currentW /= (lumCS + 1.0f);
+    historyW /= (lumHS + 1.0f);
+
+    vec3 result = (currentColor * currentW + historyColor * historyW) /
+                  max(currentW + historyW, vec3(0.0001f));
+
+    imageStore(outColor, pixelCoord, vec4(result, 1.0f));
+}

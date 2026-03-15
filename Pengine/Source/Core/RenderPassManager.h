@@ -54,6 +54,8 @@ namespace Pengine
 			const std::vector<Pipeline::DescriptorSetIndexType>& descriptorSetIndexTypes,
 			std::shared_ptr<UniformWriter> objectUniformWriter = nullptr);
 
+		static glm::mat4 JitteredProjectionMat4(const RenderPass::RenderCallbackInfo& renderInfo);
+
 		static void PrepareUniformsPerViewportBeforeDraw(const RenderPass::RenderCallbackInfo& renderInfo);
 
 		static void ProcessEntities(const RenderPass::RenderCallbackInfo& renderInfo);
@@ -197,6 +199,10 @@ namespace Pengine
 
 		void CreateAntiAliasingAndComposePass();
 
+		void CreateMotionVectorsPass();
+
+		void CreateTAAPass();
+
 		static std::shared_ptr<class UniformWriter> ResolveUniformWriter(
 			Pipeline::DescriptorSetIndexType type,
 			const std::string& name,
@@ -235,6 +241,14 @@ namespace Pengine
 			const glm::vec3& meshPosition,
 			const float radius,
 			const std::vector<Mesh::Lod>& distanceThresholds);
+
+		struct TAAData : public CustomData
+		{
+			uint32_t jitterIndex = 0;
+			glm::vec2 jitterXY = {};
+			glm::vec2 previousJitterXY = {};
+			uint32_t frameIndex = 0;
+		};
 
 		std::unordered_map<std::string, std::shared_ptr<Pass>> m_PassesByName;
 	};

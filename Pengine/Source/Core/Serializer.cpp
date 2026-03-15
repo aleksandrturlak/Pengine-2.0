@@ -5710,7 +5710,19 @@ void Serializer::SerializeGraphicsSettings(const GraphicsSettings& graphicsSetti
 
 	out << YAML::Key << "Gamma" << YAML::Value << graphicsSettings.postProcess.gamma;
 	out << YAML::Key << "ToneMapper" << YAML::Value << (int)graphicsSettings.postProcess.toneMapper;
-	out << YAML::Key << "FXAA" << YAML::Value << graphicsSettings.postProcess.fxaa;
+
+	out << YAML::EndMap;
+	//
+
+	// Antialiasing.
+	out << YAML::Key << "Antialiasing";
+	out << YAML::Value << YAML::BeginMap;
+
+	out << YAML::Key << "Mode" << YAML::Value << (int)graphicsSettings.antialiasing.mode;
+	out << YAML::Key << "TAAJitterScale" << YAML::Value << graphicsSettings.antialiasing.taa.jitterScale;
+	out << YAML::Key << "TAAVarianceGamma" << YAML::Value << graphicsSettings.antialiasing.taa.varianceGamma;
+	out << YAML::Key << "TAAMinBlendFactor" << YAML::Value << graphicsSettings.antialiasing.taa.minBlendFactor;
+	out << YAML::Key << "TAAMaxBlendFactor" << YAML::Value << graphicsSettings.antialiasing.taa.maxBlendFactor;
 
 	out << YAML::EndMap;
 	//
@@ -6075,9 +6087,43 @@ GraphicsSettings Serializer::DeserializeGraphicsSettings(const std::filesystem::
 			graphicsSettings.postProcess.toneMapper = (GraphicsSettings::PostProcess::ToneMapper)toneMapperData.as<int>();
 		}
 
-		if (const auto& fxaaData = postProcessData["FXAA"])
+		// Migrate legacy FXAA bool → Antialiasing mode (only if new Antialiasing block absent)
+		if (!data["Antialiasing"])
 		{
-			graphicsSettings.postProcess.fxaa = fxaaData.as<bool>();
+			if (const auto& fxaaData = postProcessData["FXAA"])
+			{
+				graphicsSettings.antialiasing.mode = fxaaData.as<bool>()
+					? GraphicsSettings::Antialiasing::Mode::FXAA
+					: GraphicsSettings::Antialiasing::Mode::NONE;
+			}
+		}
+	}
+
+	if (const auto& aaData = data["Antialiasing"])
+	{
+		if (const auto& modeData = aaData["Mode"])
+		{
+			graphicsSettings.antialiasing.mode = (GraphicsSettings::Antialiasing::Mode)modeData.as<int>();
+		}
+
+		if (const auto& v = aaData["TAAJitterScale"])
+		{
+			graphicsSettings.antialiasing.taa.jitterScale = v.as<float>();
+		}
+
+		if (const auto& v = aaData["TAAVarianceGamma"])
+		{
+			graphicsSettings.antialiasing.taa.varianceGamma = v.as<float>();
+		}
+
+		if (const auto& v = aaData["TAAMinBlendFactor"])
+		{
+			graphicsSettings.antialiasing.taa.minBlendFactor = v.as<float>();
+		}
+
+		if (const auto& v = aaData["TAAMaxBlendFactor"])
+		{
+			graphicsSettings.antialiasing.taa.maxBlendFactor = v.as<float>();
 		}
 	}
 

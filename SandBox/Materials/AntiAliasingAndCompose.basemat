@@ -22,6 +22,6 @@ Basemat:
         - BlendEnabled: false
       Uniforms:
         - Name: toneMappedColorTexture
-          TextureAttachment: "ToneMapping[0]"
+          TextureAttachment: "TAA"
         - Name: uiTexture
           TextureAttachment: "UI[0]"
