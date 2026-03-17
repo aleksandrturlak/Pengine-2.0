@@ -4373,13 +4373,17 @@ void Editor::Thumbnails::ShutDown()
 
 void Editor::Thumbnails::UpdateThumbnails()
 {
-	return;
 	/*if (m_ThumbnailAtlas.GetAtlas(0))
 	{
 		ImGui::Begin("Thumbnail Atlas");
 		ImGui::Image((ImTextureID)m_ThumbnailAtlas.GetAtlas(0)->GetId(), ImVec2(1024, 1024));
 		ImGui::End();
 	}*/
+
+	if (!std::filesystem::exists("Thumbnails"))
+	{
+		std::filesystem::create_directory("Thumbnails");
+	}
 
 	if (m_ThumbnailToCheck == m_CacheThumbnails.end())
 	{
@@ -4393,11 +4397,6 @@ void Editor::Thumbnails::UpdateThumbnails()
 	if (m_ThumbnailQueue.empty())
 	{
 		return;
-	}
-
-	if (!std::filesystem::exists("Thumbnails"))
-	{
-		std::filesystem::create_directory("Thumbnails");
 	}
 
 	const ThumbnailLoadInfo thumbnailLoadInfo = m_ThumbnailQueue.front();
