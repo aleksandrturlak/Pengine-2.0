@@ -25,6 +25,13 @@ set(CORE_SOURCES
 	Transform.cpp
 	GetShortFilepath.cpp
 	UUID.cpp
+	Utils.cpp
+	AABB.cpp
+	EventSystem.cpp
+	Camera.cpp
+	Components.cpp
+	EntityAnimator.cpp
+	Visualizer.cpp
 )
 source_group("Core" FILES ${CORE_SOURCES})
 

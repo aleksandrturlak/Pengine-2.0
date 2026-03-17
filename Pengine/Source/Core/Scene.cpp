@@ -455,6 +455,7 @@ std::shared_ptr<Entity> Scene::CloneEntity(std::shared_ptr<Entity> entity)
 	// but at that moment entity of this transform is invalid,
 	// so passing global transform to its child entities will not happen,
 	// so here by copy we update the global transform of the whole hierarchy of entities.
+	if (newEntity->HasComponent<Transform>())
 	{
 		Transform& transform = newEntity->GetComponent<Transform>();
 		bool copyable = transform.IsCopyable();

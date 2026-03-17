@@ -29,6 +29,7 @@ add_subdirectory(Pengine/Source Pengine/Build)
 
 option(BUILD_TESTS "Build unit tests" OFF)
 if (BUILD_TESTS)
+    enable_testing()
     add_subdirectory(Test Test/Build)
 else ()
     add_subdirectory(SandBox/Source SandBox/Build)

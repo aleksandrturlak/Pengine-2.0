@@ -104,3 +104,140 @@ TEST(Entity, IsEnabled)
 		FAIL();
 	}
 }
+
+TEST(Entity, GetTopEntity)
+{
+	try
+	{
+		std::shared_ptr<Scene> scene = SceneManager::GetInstance().Create("Scene", "Main");
+		std::shared_ptr<Entity> root = scene->CreateEntity("Root");
+		std::shared_ptr<Entity> child = scene->CreateEntity("Child");
+		std::shared_ptr<Entity> grandchild = scene->CreateEntity("Grandchild");
+
+		root->AddChild(child);
+		child->AddChild(grandchild);
+
+		EXPECT_TRUE(grandchild->GetTopEntity() == root);
+		EXPECT_TRUE(child->GetTopEntity() == root);
+		EXPECT_TRUE(root->GetTopEntity() == root);
+
+		child->RemoveChild(grandchild);
+		root->RemoveChild(child);
+		scene->DeleteEntity(root);
+		scene->DeleteEntity(child);
+		scene->DeleteEntity(grandchild);
+		SceneManager::GetInstance().Delete(scene);
+	}
+	catch (const std::exception& e)
+	{
+		Logger::Error(e.what());
+		FAIL();
+	}
+}
+
+TEST(Entity, FindEntityInHierarchy)
+{
+	try
+	{
+		std::shared_ptr<Scene> scene = SceneManager::GetInstance().Create("Scene", "Main");
+		std::shared_ptr<Entity> root = scene->CreateEntity("Root");
+		std::shared_ptr<Entity> child = scene->CreateEntity("Child");
+		std::shared_ptr<Entity> grandchild = scene->CreateEntity("Grandchild");
+
+		root->AddChild(child);
+		child->AddChild(grandchild);
+
+		std::shared_ptr<Entity> found = root->FindEntityInHierarchy("Grandchild");
+		EXPECT_TRUE(found != nullptr);
+		EXPECT_TRUE(found == grandchild);
+
+		std::shared_ptr<Entity> missing = root->FindEntityInHierarchy("DoesNotExist");
+		EXPECT_TRUE(missing == nullptr);
+
+		child->RemoveChild(grandchild);
+		root->RemoveChild(child);
+		scene->DeleteEntity(root);
+		scene->DeleteEntity(child);
+		scene->DeleteEntity(grandchild);
+		SceneManager::GetInstance().Delete(scene);
+	}
+	catch (const std::exception& e)
+	{
+		Logger::Error(e.what());
+		FAIL();
+	}
+}
+
+TEST(Entity, HasAsChildRecursive)
+{
+	try
+	{
+		std::shared_ptr<Scene> scene = SceneManager::GetInstance().Create("Scene", "Main");
+		std::shared_ptr<Entity> root = scene->CreateEntity("Root");
+		std::shared_ptr<Entity> child = scene->CreateEntity("Child");
+		std::shared_ptr<Entity> grandchild = scene->CreateEntity("Grandchild");
+
+		root->AddChild(child);
+		child->AddChild(grandchild);
+
+		EXPECT_TRUE(root->HasAsChild(grandchild, true));
+		EXPECT_FALSE(root->HasAsChild(grandchild, false));
+
+		child->RemoveChild(grandchild);
+		root->RemoveChild(child);
+		scene->DeleteEntity(root);
+		scene->DeleteEntity(child);
+		scene->DeleteEntity(grandchild);
+		SceneManager::GetInstance().Delete(scene);
+	}
+	catch (const std::exception& e)
+	{
+		Logger::Error(e.what());
+		FAIL();
+	}
+}
+
+TEST(Entity, SetName)
+{
+	try
+	{
+		std::shared_ptr<Scene> scene = SceneManager::GetInstance().Create("Scene", "Main");
+		std::shared_ptr<Entity> entity = scene->CreateEntity("OldName");
+		EXPECT_TRUE(entity->GetName() == "OldName");
+
+		entity->SetName("NewName");
+		EXPECT_TRUE(entity->GetName() == "NewName");
+
+		scene->DeleteEntity(entity);
+		SceneManager::GetInstance().Delete(scene);
+	}
+	catch (const std::exception& e)
+	{
+		Logger::Error(e.what());
+		FAIL();
+	}
+}
+
+TEST(Entity, PrefabState)
+{
+	try
+	{
+		std::shared_ptr<Scene> scene = SceneManager::GetInstance().Create("Scene", "Main");
+		std::shared_ptr<Entity> entity = scene->CreateEntity("GameObject");
+
+		EXPECT_FALSE(entity->IsPrefab());
+
+		UUID validUUID;
+		entity->SetPrefabFilepathUUID(validUUID);
+		EXPECT_TRUE(entity->IsPrefab());
+		EXPECT_TRUE(entity->GetPrefabFilepathUUID() == validUUID);
+
+		scene->DeleteEntity(entity);
+		SceneManager::GetInstance().Delete(scene);
+	}
+	catch (const std::exception& e)
+	{
+		Logger::Error(e.what());
+		FAIL();
+	}
+}
