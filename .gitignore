@@ -1,5 +1,5 @@
 #Directories
-Build/
+/Build/
 .vscode/
 .idea/
 .claude/

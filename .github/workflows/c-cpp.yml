@@ -1,4 +1,5 @@
 name: C/C++ CI
+
 on:
   push:
     branches: [ "main" ]
@@ -8,14 +9,23 @@ on:
 jobs:
   build-and-test:
     runs-on: self-hosted
+
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
+
+      - name: Configure
+        env:
+          VULKAN_INCLUDE_PATH: /home/alexander/Vulkan/1.4.341.1/x86_64/include
+          VULKAN_LIB_PATH: /home/alexander/Vulkan/1.4.341.1/x86_64/lib
+          VULKAN_SPIRV_REFLECT_PATH: /home/alexander/Vulkan/1.4.341.1/x86_64/include
+          VULKAN_BIN_PATH: /home/alexander/Vulkan/1.4.341.1/x86_64/bin
+        run: cmake -S . -B Build -DCMAKE_BUILD_TYPE=Release -DBUILD_TESTS=ON
+
       - name: Build
-        run: mkdir ${{github.workspace}}/Build
-      - run: cmake -B ${{github.workspace}}/Build ${{github.workspace}}
-      - name: Compile
-        shell: cmd
-        run: '"C:\Program Files\Microsoft Visual Studio\2022\Community\Common7\IDE\devenv.exe" ${{github.workspace}}\Build\Pengine.sln /Build Release'
+        run: cmake --build Build --target Test -j$(nproc)
+
       - name: Test
-        shell: PowerShell
-        run: ${{github.workspace}}\Build\Test\Build\Release\Test.exe
+        working-directory: Build
+        env:
+          LD_LIBRARY_PATH: Test/Build:Pengine/Build
+        run: ctest --output-on-failure
