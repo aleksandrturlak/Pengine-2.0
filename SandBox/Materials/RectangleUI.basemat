@@ -18,13 +18,13 @@ Basemat:
             - uvA
             - cornerRadiusA
             - instanceIndexA
-      DescriptorSets:
+      UniformWriters:
         - Type: Object
-          RenderPass: UI
+          Name: UI
           Set: 0
-      DescriptorSets:
+      UniformWriters:
         - Type: Object
-          RenderPass: UI
+          Name: UI
           Set: 1
       ColorBlendStates:
         - BlendEnabled: true

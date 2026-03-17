@@ -2,8 +2,9 @@
 Build/
 .vscode/
 .idea/
+.claude/
 Editor/Source/Include/
-SandBox/Scenes/Examples/
+SandBox/Examples/
 SandBox/Thumbnails/
 SandBox/Log.txt
 SandBox/Trace.json

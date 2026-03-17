@@ -9,6 +9,7 @@
 #include "VulkanUniformWriter.h"
 
 #include "../Core/Logger.h"
+#include "../Graphics/RenderPass.h"
 
 #include <imgui/backends/imgui_impl_vulkan.h>
 
@@ -18,6 +19,9 @@ using namespace Vk;
 VulkanTexture::VulkanTexture(const CreateInfo& createInfo)
 	: Texture(createInfo)
 {
+	const auto vkDevice = GetVkDevice();
+	VkCommandBuffer commandBuffer = vkDevice->GetCommandBufferFromFrame(createInfo.frame);
+
 	VkFormat format = ConvertFormat(m_Format);
 	VkImageAspectFlagBits aspectMask = ConvertAspectMask(m_AspectMask);
 
@@ -42,7 +46,7 @@ VulkanTexture::VulkanTexture(const CreateInfo& createInfo)
 
 	if (m_IsMultiBuffered)
 	{
-		m_ImageDatas.resize(Vk::swapChainImageCount);
+		m_ImageDatas.resize(Vk::frameInFlightCount);
 	}
 	else
 	{
@@ -65,7 +69,7 @@ VulkanTexture::VulkanTexture(const CreateInfo& createInfo)
 
 	for (auto& imageData : m_ImageDatas)
 	{
-		GetVkDevice()->CreateImage(
+		vkDevice->CreateImage(
 			imageInfo,
 			memoryUsage,
 			memoryFlags,
@@ -73,7 +77,7 @@ VulkanTexture::VulkanTexture(const CreateInfo& createInfo)
 			imageData.vmaAllocation,
 			imageData.vmaAllocationInfo);
 
-		TransitionInternal(imageData, VK_IMAGE_LAYOUT_GENERAL);
+		TransitionInternal(imageData, VK_IMAGE_LAYOUT_GENERAL, commandBuffer);
 	}
 
 	if (createInfo.data)
@@ -86,23 +90,11 @@ VulkanTexture::VulkanTexture(const CreateInfo& createInfo)
 
 		for (auto& imageData : m_ImageDatas)
 		{
-			GetVkDevice()->CopyBufferToImage(
+			vkDevice->CopyBufferToImage(
 				stagingBuffer->GetBuffer(),
 				imageData.image,
 				static_cast<uint32_t>(m_Size.x),
 				static_cast<uint32_t>(m_Size.y));
-
-			if (m_MipLevels > 1)
-			{
-				GetVkDevice()->GenerateMipMaps(
-					imageData.image,
-					ConvertFormat(m_Format),
-					m_Size.x,
-					m_Size.y,
-					m_MipLevels,
-					m_LayerCount,
-					VK_NULL_HANDLE);
-			}
 		}
 	}
 
@@ -118,13 +110,29 @@ VulkanTexture::VulkanTexture(const CreateInfo& createInfo)
 
 	for (auto& imageData : m_ImageDatas)
 	{
-		imageData.view = CreateImageView(
-			imageData.image,
-			format,
-			aspectMask,
-			m_MipLevels,
-			m_LayerCount,
-			imageViewType);
+		if (m_MipLevels > 1 && createInfo.data)
+		{
+			vkDevice->GenerateMipMaps(
+				imageData.image,
+				ConvertFormat(m_Format),
+				m_Size.x,
+				m_Size.y,
+				m_MipLevels,
+				m_LayerCount,
+				commandBuffer);
+		}
+		
+		for (size_t i = 0; i < m_MipLevels; i++)
+		{
+			imageData.views.emplace_back(CreateImageView(
+				imageData.image,
+				format,
+				aspectMask,
+				i,
+				m_MipLevels - i,
+				m_LayerCount,
+				imageViewType));
+		}
 	}
 
 	m_Sampler = CreateSampler(createInfo.samplerCreateInfo);
@@ -156,7 +164,7 @@ VulkanTexture::VulkanTexture(const CreateInfo& createInfo)
 		std::vector<VkDescriptorImageInfo> vkDescriptorImageInfos(m_ImageDatas.size());
 		for (int i = 0; i < m_ImageDatas.size(); ++i)
 		{
-			vkDescriptorImageInfos[i] = GetDescriptorInfo(i);
+			vkDescriptorImageInfos[i] = GetDescriptorInfo(0, i);
 		}
 
 		// No need to flush, because it is a special function in VulkanUniformWriter, it flushes itself.
@@ -168,20 +176,25 @@ VulkanTexture::~VulkanTexture()
 {
 	for (auto& imageData : m_ImageDatas)
 	{
-		GetVkDevice()->DeleteResource([view = imageData.view]()
+		GetVkDevice()->DeleteResource([views = imageData.views]()
 		{
-			vkDestroyImageView(GetVkDevice()->GetDevice(), view, nullptr);
+			for (const auto& view : views)
+			{
+				vkDestroyImageView(GetVkDevice()->GetDevice(), view, nullptr);
+			}
 		});
 
 		GetVkDevice()->DestroyImage(imageData.image, imageData.vmaAllocation, imageData.vmaAllocationInfo);
 	}
 }
 
-VkDescriptorImageInfo VulkanTexture::GetDescriptorInfo(const uint32_t index)
+VkDescriptorImageInfo VulkanTexture::GetDescriptorInfo(
+	const uint32_t baseMipLevel,
+	const uint32_t frameIndex)
 {
 	VkDescriptorImageInfo descriptorImageInfo{};
-	descriptorImageInfo.imageLayout = GetLayout(index);
-	descriptorImageInfo.imageView = GetImageView(index);
+	descriptorImageInfo.imageLayout = GetLayout(frameIndex);
+	descriptorImageInfo.imageView = GetImageView(baseMipLevel, frameIndex);
 	descriptorImageInfo.sampler = m_Sampler;
 
 	return descriptorImageInfo;
@@ -191,6 +204,7 @@ VkImageView VulkanTexture::CreateImageView(
 	const VkImage image,
 	const VkFormat format,
 	const VkImageAspectFlagBits aspectMask,
+	uint32_t baseMipLevel,
 	const uint32_t mipLevels,
 	uint32_t layerCount,
 	VkImageViewType imageViewType)
@@ -201,7 +215,7 @@ VkImageView VulkanTexture::CreateImageView(
 	viewInfo.viewType = imageViewType;
 	viewInfo.format = format;
 	viewInfo.subresourceRange.aspectMask = aspectMask;
-	viewInfo.subresourceRange.baseMipLevel = 0;
+	viewInfo.subresourceRange.baseMipLevel = baseMipLevel;
 	viewInfo.subresourceRange.levelCount = mipLevels;
 	viewInfo.subresourceRange.baseArrayLayer = 0;
 	viewInfo.subresourceRange.layerCount = layerCount;
@@ -476,10 +490,10 @@ Texture::SamplerCreateInfo::BorderColor VulkanTexture::ConvertBorderColor(VkBord
 	return {};
 }
 
-void* VulkanTexture::GetId() const
+void* VulkanTexture::GetId(const uint32_t frameIndex) const
 {
 	std::shared_ptr<VulkanUniformWriter> vkUniformWriter = std::dynamic_pointer_cast<VulkanUniformWriter>(m_UniformWriter);
-	return (void*)vkUniformWriter->GetDescriptorSet();
+	return (void*)vkUniformWriter->GetDescriptorSet(frameIndex);
 }
 
 void* VulkanTexture::GetData() const
@@ -575,10 +589,10 @@ void VulkanTexture::TransitionInternal(ImageData& imageData, VkImageLayout layou
 
 VulkanTexture::ImageData& VulkanTexture::GetImageData()
 {
-	return m_IsMultiBuffered ? m_ImageDatas[swapChainImageIndex] : m_ImageDatas[0];
+	return m_IsMultiBuffered ? m_ImageDatas[frameInFlightIndex] : m_ImageDatas[0];
 }
 
 const VulkanTexture::ImageData& VulkanTexture::GetImageData() const
 {
-	return m_IsMultiBuffered ? m_ImageDatas[swapChainImageIndex] : m_ImageDatas[0];
+	return m_IsMultiBuffered ? m_ImageDatas[frameInFlightIndex] : m_ImageDatas[0];
 }

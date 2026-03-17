@@ -89,4 +89,5 @@ Texture::Texture(const CreateInfo& createInfo)
 	m_LayerCount = createInfo.isCubeMap ? 6 : createInfo.layerCount;
 	m_InstanceSize = createInfo.instanceSize;
 	m_IsMultiBuffered = createInfo.isMultiBuffered;
+	m_MemoryType = createInfo.memoryType;
 }

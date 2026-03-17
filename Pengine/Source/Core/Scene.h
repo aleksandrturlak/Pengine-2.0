@@ -87,6 +87,10 @@ namespace Pengine
 
 		std::shared_ptr<PhysicsSystem> GetPhysicsSystem() const { return m_PhysicsSystem; }
 
+		void UpdateTLAS(const std::vector<AccelerationStructure::Instance>& instances, void* frame);
+
+		std::shared_ptr<AccelerationStructure> GetTLAS() const { return m_TLAS[Vk::frameInFlightIndex]; }
+
 		std::shared_ptr<Entity> CreateEmpty();
 
 		std::shared_ptr<Entity> CreateCamera();
@@ -147,6 +151,8 @@ namespace Pengine
 		bool m_IsSystemUpdating = true;
 		std::mutex m_LockBVH;
 		std::condition_variable m_BVHConditionalVariable;
+
+		std::vector<std::shared_ptr<AccelerationStructure>> m_TLAS;
 
 		void Copy(const Scene& scene);
 

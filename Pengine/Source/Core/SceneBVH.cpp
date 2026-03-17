@@ -40,8 +40,8 @@ std::vector<SceneBVH::BVHNode> SceneBVH::BuildNodes(const entt::registry& regist
 	std::vector<SceneBVH::BVHNode> nodes;
 
 	const auto r3dView = registry.view<Renderer3D>();
-	nodes.reserve(r3dView.size() * 2);
-
+	nodes.reserve(r3dView.size());
+	
 	for (auto entity : r3dView)
 	{
 		const Transform& transform = registry.get<Transform>(entity);
@@ -56,16 +56,15 @@ std::vector<SceneBVH::BVHNode> SceneBVH::BuildNodes(const entt::registry& regist
 			continue;
 		}
 
-		AABB aabb = LocalToWorldAABB({ r3d.mesh->GetBoundingBox().min, r3d.mesh->GetBoundingBox().max }, transform.GetTransform());
-		const float distance2 = glm::distance2(aabb.max, aabb.min);
-		if (distance2 < 1e-6f)
+		const glm::vec3 diag = r3d.aabb.max - r3d.aabb.min;
+		if (diag.x * diag.x + diag.y * diag.y + diag.z * diag.z < 1e-6f)
 		{
 			continue;
 		}
 
 		BVHNode node{};
-		node.aabb = std::move(aabb);
-		node.entity = transform.GetEntity();
+		node.aabb = r3d.aabb;
+		node.entity = entity;
 		node.subtreeSize = 1;
 		nodes.emplace_back(std::move(node));
 	}
@@ -97,18 +96,18 @@ void SceneBVH::Traverse(const std::function<bool(const BVHNode&)>& callback) con
 
 	m_BVHUseCount.fetch_add(1);
 
-	std::stack<uint32_t> nodeStack;
-	nodeStack.push(m_Root);
+	uint32_t stack[64];
+	int top = 0;
+	stack[top++] = m_Root;
 
-	while (!nodeStack.empty())
+	while (top > 0)
 	{
-		const BVHNode& currentNode = m_Nodes[nodeStack.top()];
-		nodeStack.pop();
+		const BVHNode& currentNode = m_Nodes[stack[--top]];
 
 		if (callback(currentNode))
 		{
-			if (currentNode.right != -1) nodeStack.push(currentNode.right);
-			if (currentNode.left != -1) nodeStack.push(currentNode.left);
+			if (currentNode.right != static_cast<uint32_t>(-1)) stack[top++] = currentNode.right;
+			if (currentNode.left  != static_cast<uint32_t>(-1)) stack[top++] = currentNode.left;
 		}
 	}
 
@@ -128,9 +127,9 @@ std::vector<entt::entity> SceneBVH::CullAgainstFrustum(const std::array<glm::vec
 			return false;
 		}
 		
-		if (node.IsLeaf() && node.entity->IsValid())
+		if (node.IsLeaf())
 		{
-			visibleEntities.emplace_back(node.entity->GetHandle());
+			visibleEntities.emplace_back(node.entity);
 		}
 
 		return true;
@@ -151,9 +150,9 @@ std::vector<entt::entity> SceneBVH::CullAgainstSphere(const glm::vec3& position,
 			return false;
 		}
 
-		if (node.IsLeaf() && node.entity->IsValid())
+		if (node.IsLeaf())
 		{
-			visibleEntities.emplace_back(node.entity->GetHandle());
+			visibleEntities.emplace_back(node.entity);
 		}
 
 		return true;
@@ -162,14 +161,14 @@ std::vector<entt::entity> SceneBVH::CullAgainstSphere(const glm::vec3& position,
 	return visibleEntities;
 }
 
-std::multimap<Raycast::Hit, std::shared_ptr<Entity>> SceneBVH::Raycast(
+std::multimap<Raycast::Hit, entt::entity> SceneBVH::Raycast(
 	const glm::vec3& start,
 	const glm::vec3& direction,
 	const float length) const
 {
 	PROFILER_SCOPE(__FUNCTION__);
 
-	std::multimap<Raycast::Hit, std::shared_ptr<Entity>> hits;
+	std::multimap<Raycast::Hit, entt::entity> hits;
 
 	Traverse([start, direction, length, &hits](const BVHNode& node)
 	{
@@ -179,7 +178,7 @@ std::multimap<Raycast::Hit, std::shared_ptr<Entity>> SceneBVH::Raycast(
 			return false;
 		}
 
-		if (node.IsLeaf() && node.entity->IsValid())
+		if (node.IsLeaf())
 		{
 			hits.emplace(hit, node.entity);
 		}
@@ -204,12 +203,21 @@ void SceneBVH::Rebuild(std::vector<BVHNode>&& nodes)
 	PROFILER_SCOPE(__FUNCTION__);
 
 	m_Root = -1;
-	m_Nodes.clear();
 
-	m_Nodes = std::move(nodes);
+	const uint32_t leafCount = static_cast<uint32_t>(nodes.size());
+	const uint32_t totalCount = leafCount * 2 - 1;
 
-	std::atomic<int> parallel = 2;
-	m_Root = BuildRecursive(0, m_Nodes.size(), parallel);
+	m_Nodes.reserve(totalCount);
+	m_Nodes.resize(leafCount);
+	for (uint32_t i = 0; i < leafCount; i++)
+	{
+		m_Nodes[i] = std::move(nodes[i]);
+	}
+	m_Nodes.resize(totalCount);
+
+	std::atomic<uint32_t> nextInterior = leafCount;
+	std::atomic<int> parallelBudget = 2;
+	m_Root = BuildRecursive(0, static_cast<int>(leafCount), nextInterior, parallelBudget);
 }
 
 int SceneBVH::Partition(const int binCount, int start, int end, int axis, float scale, float minAxis, int bestSplit)
@@ -243,7 +251,7 @@ int SceneBVH::Partition(const int binCount, int start, int end, int axis, float 
 	return i;
 }
 
-uint32_t SceneBVH::BuildRecursive(int start, int end, std::atomic<int>& parallel)
+uint32_t SceneBVH::BuildRecursive(int start, int end, std::atomic<uint32_t>& nextInterior, std::atomic<int>& parallelBudget)
 {
 	const int count = end - start;
 	if (count == 0) return -1;
@@ -253,133 +261,116 @@ uint32_t SceneBVH::BuildRecursive(int start, int end, std::atomic<int>& parallel
 		return start;
 	}
 
-	AABB centroidBounds = m_Nodes[start].aabb;
+	// Compute bounds of centroids (not AABBs) — correct SAH input.
+	// Also cache the centroid of each node to avoid recomputing it in binning and partition.
+	glm::vec3 centMin = m_Nodes[start].aabb.Center();
+	glm::vec3 centMax = centMin;
 	for (int i = start + 1; i < end; i++)
 	{
-		centroidBounds = centroidBounds.Expanded(m_Nodes[i].aabb);
+		const glm::vec3 c = m_Nodes[i].aabb.Center();
+		centMin = glm::min(centMin, c);
+		centMax = glm::max(centMax, c);
 	}
 
-	// Choose split axis (longest).
+	const glm::vec3 extent = centMax - centMin;
+
+	// Choose split axis (longest centroid extent).
 	int axis = 0;
-	glm::vec3 extent =
-	{
-		centroidBounds.max.x - centroidBounds.min.x,
-		centroidBounds.max.y - centroidBounds.min.y,
-		centroidBounds.max.z - centroidBounds.min.z
-	};
 	if (extent.y > extent.x) axis = 1;
 	if (extent.z > extent[axis]) axis = 2;
 
-	// Partition using SAH.
-	const int BIN_COUNT = 12;
-	struct Bin
+	// All centroids coincide on this axis — fall back to median.
+	if (extent[axis] < 1e-6f)
 	{
-		AABB bounds;
-		int count = 0;
-	} bins[BIN_COUNT];
+		const uint32_t nodeIdx = nextInterior.fetch_add(1);
+		const int mid = start + count / 2;
+		const uint32_t leftIdx  = BuildRecursive(start, mid, nextInterior, parallelBudget);
+		const uint32_t rightIdx = BuildRecursive(mid,   end, nextInterior, parallelBudget);
+		BVHNode& node = m_Nodes[nodeIdx];
+		node.left  = leftIdx;
+		node.right = rightIdx;
+		node.aabb  = m_Nodes[leftIdx].aabb.Expanded(m_Nodes[rightIdx].aabb);
+		node.subtreeSize = m_Nodes[leftIdx].subtreeSize + m_Nodes[rightIdx].subtreeSize;
+		return nodeIdx;
+	}
 
-	// Single pass: Fill bins with counts and bounds.
-	float scale = BIN_COUNT / extent[axis];
+	// SAH binning.
+	const int BIN_COUNT = 12;
+	struct Bin { AABB bounds; int count = 0; } bins[BIN_COUNT];
+
+	const float scale = BIN_COUNT / extent[axis];
+	const float axisMin = centMin[axis];
+
 	for (int i = start; i < end; i++)
 	{
-		int binIdx = std::min(BIN_COUNT - 1,
-			static_cast<int>((m_Nodes[i].aabb.Center()[axis] - centroidBounds.min[axis]) * scale));
+		const float c = (m_Nodes[i].aabb.min[axis] + m_Nodes[i].aabb.max[axis]) * 0.5f;
+		const int binIdx = std::min(BIN_COUNT - 1, static_cast<int>((c - axisMin) * scale));
 		bins[binIdx].count++;
 		bins[binIdx].bounds = bins[binIdx].bounds.Expanded(m_Nodes[i].aabb);
 	}
 
-	// Build prefix arrays: Left -> Right and Right -> Left
+	// Prefix sweep: left->right and right->left.
 	AABB leftBounds[BIN_COUNT], rightBounds[BIN_COUNT];
-	int leftCount[BIN_COUNT], rightCount[BIN_COUNT];
+	int  leftCount[BIN_COUNT],  rightCount[BIN_COUNT];
 
-	AABB currentLeft, currentRight;
-	int currentLeftCount = 0, currentRightCount = 0;
+	AABB curL, curR;
+	int  cntL = 0, cntR = 0;
 	for (int i = 0; i < BIN_COUNT; i++)
 	{
-		if (bins[i].count > 0)
-		{
-			currentLeft = currentLeft.Expanded(bins[i].bounds);
-			currentLeftCount += bins[i].count;
-		}
-		leftBounds[i] = currentLeft;
-		leftCount[i] = currentLeftCount;
+		if (bins[i].count > 0) { curL = curL.Expanded(bins[i].bounds); cntL += bins[i].count; }
+		leftBounds[i] = curL;
+		leftCount[i]  = cntL;
 
-		int j = BIN_COUNT - 1 - i;
-		if (bins[j].count > 0)
-		{
-			currentRight = currentRight.Expanded(bins[j].bounds);
-			currentRightCount += bins[j].count;
-		}
-		rightBounds[j] = currentRight;
-		rightCount[j] = currentRightCount;
+		const int j = BIN_COUNT - 1 - i;
+		if (bins[j].count > 0) { curR = curR.Expanded(bins[j].bounds); cntR += bins[j].count; }
+		rightBounds[j] = curR;
+		rightCount[j]  = cntR;
 	}
 
-	// Evaluate splits in O(BIN_COUNT)
+	// Pick best split.
 	float bestCost = std::numeric_limits<float>::infinity();
-	int bestSplit = -1;
+	int bestSplit = 1;
 	for (int i = 1; i < BIN_COUNT; i++)
 	{
 		if (leftCount[i - 1] == 0 || rightCount[i] == 0) continue;
-
-		float cost = leftCount[i - 1] * leftBounds[i - 1].SurfaceArea() +
-			rightCount[i] * rightBounds[i].SurfaceArea();
-		if (cost < bestCost)
-		{
-			bestCost = cost;
-			bestSplit = i;
-		}
+		const float cost = leftCount[i - 1] * leftBounds[i - 1].SurfaceArea()
+		                 + rightCount[i]     * rightBounds[i].SurfaceArea();
+		if (cost < bestCost) { bestCost = cost; bestSplit = i; }
 	}
 
-	int mid = Partition(BIN_COUNT, start, end, axis, scale, centroidBounds.min[axis], bestSplit);
-
-	// Handle bad splits.
+	int mid = Partition(BIN_COUNT, start, end, axis, scale, axisMin, bestSplit);
 	if (mid == start || mid == end)
 	{
 		mid = start + count / 2;
 	}
 
-	std::vector<std::future<void>> futures;
+	// Claim a pre-allocated interior node slot atomically.
+	const uint32_t nodeIdx = nextInterior.fetch_add(1);
 
-	// Recursively build children.
-	BVHNode node{};
-	if (parallel.fetch_sub(1) > 0)
-	{
-		futures.emplace_back(m_ThreadPool.EnqueueAsyncFuture([&]()
-		{
-			node.left = BuildRecursive(start, mid, parallel);
-		}));
-	}
-	else
-	{
-		node.left = BuildRecursive(start, mid, parallel);
-	}
+	uint32_t leftIdx = -1, rightIdx = -1;
 
-	if (parallel.fetch_sub(1) > 0)
+	if (parallelBudget.fetch_sub(1) > 0)
 	{
-		futures.emplace_back(m_ThreadPool.EnqueueAsyncFuture([&]()
+		auto future = m_ThreadPool.EnqueueAsyncFuture([&]()
 		{
-			node.right = BuildRecursive(mid, end, parallel);
-		}));
-	}
-	else
-	{
-		node.right = BuildRecursive(mid, end, parallel);
-	}
-	
-	for (auto& future : futures)
-	{
+			leftIdx = BuildRecursive(start, mid, nextInterior, parallelBudget);
+		});
+		rightIdx = BuildRecursive(mid, end, nextInterior, parallelBudget);
 		future.get();
 	}
+	else
+	{
+		leftIdx  = BuildRecursive(start, mid, nextInterior, parallelBudget);
+		rightIdx = BuildRecursive(mid,   end, nextInterior, parallelBudget);
+	}
 
-	const BVHNode& left = m_Nodes[node.left];
-	const BVHNode& right = m_Nodes[node.right];
-	node.aabb = left.aabb.Expanded(right.aabb);
-	node.subtreeSize = left.subtreeSize + right.subtreeSize;
+	BVHNode& node = m_Nodes[nodeIdx];
+	node.left  = leftIdx;
+	node.right = rightIdx;
+	node.aabb  = m_Nodes[leftIdx].aabb.Expanded(m_Nodes[rightIdx].aabb);
+	node.subtreeSize = m_Nodes[leftIdx].subtreeSize + m_Nodes[rightIdx].subtreeSize;
 
-	std::lock_guard<std::mutex> lock(m_LockWrite);
-	m_Nodes.emplace_back(std::move(node));
-
-	return m_Nodes.size() - 1;
+	return nodeIdx;
 }
 
 //SceneBVH::BVHNode* SceneBVH::FindLeaf(BVHNode* node, std::shared_ptr<Entity> entity) const
@@ -399,36 +390,3 @@ uint32_t SceneBVH::BuildRecursive(int start, int end, std::atomic<int>& parallel
 //	if (BVHNode* left = FindParent(root->left, target)) return left;
 //	return FindParent(root->right, target);
 //}
-
-AABB SceneBVH::LocalToWorldAABB(const AABB& localAABB, const glm::mat4& transformMat4)
-{
-	const glm::vec3& min = localAABB.min;
-	const glm::vec3& max = localAABB.max;
-
-	const std::array<glm::vec4, 8> corners =
-	{
-		{
-			{ min.x,  min.y,  min.z, 1.0f },
-			{ max.x,  min.y,  min.z, 1.0f },
-			{ min.x,  max.y,  min.z, 1.0f },
-			{ max.x,  max.y,  min.z, 1.0f },
-			{ min.x,  min.y,  max.z, 1.0f },
-			{ max.x,  min.y,  max.z, 1.0f },
-			{ min.x,  max.y,  max.z, 1.0f },
-			{ max.x,  max.y,  max.z, 1.0f } 
-		}
-	};
-
-	glm::vec3 transformed = transformMat4 * corners[0];
-	glm::vec3 worldMin = transformed;
-	glm::vec3 worldMax = transformed;
-
-	for (size_t i = 1; i < 8; ++i)
-	{
-		transformed = transformMat4 * corners[i];
-		worldMin = glm::min(worldMin, transformed);
-		worldMax = glm::max(worldMax, transformed);
-	}
-
-	return { worldMin, worldMax };
-}

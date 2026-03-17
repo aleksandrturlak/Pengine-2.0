@@ -8,9 +8,9 @@ Basemat:
       TopologyMode: LineList
       Vertex: Shaders/Line.vert
       Fragment: Shaders/Line.frag
-      DescriptorSets:
+      UniformWriters:
         - Type: Renderer
-          RenderPass: DefaultReflection
+          Name: Camera
           Set: 0
       VertexInputBindingDescriptions:
         - Binding: 0

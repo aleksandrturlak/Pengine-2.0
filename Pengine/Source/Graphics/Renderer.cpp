@@ -80,6 +80,8 @@ void Renderer::Update(
 			pass->Execute(renderInfo);
 		}
 
+		RenderPassManager::ProcessEntities(renderInfo);
+
 		for (const auto& viewport : viewports)
 		{
 			renderInfo.camera = viewport.camera;
@@ -87,7 +89,17 @@ void Renderer::Update(
 			renderInfo.viewportSize = viewport.size;
 			renderInfo.renderView = viewport.renderView;
 
+			if (renderInfo.scene->GetGraphicsSettings().antialiasing.mode == GraphicsSettings::Antialiasing::Mode::TAA)
+			{
+				renderInfo.projection = RenderPassManager::JitteredProjectionMat4(renderInfo);
+			}
+			else
+			{
+				renderInfo.renderView->DeleteCustomData("TAAData");
+			}
+
 			RenderPassManager::PrepareUniformsPerViewportBeforeDraw(renderInfo);
+			RenderPassManager::ProcessLights(renderInfo);
 
 			renderer->BeginCommandLabel("Camera: " + viewport.camera->GetName(), glm::vec3(1.0f, 0.75f, 0.0f), frame);
 

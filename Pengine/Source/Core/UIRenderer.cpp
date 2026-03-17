@@ -462,29 +462,33 @@ UIRenderer::Batch& UIRenderer::GetOrCreateBatch(const uint32_t batchIndex, std::
 	if (m_Batches.size() == batchIndex)
 	{
 		Batch batch;
-		batch.vertexBuffer = Buffer::Create(
-			sizeof(QuadVertex) * QUAD_VERTEX_COUNT,
-			MAX_BATCH_QUAD_COUNT,
-			Buffer::Usage::VERTEX_BUFFER,
-			MemoryType::CPU,
-			true);
 
-		batch.indexBuffer = Buffer::Create(
-			sizeof(uint32_t) * QUAD_INDEX_COUNT,
-			MAX_BATCH_QUAD_COUNT,
-			Buffer::Usage::INDEX_BUFFER,
-			MemoryType::CPU,
-			true);
+		Buffer::CreateInfo createInfoVertexBuffer;
+		createInfoVertexBuffer.instanceSize = sizeof(QuadVertex) * MAX_BATCH_QUAD_VERTEX_COUNT;
+		createInfoVertexBuffer.instanceCount = MAX_BATCH_QUAD_COUNT;
+		createInfoVertexBuffer.usages = { Buffer::Usage::VERTEX_BUFFER };
+		createInfoVertexBuffer.memoryType = MemoryType::CPU;
+		createInfoVertexBuffer.isMultiBuffered = true;
+		batch.vertexBuffer = Buffer::Create(createInfoVertexBuffer);
 
-		batch.uniformBuffer = Buffer::Create(
-			sizeof(QuadInstance),
-			MAX_BATCH_QUAD_COUNT,
-			Buffer::Usage::STORAGE_BUFFER,
-			MemoryType::CPU,
-			true);
+		Buffer::CreateInfo createInfoIndexBuffer;
+		createInfoIndexBuffer.instanceSize = sizeof(uint32_t) * MAX_BATCH_QUAD_INDEX_COUNT;
+		createInfoIndexBuffer.instanceCount = MAX_BATCH_QUAD_COUNT;
+		createInfoIndexBuffer.usages = { Buffer::Usage::INDEX_BUFFER };
+		createInfoIndexBuffer.memoryType = MemoryType::CPU;
+		createInfoIndexBuffer.isMultiBuffered = true;
+		batch.indexBuffer = Buffer::Create(createInfoIndexBuffer);
+
+		Buffer::CreateInfo createInfoUniformBuffer;
+		createInfoUniformBuffer.instanceSize = sizeof(QuadInstance);
+		createInfoUniformBuffer.instanceCount = MAX_BATCH_QUAD_COUNT;
+		createInfoUniformBuffer.usages = { Buffer::Usage::STORAGE_BUFFER };
+		createInfoUniformBuffer.memoryType = MemoryType::CPU;
+		createInfoUniformBuffer.isMultiBuffered = true;
+		batch.uniformBuffer = Buffer::Create(createInfoUniformBuffer);
 
 		batch.uniformWriter = UniformWriter::Create(pipeline->GetUniformLayout(1));
-		batch.uniformWriter->WriteBuffer("InstanceBuffer", batch.uniformBuffer);
+		batch.uniformWriter->WriteBufferToAllFrames("InstanceBuffer", batch.uniformBuffer);
 		batch.uniformWriter->Flush();
 
 		m_Batches.emplace_back(batch);

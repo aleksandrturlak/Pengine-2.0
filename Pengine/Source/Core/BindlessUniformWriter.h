@@ -1,6 +1,9 @@
 #pragma once
 
 #include "Core.h"
+#include "BoundingBox.h"
+
+#include "../Graphics/BaseMaterial.h"
 
 #include <stack>
 #include <vector>
@@ -8,8 +11,12 @@
 namespace Pengine
 {
 
+	class Buffer;
 	class Texture;
 	class UniformWriter;
+	class Material;
+	class BaseMaterial;
+	class Mesh;
 
 	class PENGINE_API BindlessUniformWriter
 	{
@@ -34,7 +41,28 @@ namespace Pengine
 
 		std::shared_ptr<Texture> GetBindlessTexture(const int index);
 
-		void Flush();
+		void CreateSceneResources(
+			std::shared_ptr<UniformWriter>& uniformWriter,
+			std::shared_ptr<Buffer>& buffer);
+
+		enum class EntityFlagBits : uint32_t
+		{
+			VALID = 1 << 0,
+			SKINNED = 1 << 1
+		};
+
+		struct EntityInfo
+		{
+			glm::vec4 rotation; // quaternion xyzw
+			glm::vec3 position;
+			glm::vec3 scale;
+			AABB aabb;
+			uint64_t materialInfoBuffer;
+			uint64_t meshInfoBuffer;
+			uint64_t boneBuffer;
+			uint64_t skinnedVertexBuffer = 0;
+			uint32_t flags; // valid, skinned, etc.
+		};
 
 	private:
 		class SlotManager
@@ -42,16 +70,16 @@ namespace Pengine
 		private:
 			std::stack<int> m_FreeSlots;
 			std::vector<bool> m_InUse;
-			
 		public:
-			SlotManager(int slotCount) : m_InUse(slotCount, false)
+			void Initialize(int slotCount)
 			{
+				m_InUse.resize(slotCount, false);
 				for (int i = slotCount - 1; i >= 0; i--)
 				{
 					m_FreeSlots.push(i);
 				}
 			}
-			
+				
 			int TakeSlot()
 			{
 				if (m_FreeSlots.empty()) return 0;
@@ -82,11 +110,14 @@ namespace Pengine
 			}
 		};
 
-		SlotManager m_SlotManager = SlotManager(10000);
+		SlotManager m_TextureSlotManager;
 
 		std::unordered_map<int, std::weak_ptr<Texture>> m_TexturesByIndex;
 
 		std::shared_ptr<UniformWriter> m_BindlessUniformWriter;
+		std::shared_ptr<BaseMaterial> m_BaseMaterial;
+
+		size_t m_BaseMaterialSize = 0;
 	};
 
 }

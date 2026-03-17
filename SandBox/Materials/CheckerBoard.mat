@@ -8,7 +8,10 @@ Mat:
       Inactive:
         - GBuffer
   Pipelines:
-    - RenderPass: ZPrePass
+    - RenderPass: SpotLightShadows
+      Uniforms:
+        []
+    - RenderPass: PointLightShadows
       Uniforms:
         []
     - RenderPass: CSM
@@ -19,7 +22,7 @@ Mat:
         []
     - RenderPass: GBuffer
       Uniforms:
-        - Name: GBufferMaterial
+        - Name: MaterialBuffer
           Values:
             - Name: material.albedoColor
               Value: [0.337254912, 0.337254912, 0.337254912, 1]
@@ -28,7 +31,7 @@ Mat:
               Value: [1, 1, 1, 1]
               Type: vec4
             - Name: material.uvTransform
-              Value: [25, 25, 0, 0]
+              Value: [1, 1, 0, 0]
               Type: vec4
             - Name: material.metallicFactor
               Value: 0
@@ -82,11 +85,11 @@ Mat:
               Value: White
               Type: texture
             - Name: size
-              Value: [1, 1]
+              Value: [25, 25]
               Type: vec2
             - Name: firstColor
-              Value: [0.588235319, 0.588235319, 0.588235319, 1]
+              Value: [1, 1, 1, 1]
               Type: vec4
             - Name: secondColor
-              Value: [0.0196078438, 0.0196078438, 0.0196078438, 1]
+              Value: [0.126582265, 0.118036628, 0.118036628, 1]
               Type: vec4

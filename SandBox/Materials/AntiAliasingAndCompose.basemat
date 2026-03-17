@@ -8,9 +8,9 @@ Basemat:
       TopologyMode: TriangleList
       Vertex: Shaders/AntiAliasingAndCompose.vert
       Fragment: Shaders/AntiAliasingAndCompose.frag
-      DescriptorSets:
+      UniformWriters:
         - Type: Renderer
-          RenderPass: AntiAliasingAndCompose
+          Name: AntiAliasingAndCompose
           Set: 0
       VertexInputBindingDescriptions:
         - Binding: 0
@@ -22,6 +22,6 @@ Basemat:
         - BlendEnabled: false
       Uniforms:
         - Name: toneMappedColorTexture
-          TextureAttachment: "ToneMapping[0]"
+          TextureAttachment: "TAA"
         - Name: uiTexture
           TextureAttachment: "UI[0]"

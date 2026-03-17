@@ -3,12 +3,12 @@ Basemat:
     - RenderPass: SSAO
       Type: Compute
       Compute: Shaders/SSAO.comp
-      DescriptorSets:
+      UniformWriters:
         - Type: Renderer
-          RenderPass: SSAO
+          Name: SSAO
           Set: 0
         - Type: Renderer
-          RenderPass: DefaultReflection
+          Name: Camera
           Set: 1
       Uniforms:
         - Name: normalTexture

@@ -1,6 +1,7 @@
 #include "Serializer.h"
 
 #include "AsyncAssetLoader.h"
+#include "BindlessUniformWriter.h"
 #include "FileFormatNames.h"
 #include "Logger.h"
 #include "MaterialManager.h"
@@ -40,7 +41,6 @@
 
 #define STB_IMAGE_WRITE_IMPLEMENTATION
 #include <stbi/stb_image_write.h>
-
 #include <filesystem>
 #include <fstream>
 #include <sstream>
@@ -476,6 +476,34 @@ YAML::Emitter& operator<<(YAML::Emitter& out, const float* v)
 	return out;
 }
 
+namespace
+{
+	template<typename Writer>
+	void WriteAtomically(const std::filesystem::path& filepath, std::ios_base::openmode mode, Writer&& writer)
+	{
+		std::filesystem::path tmpPath = filepath;
+		tmpPath += ".tmp";
+		{
+			std::ofstream out(tmpPath, mode);
+			writer(out);
+			if (!out.good())
+			{
+				std::error_code ec;
+				std::filesystem::remove(tmpPath, ec);
+				Logger::Error("Failed to write temporary file: " + tmpPath.string());
+				return;
+			}
+		}
+		std::error_code ec;
+		std::filesystem::rename(tmpPath, filepath, ec);
+		if (ec)
+		{
+			Logger::Error("Failed to rename " + tmpPath.string() + " to " + filepath.string() + ": " + ec.message());
+			std::filesystem::remove(tmpPath, ec);
+		}
+	}
+}
+
 EngineConfig Serializer::DeserializeEngineConfig(const std::filesystem::path& filepath)
 {
 	if (filepath.empty() || filepath == none)
@@ -589,10 +617,11 @@ UUID Serializer::GenerateFileUUID(const std::filesystem::path& filepath)
 	out << YAML::EndMap;
 
 	std::filesystem::path metaFilepath = filepath;
-	metaFilepath.concat(FileFormats::Meta()); 
-	std::ofstream fout(metaFilepath);
-	fout << out.c_str();
-	fout.close();
+	metaFilepath.concat(FileFormats::Meta());
+	WriteAtomically(metaFilepath, std::ios::out, [&](std::ofstream& fout)
+	{
+		fout << out.c_str();
+	});
 
 	Utils::SetUUID(uuid, filepath);
 
@@ -604,7 +633,7 @@ void Serializer::DeserializeDescriptorSets(
 	const std::string& passName,
 	std::map<Pipeline::DescriptorSetIndexType, std::map<std::string, uint32_t>>& descriptorSetIndicesByType)
 {
-	for (const auto& descriptorSetData : pipelineData["DescriptorSets"])
+	for (const auto& descriptorSetData : pipelineData["UniformWriters"])
 	{
 		Pipeline::DescriptorSetIndexType type{};
 		if (const auto& typeData = descriptorSetData["Type"])
@@ -634,6 +663,10 @@ void Serializer::DeserializeDescriptorSets(
 			{
 				type = Pipeline::DescriptorSetIndexType::MATERIAL;
 			}
+			else if (typeName == "BufferDeviceAddress")
+			{
+				type = Pipeline::DescriptorSetIndexType::BUFFER_DEVICE_ADDRESS;
+			}
 			else if (typeName == "Object")
 			{
 				type = Pipeline::DescriptorSetIndexType::OBJECT;
@@ -641,7 +674,7 @@ void Serializer::DeserializeDescriptorSets(
 		}
 
 		std::string attachedPassName = passName;
-		if (const auto& passNameData = descriptorSetData["RenderPass"])
+		if (const auto& passNameData = descriptorSetData["Name"])
 		{
 			attachedPassName = passNameData.as<std::string>();
 		}
@@ -1304,117 +1337,128 @@ void Serializer::SerializeMaterial(const std::shared_ptr<Material>& material, bo
 
 		out << YAML::BeginSeq;
 
-		std::optional<uint32_t> descriptorSetIndex = pipeline->GetDescriptorSetIndexByType(Pipeline::DescriptorSetIndexType::MATERIAL, passName);
-		if (!descriptorSetIndex)
+		std::vector<std::shared_ptr<UniformLayout>> uniformLayouts;
+
 		{
-			out << YAML::EndSeq;
-
-			out << YAML::EndMap;
-
-			continue;
-		}
-		for (const auto& binding : pipeline->GetUniformLayout(*descriptorSetIndex)->GetBindings())
-		{
-			out << YAML::BeginMap;
-
-			out << YAML::Key << "Name" << YAML::Value << binding.name;
-
-			if (binding.type == ShaderReflection::Type::COMBINED_IMAGE_SAMPLER)
+			std::optional<uint32_t> descriptorSetIndex = pipeline->GetDescriptorSetIndexByType(Pipeline::DescriptorSetIndexType::MATERIAL, passName);
+			if (descriptorSetIndex)
 			{
-				const std::shared_ptr<Texture> texture = material->GetUniformWriter(passName)->GetTexture(binding.name).back();
-				if (texture)
-				{
-					const auto uuid = Utils::FindUuid(texture->GetFilepath());
-					if (uuid.IsValid())
-					{
-						out << YAML::Key << "Value" << YAML::Value << uuid;
-					}
-					else
-					{
-						out << YAML::Key << "Value" << YAML::Value << texture->GetFilepath();
-					}
-				}
+				uniformLayouts.emplace_back(pipeline->GetUniformLayout(*descriptorSetIndex));
 			}
-			else if (binding.type == ShaderReflection::Type::UNIFORM_BUFFER)
-			{
-				std::shared_ptr<Buffer> buffer = material->GetBuffer(binding.name);
-				void* data = buffer->GetData();
-
-				out << YAML::Key << "Values";
-
-				out << YAML::BeginSeq;
-
-				std::function<void(const ShaderReflection::ReflectVariable&, std::string)> saveValue = [&saveValue, &out, &data, &material]
-				(const ShaderReflection::ReflectVariable& value, std::string parentName)
-				{
-					parentName += value.name;
-
-					if (value.type == ShaderReflection::ReflectVariable::Type::STRUCT)
-					{
-						for (const auto& memberValue : value.variables)
-						{
-							saveValue(memberValue, parentName + ".");
-						}
-						return;
-					}
-
-					out << YAML::BeginMap;
-
-					out << YAML::Key << "Name" << YAML::Value << parentName;
-
-					if (value.type == ShaderReflection::ReflectVariable::Type::VEC2)
-					{
-						out << YAML::Key << "Value" << YAML::Value << Utils::GetValue<glm::vec2>(data, value.offset);
-					}
-					else if (value.type == ShaderReflection::ReflectVariable::Type::VEC3)
-					{
-						out << YAML::Key << "Value" << YAML::Value << Utils::GetValue<glm::vec3>(data, value.offset);
-					}
-					else if (value.type == ShaderReflection::ReflectVariable::Type::VEC4)
-					{
-						out << YAML::Key << "Value" << YAML::Value << Utils::GetValue<glm::vec4>(data, value.offset);
-					}
-					else if (value.type == ShaderReflection::ReflectVariable::Type::FLOAT)
-					{
-						out << YAML::Key << "Value" << YAML::Value << Utils::GetValue<float>(data, value.offset);
-					}
-					else if (value.type == ShaderReflection::ReflectVariable::Type::INT)
-					{
-						out << YAML::Key << "Value" << YAML::Value << Utils::GetValue<int>(data, value.offset);
-					}
-					else if (value.type == ShaderReflection::ReflectVariable::Type::TEXTURE)
-					{
-						const int bindlessTextureIndex = Utils::GetValue<int>(data, value.offset);
-						const std::shared_ptr<Texture> texture = material->GetBindlessTexture(bindlessTextureIndex);
-						if (texture)
-						{
-							const auto uuid = Utils::FindUuid(texture->GetFilepath());
-							if (uuid.IsValid())
-							{
-								out << YAML::Key << "Value" << YAML::Value << uuid;
-							}
-							else
-							{
-								out << YAML::Key << "Value" << YAML::Value << texture->GetFilepath();
-							}
-						}
-					}
-
-					out << YAML::Key << "Type" << ShaderReflection::ConvertTypeToString(value.type);
-
-					out << YAML::EndMap;
-				};
-				for (const auto& value : binding.buffer->variables)
-				{
-					saveValue(value, "");
-				}
-
-				out << YAML::EndSeq;
-			}
-
-			out << YAML::EndMap;
 		}
 
+		{
+			std::optional<uint32_t> descriptorSetIndex = pipeline->GetDescriptorSetIndexByType(Pipeline::DescriptorSetIndexType::BUFFER_DEVICE_ADDRESS, passName);
+			if (descriptorSetIndex)
+			{
+				uniformLayouts.emplace_back(pipeline->GetUniformLayout(*descriptorSetIndex));
+			}
+		}
+		
+		for (const auto& uniformLayout : uniformLayouts)
+		{
+			for (const auto& binding : uniformLayout->GetBindings())
+			{
+				out << YAML::BeginMap;
+
+				out << YAML::Key << "Name" << YAML::Value << binding.name;
+
+				if (binding.type == ShaderReflection::Type::COMBINED_IMAGE_SAMPLER)
+				{
+					const std::shared_ptr<Texture> texture = material->GetUniformWriter(passName)->GetTextureInfo(binding.name).back().texture;
+					if (texture)
+					{
+						const auto uuid = Utils::FindUuid(texture->GetFilepath());
+						if (uuid.IsValid())
+						{
+							out << YAML::Key << "Value" << YAML::Value << uuid;
+						}
+						else
+						{
+							out << YAML::Key << "Value" << YAML::Value << texture->GetFilepath();
+						}
+					}
+				}
+				else if (binding.type == ShaderReflection::Type::UNIFORM_BUFFER || binding.type == ShaderReflection::Type::STORAGE_BUFFER)
+				{
+					std::shared_ptr<Buffer> buffer = material->GetBuffer(binding.name);
+					void* data = buffer->GetData();
+
+					out << YAML::Key << "Values";
+
+					out << YAML::BeginSeq;
+
+					std::function<void(const ShaderReflection::ReflectVariable&, std::string)> saveValue = [&saveValue, &out, &data, &material]
+					(const ShaderReflection::ReflectVariable& value, std::string parentName)
+					{
+						parentName += value.name;
+
+						if (value.type == ShaderReflection::ReflectVariable::Type::STRUCT)
+						{
+							for (const auto& memberValue : value.variables)
+							{
+								saveValue(memberValue, parentName + ".");
+							}
+							return;
+						}
+
+						out << YAML::BeginMap;
+
+						out << YAML::Key << "Name" << YAML::Value << parentName;
+
+						if (value.type == ShaderReflection::ReflectVariable::Type::VEC2)
+						{
+							out << YAML::Key << "Value" << YAML::Value << Utils::GetValue<glm::vec2>(data, value.offset);
+						}
+						else if (value.type == ShaderReflection::ReflectVariable::Type::VEC3)
+						{
+							out << YAML::Key << "Value" << YAML::Value << Utils::GetValue<glm::vec3>(data, value.offset);
+						}
+						else if (value.type == ShaderReflection::ReflectVariable::Type::VEC4)
+						{
+							out << YAML::Key << "Value" << YAML::Value << Utils::GetValue<glm::vec4>(data, value.offset);
+						}
+						else if (value.type == ShaderReflection::ReflectVariable::Type::FLOAT)
+						{
+							out << YAML::Key << "Value" << YAML::Value << Utils::GetValue<float>(data, value.offset);
+						}
+						else if (value.type == ShaderReflection::ReflectVariable::Type::INT)
+						{
+							out << YAML::Key << "Value" << YAML::Value << Utils::GetValue<int>(data, value.offset);
+						}
+						else if (value.type == ShaderReflection::ReflectVariable::Type::TEXTURE)
+						{
+							const int bindlessTextureIndex = Utils::GetValue<int>(data, value.offset);
+							const std::shared_ptr<Texture> texture = material->GetBindlessTexture(bindlessTextureIndex);
+							if (texture)
+							{
+								const auto uuid = Utils::FindUuid(texture->GetFilepath());
+								if (uuid.IsValid())
+								{
+									out << YAML::Key << "Value" << YAML::Value << uuid;
+								}
+								else
+								{
+									out << YAML::Key << "Value" << YAML::Value << texture->GetFilepath();
+								}
+							}
+						}
+
+						out << YAML::Key << "Type" << ShaderReflection::ConvertTypeToString(value.type);
+
+						out << YAML::EndMap;
+					};
+					for (const auto& value : binding.buffer->variables)
+					{
+						saveValue(value, "");
+					}
+
+					out << YAML::EndSeq;
+				}
+
+				out << YAML::EndMap;
+			}
+		}
 		out << YAML::EndSeq;
 
 		out << YAML::EndMap;
@@ -1426,9 +1470,10 @@ void Serializer::SerializeMaterial(const std::shared_ptr<Material>& material, bo
 
 	out << YAML::EndMap;
 
-	std::ofstream fout(material->GetFilepath());
-	fout << out.c_str();
-	fout.close();
+	WriteAtomically(material->GetFilepath(), std::ios::out, [&](std::ofstream& fout)
+	{
+		fout << out.c_str();
+	});
 
 	GenerateFileUUID(material->GetFilepath());
 
@@ -1586,13 +1631,12 @@ void Serializer::SerializeMesh(const std::filesystem::path& directory,  const st
 	}
 
 	std::filesystem::path outMeshFilepath = directory / (meshName + FileFormats::Mesh());
-	std::ofstream out(outMeshFilepath, std::ostream::binary);
-
-	out.write((char*)data, static_cast<std::streamsize>(dataSize));
+	WriteAtomically(outMeshFilepath, std::ios::binary, [&](std::ofstream& out)
+	{
+		out.write((char*)data, static_cast<std::streamsize>(dataSize));
+	});
 
 	delete[] data;
-
-	out.close();
 
 	GenerateFileUUID(mesh->GetFilepath());
 
@@ -1809,9 +1853,10 @@ void Serializer::SerializeSkeleton(const std::shared_ptr<Skeleton>& skeleton)
 
 	out << YAML::EndMap;
 
-	std::ofstream fout(skeleton->GetFilepath());
-	fout << out.c_str();
-	fout.close();
+	WriteAtomically(skeleton->GetFilepath(), std::ios::out, [&](std::ofstream& fout)
+	{
+		fout << out.c_str();
+	});
 
 	Logger::Log("Skeleton:" + skeleton->GetFilepath().string() + " has been saved!", BOLDGREEN);
 }
@@ -1977,9 +2022,10 @@ void Serializer::SerializeSkeletalAnimation(const std::shared_ptr<SkeletalAnimat
 
 	out << YAML::EndMap;
 
-	std::ofstream fout(skeletalAnimation->GetFilepath());
-	fout << out.c_str();
-	fout.close();
+	WriteAtomically(skeletalAnimation->GetFilepath(), std::ios::out, [&](std::ofstream& fout)
+	{
+		fout << out.c_str();
+	});
 
 	Logger::Log("Skeletal Animation:" + skeletalAnimation->GetFilepath().string() + " has been saved!", BOLDGREEN);
 }
@@ -2105,13 +2151,12 @@ void Serializer::SerializeShaderCache(const std::filesystem::path& filepath, con
 
 	std::filesystem::path cacheFilepath = directory / uuid.ToString();
 	cacheFilepath.concat(FileFormats::Spv());
-	std::ofstream out(cacheFilepath, std::ostream::binary);
-
 	const size_t lastWriteTime = std::filesystem::last_write_time(filepath).time_since_epoch().count();
-
-	out.write((char*)&lastWriteTime, sizeof(size_t));
-	out.write(code.data(), code.size());
-	out.close();
+	WriteAtomically(cacheFilepath, std::ios::binary, [&](std::ofstream& out)
+	{
+		out.write((char*)&lastWriteTime, sizeof(size_t));
+		out.write(code.data(), code.size());
+	});
 }
 
 std::string Serializer::DeserializeShaderCache(const std::filesystem::path& filepath)
@@ -2290,13 +2335,30 @@ void Serializer::SerializeShaderModuleReflection(
 
 	out << YAML::EndSeq;
 
-	out << YAML::EndMap;
+	out << YAML::Key << "PushConstantRanges";
+
+	out << YAML::BeginSeq;
+
+	for (const auto& pushConstantRange : reflectShaderModule.pushConstantRanges)
+	{
+		out << YAML::BeginMap;
+
+		out << YAML::Key << "Offset" << YAML::Value << pushConstantRange.offset;
+		out << YAML::Key << "Size" << YAML::Value << pushConstantRange.size;
+
+		out << YAML::EndMap;
+	}
+
+	out << YAML::EndSeq;
 
 	out << YAML::EndMap;
 
-	std::ofstream fout(reflectShaderModuleFilepath);
-	fout << out.c_str();
-	fout.close();
+	out << YAML::EndMap;
+
+	WriteAtomically(reflectShaderModuleFilepath, std::ios::out, [&](std::ofstream& fout)
+	{
+		fout << out.c_str();
+	});
 }
 
 std::optional<ShaderReflection::ReflectShaderModule> Serializer::DeserializeShaderModuleReflection(const std::filesystem::path& filepath)
@@ -2491,6 +2553,24 @@ std::optional<ShaderReflection::ReflectShaderModule> Serializer::DeserializeShad
 			if (const auto& sizeData = attributeDescriptionData["Size"])
 			{
 				attributeDescription.size = sizeData.as<uint32_t>();
+			}
+		}
+
+		if (const auto& pushConstantRangesData = reflectShaderModuleData["PushConstantRanges"])
+		{
+			for (const auto& rangeData : pushConstantRangesData)
+			{
+				ShaderReflection::PushConstantRange& range = reflectShaderModule.pushConstantRanges.emplace_back();
+
+				if (const auto& offsetData = rangeData["Offset"])
+				{
+					range.offset = offsetData.as<uint32_t>();
+				}
+
+				if (const auto& sizeData = rangeData["Size"])
+				{
+					range.size = sizeData.as<uint32_t>();
+				}
 			}
 		}
 	}
@@ -3731,20 +3811,21 @@ std::shared_ptr<Material> Serializer::GenerateMaterial(
 		materialFilepath,
 		doubleSided ? meshBaseDoubleSidedMaterial : meshBaseMaterial);
 
-	material->WriteToBuffer("GBufferMaterial", "material.alphaCutoff", gltfMaterial.alphaCutoff);
+	const std::string materialBufferName = "MaterialBuffer";
+	material->WriteToBuffer(materialBufferName, "material.alphaCutoff", gltfMaterial.alphaCutoff);
 
 	switch (gltfMaterial.alphaMode)
 	{
 	case fastgltf::AlphaMode::Opaque:
 	{
 		constexpr int useAlphaCutoff = false;
-		material->WriteToBuffer("GBufferMaterial", "material.useAlphaCutoff", useAlphaCutoff);
+		material->WriteToBuffer(materialBufferName, "material.useAlphaCutoff", useAlphaCutoff);
 		break;
 	}
 	case fastgltf::AlphaMode::Mask:
 	{
 		constexpr int useAlphaCutoff = true;
-		material->WriteToBuffer("GBufferMaterial", "material.useAlphaCutoff", useAlphaCutoff);
+		material->WriteToBuffer(materialBufferName, "material.useAlphaCutoff", useAlphaCutoff);
 		break;
 	}
 	case fastgltf::AlphaMode::Blend:
@@ -3754,8 +3835,6 @@ std::shared_ptr<Material> Serializer::GenerateMaterial(
 	}
 	}
 
-	const std::shared_ptr<UniformWriter> uniformWriter = material->GetUniformWriter(GBuffer);
-
 	const glm::vec4 baseColor =
 	{
 		gltfMaterial.pbrData.baseColorFactor.x(),
@@ -3763,7 +3842,7 @@ std::shared_ptr<Material> Serializer::GenerateMaterial(
 		gltfMaterial.pbrData.baseColorFactor.z(),
 		gltfMaterial.pbrData.baseColorFactor.w(),
 	};
-	material->WriteToBuffer("GBufferMaterial", "material.albedoColor", baseColor);
+	material->WriteToBuffer(materialBufferName, "material.albedoColor", baseColor);
 	
 	const glm::vec4 emissiveColor =
 	{
@@ -3772,29 +3851,27 @@ std::shared_ptr<Material> Serializer::GenerateMaterial(
 		gltfMaterial.emissiveFactor.z(),
 		1.0f,
 	};
-	material->WriteToBuffer("GBufferMaterial", "material.emissiveColor", emissiveColor);
+	material->WriteToBuffer(materialBufferName, "material.emissiveColor", emissiveColor);
 
-	material->WriteToBuffer("GBufferMaterial", "material.metallicFactor", gltfMaterial.pbrData.metallicFactor);
-	material->WriteToBuffer("GBufferMaterial", "material.roughnessFactor", gltfMaterial.pbrData.roughnessFactor);
-	material->WriteToBuffer("GBufferMaterial", "material.emissiveFactor", gltfMaterial.emissiveStrength);
-
+	material->WriteToBuffer(materialBufferName, "material.metallicFactor", gltfMaterial.pbrData.metallicFactor);
+	material->WriteToBuffer(materialBufferName, "material.roughnessFactor", gltfMaterial.pbrData.roughnessFactor);
+	material->WriteToBuffer(materialBufferName, "material.emissiveFactor", gltfMaterial.emissiveStrength);
 	{
 		const int useParallaxOcclusion = 0;
 		const int minParallaxLayers = 0;
 		const int maxParallaxLayers = 0;
 		const float parallaxHeightScale = 0.0f;
-		material->WriteToBuffer("GBufferMaterial", "material.useParallaxOcclusion", useParallaxOcclusion);
-		material->WriteToBuffer("GBufferMaterial", "material.minParallaxLayers", minParallaxLayers);
-		material->WriteToBuffer("GBufferMaterial", "material.maxParallaxLayers", maxParallaxLayers);
-		material->WriteToBuffer("GBufferMaterial", "material.parallaxHeightScale", parallaxHeightScale);
+		material->WriteToBuffer(materialBufferName, "material.useParallaxOcclusion", useParallaxOcclusion);
+		material->WriteToBuffer(materialBufferName, "material.minParallaxLayers", minParallaxLayers);
+		material->WriteToBuffer(materialBufferName, "material.maxParallaxLayers", maxParallaxLayers);
+		material->WriteToBuffer(materialBufferName, "material.parallaxHeightScale", parallaxHeightScale);
 
-		const int heightTextureIndex = TextureManager::GetInstance().GetWhite()->GetBindlessIndex();
-		material->WriteToBuffer("GBufferMaterial", "material.heightTexture", heightTextureIndex);
+		const int heightTextureIndex = material->BindBindlessTexture(TextureManager::GetInstance().GetWhite());
+		material->WriteToBuffer(materialBufferName, "material.heightTexture", heightTextureIndex);
 	}
 
 	float ao = 1.0f;
-	material->WriteToBuffer("GBufferMaterial", "material.aoFactor", ao);
-
+	material->WriteToBuffer(materialBufferName, "material.aoFactor", ao);
 	if (gltfMaterial.pbrData.baseColorTexture.has_value())
 	{
 		Texture::Meta meta{};
@@ -3808,14 +3885,14 @@ std::shared_ptr<Material> Serializer::GenerateMaterial(
 			materialName + "_BaseColor" + FileFormats::Png(),
 			meta))
 		{
-			const int albedoTextureIndex = albedoTexture->GetBindlessIndex();
-			material->WriteToBuffer("GBufferMaterial", "material.albedoTexture", albedoTextureIndex);
+			const int albedoTextureIndex = material->BindBindlessTexture(albedoTexture);
+			material->WriteToBuffer(materialBufferName, "material.albedoTexture", albedoTextureIndex);
 		}
 	}
 	else
 	{
-		const int albedoTextureIndex = TextureManager::GetInstance().GetWhite()->GetBindlessIndex();
-		material->WriteToBuffer("GBufferMaterial", "material.albedoTexture", albedoTextureIndex);
+		const int albedoTextureIndex = material->BindBindlessTexture(TextureManager::GetInstance().GetWhite());
+		material->WriteToBuffer(materialBufferName, "material.albedoTexture", albedoTextureIndex);
 	}
 
 	if (gltfMaterial.normalTexture.has_value())
@@ -3827,17 +3904,17 @@ std::shared_ptr<Material> Serializer::GenerateMaterial(
 			directory,
 			materialName + "_Normal" + FileFormats::Png()))
 		{
-			const int normalTextureIndex = normalTexture->GetBindlessIndex();
-			material->WriteToBuffer("GBufferMaterial", "material.normalTexture", normalTextureIndex);
+			const int normalTextureIndex = material->BindBindlessTexture(normalTexture);
+			material->WriteToBuffer(materialBufferName, "material.normalTexture", normalTextureIndex);
 
 			constexpr int useNormalMap = 1;
-			material->WriteToBuffer("GBufferMaterial", "material.useNormalMap", useNormalMap);
+			material->WriteToBuffer(materialBufferName, "material.useNormalMap", useNormalMap);
 		}
 	}
 	else
 	{
-		const int normalTextureIndex = TextureManager::GetInstance().GetWhite()->GetBindlessIndex();
-		material->WriteToBuffer("GBufferMaterial", "material.normalTexture", normalTextureIndex);
+		const int normalTextureIndex = material->BindBindlessTexture(TextureManager::GetInstance().GetWhite());
+		material->WriteToBuffer(materialBufferName, "material.normalTexture", normalTextureIndex);
 	}
 
 	if (gltfMaterial.pbrData.metallicRoughnessTexture.has_value())
@@ -3849,14 +3926,14 @@ std::shared_ptr<Material> Serializer::GenerateMaterial(
 			directory,
 			materialName + "_MetallicRoughness" + FileFormats::Png()))
 		{
-			const int metallicRoughnessTextureIndex = metallicRoughnessTexture->GetBindlessIndex();
-			material->WriteToBuffer("GBufferMaterial", "material.metallicRoughnessTexture", metallicRoughnessTextureIndex);
+			const int metallicRoughnessTextureIndex = material->BindBindlessTexture(metallicRoughnessTexture);
+			material->WriteToBuffer(materialBufferName, "material.metallicRoughnessTexture", metallicRoughnessTextureIndex);
 		}
 	}
 	else
 	{
-		const int metallicRoughnessTextureIndex = TextureManager::GetInstance().GetWhite()->GetBindlessIndex();
-		material->WriteToBuffer("GBufferMaterial", "material.metallicRoughnessTexture", metallicRoughnessTextureIndex);
+		const int metallicRoughnessTextureIndex = material->BindBindlessTexture(TextureManager::GetInstance().GetWhite());
+		material->WriteToBuffer(materialBufferName, "material.metallicRoughnessTexture", metallicRoughnessTextureIndex);
 	}
 
 	if (gltfMaterial.occlusionTexture.has_value())
@@ -3868,14 +3945,14 @@ std::shared_ptr<Material> Serializer::GenerateMaterial(
 			directory,
 			materialName + "_Occlusion" + FileFormats::Png()))
 		{
-			const int aoTextureIndex = aoTexture->GetBindlessIndex();
-			material->WriteToBuffer("GBufferMaterial", "material.aoTexture", aoTextureIndex);
+			const int aoTextureIndex = material->BindBindlessTexture(aoTexture);
+			material->WriteToBuffer(materialBufferName, "material.aoTexture", aoTextureIndex);
 		}
 	}
 	else
 	{
-		const int aoTextureIndex = TextureManager::GetInstance().GetWhite()->GetBindlessIndex();
-		material->WriteToBuffer("GBufferMaterial", "material.aoTexture", aoTextureIndex);
+		const int aoTextureIndex = material->BindBindlessTexture(TextureManager::GetInstance().GetWhite());
+		material->WriteToBuffer(materialBufferName, "material.aoTexture", aoTextureIndex);
 	}
 
 	if (gltfMaterial.emissiveTexture.has_value())
@@ -3887,18 +3964,15 @@ std::shared_ptr<Material> Serializer::GenerateMaterial(
 			directory,
 			materialName + "_Emissive" + FileFormats::Png()))
 		{
-			const int emissiveTextureIndex = emissiveTexture->GetBindlessIndex();
-			material->WriteToBuffer("GBufferMaterial", "material.emissiveTexture", emissiveTextureIndex);
+			const int emissiveTextureIndex = material->BindBindlessTexture(emissiveTexture);
+			material->WriteToBuffer(materialBufferName, "material.emissiveTexture", emissiveTextureIndex);
 		}
 	}
 	else
 	{
-		const int emissiveTextureIndex = TextureManager::GetInstance().GetWhite()->GetBindlessIndex();
-		material->WriteToBuffer("GBufferMaterial", "material.emissiveTexture", emissiveTextureIndex);
+		const int emissiveTextureIndex =  material->BindBindlessTexture(TextureManager::GetInstance().GetWhite());
+		material->WriteToBuffer(materialBufferName, "material.emissiveTexture", emissiveTextureIndex);
 	}
-
-	material->GetBuffer("GBufferMaterial")->Flush();
-	uniformWriter->Flush();
 
 	Material::Save(material);
 
@@ -3936,24 +4010,12 @@ std::shared_ptr<Entity> Serializer::GenerateEntity(
 			}
 			else
 			{
-				if (r3d.mesh->GetType() == Mesh::Type::STATIC)
-				{
-					r3d.material = AsyncAssetLoader::GetInstance().SyncLoadMaterial(
-						std::filesystem::path("Materials") / "MeshBase.mat");
-				}
-				else if (r3d.mesh->GetType() == Mesh::Type::SKINNED)
-				{
-					r3d.material = AsyncAssetLoader::GetInstance().SyncLoadMaterial(
-						std::filesystem::path("Materials") / "MeshBaseSkinned.mat");
-				}
+				r3d.material = AsyncAssetLoader::GetInstance().SyncLoadMaterial(
+					std::filesystem::path("Materials") / "MeshBase.mat");
 			}
 
 			if (r3d.mesh->GetType() == Mesh::Type::SKINNED)
 			{
-				r3d.material->SetBaseMaterial(MaterialManager::GetInstance().LoadBaseMaterial(
-					std::filesystem::path("Materials") / "MeshBaseSkinned.basemat"));
-				Material::Save(r3d.material, false);
-
 				if (gltfNode.skinIndex)
 				{
 					std::shared_ptr<Entity> topEntity = scene->GetEntities().front();
@@ -3961,11 +4023,14 @@ std::shared_ptr<Entity> Serializer::GenerateEntity(
 					{
 						SkeletalAnimator& skeletalAnimator = topEntity->AddComponent<SkeletalAnimator>();
 						skeletalAnimator.SetSkeleton(skeletonsByIndex[*gltfNode.skinIndex]);
-						skeletalAnimator.SetSpeed(1.0f);
 
 						if (!animations.empty())
 						{
-							skeletalAnimator.SetSkeletalAnimation(animations[0]);
+							SkeletalAnimator::AnimationLayer layer;
+							layer.animation = animations[0];
+							layer.speed = 1.0f;
+							layer.weight = 1.0f;
+							skeletalAnimator.AddLayer(layer);
 						}
 					}
 
@@ -4156,9 +4221,10 @@ void Serializer::SerializePrefab(const std::filesystem::path& filepath, const st
 
 	SerializeEntity(out, entity, true, true);
 
-	std::ofstream fout(filepath);
-	fout << out.c_str();
-	fout.close();
+	WriteAtomically(filepath, std::ios::out, [&](std::ofstream& fout)
+	{
+		fout << out.c_str();
+	});
 
 	entity->SetPrefabFilepathUUID(GenerateFileUUID(filepath));
 }
@@ -4382,7 +4448,6 @@ void Serializer::DeserializeRenderer3D(const YAML::Node& in, const std::shared_p
 
 					std::shared_ptr<NextFrameEvent> event = std::make_shared<NextFrameEvent>(callback, Event::Type::OnNextFrame, nullptr);
 					EventSystem::GetInstance().SendEvent(event);
-					
 				}
 			});
 		}
@@ -4644,14 +4709,35 @@ void Serializer::SerializeSkeletalAnimator(YAML::Emitter& out, const std::shared
 		out << YAML::Key << "Skeleton" << YAML::Value << Utils::FindUuid(skeletalAnimator.GetSkeleton()->GetFilepath());
 	}
 
-	if (skeletalAnimator.GetSkeletalAnimation())
-	{
-		out << YAML::Key << "SkeletalAnimation" << YAML::Value << Utils::FindUuid(skeletalAnimator.GetSkeletalAnimation()->GetFilepath());
-	}
-
-	out << YAML::Key << "Speed" << YAML::Value << skeletalAnimator.GetSpeed();
-	out << YAML::Key << "CurrentTime" << YAML::Value << skeletalAnimator.GetCurrentTime();
 	out << YAML::Key << "ApplySkeletonTransform" << YAML::Value << skeletalAnimator.GetApplySkeletonTransform();
+	out << YAML::Key << "DrawDebugSkeleton" << YAML::Value << skeletalAnimator.GetDrawDebugSkeleton();
+
+	out << YAML::Key << "Layers" << YAML::Value << YAML::BeginSeq;
+	for (const SkeletalAnimator::AnimationLayer& layer : skeletalAnimator.GetLayers())
+	{
+		out << YAML::BeginMap;
+
+		if (layer.animation)
+		{
+			out << YAML::Key << "Animation" << YAML::Value << Utils::FindUuid(layer.animation->GetFilepath());
+		}
+
+		out << YAML::Key << "Weight"      << YAML::Value << layer.weight;
+		out << YAML::Key << "Speed"       << YAML::Value << layer.speed;
+		out << YAML::Key << "CurrentTime" << YAML::Value << layer.currentTime;
+		out << YAML::Key << "BlendMode"   << YAML::Value << static_cast<int>(layer.blendMode);
+		out << YAML::Key << "PlayInPlace" << YAML::Value << layer.playInPlace;
+
+		out << YAML::Key << "BoneMask" << YAML::Value << YAML::BeginSeq;
+		for (const uint32_t boneId : layer.boneMask)
+		{
+			out << boneId;
+		}
+		out << YAML::EndSeq;
+
+		out << YAML::EndMap;
+	}
+	out << YAML::EndSeq;
 
 	out << YAML::EndMap;
 }
@@ -4672,24 +4758,63 @@ void Serializer::DeserializeSkeletalAnimator(const YAML::Node& in, const std::sh
 			skeletalAnimator.SetSkeleton(MeshManager::GetInstance().LoadSkeleton(DeserializeFilepath(skeletonData.as<std::string>())));
 		}
 
-		if (const auto& skeletalAnimationData = skeletalAnimatorData["SkeletalAnimation"])
-		{
-			skeletalAnimator.SetSkeletalAnimation(MeshManager::GetInstance().LoadSkeletalAnimation(DeserializeFilepath(skeletalAnimationData.as<std::string>())));
-		}
-
-		if (const auto& speedData = skeletalAnimatorData["Speed"])
-		{
-			skeletalAnimator.SetSpeed(speedData.as<float>());
-		}
-
-		if (const auto& currentTimeData = skeletalAnimatorData["CurrentTime"])
-		{
-			skeletalAnimator.SetCurrentTime(currentTimeData.as<float>());
-		}
-
 		if (const auto& applySkeletonTransformData = skeletalAnimatorData["ApplySkeletonTransform"])
 		{
 			skeletalAnimator.SetApplySkeletonTransform(applySkeletonTransformData.as<bool>());
+		}
+
+		if (const auto& drawDebugSkeletonData = skeletalAnimatorData["DrawDebugSkeleton"])
+		{
+			skeletalAnimator.SetDrawDebugSkeleton(drawDebugSkeletonData.as<bool>());
+		}
+
+		if (const auto& layersData = skeletalAnimatorData["Layers"])
+		{
+			for (const auto& layerData : layersData)
+			{
+				SkeletalAnimator::AnimationLayer layer;
+
+				if (const auto& animData = layerData["Animation"])
+				{
+					layer.animation = MeshManager::GetInstance().LoadSkeletalAnimation(
+						DeserializeFilepath(animData.as<std::string>()));
+				}
+
+				if (const auto& weightData = layerData["Weight"])
+				{
+					layer.weight = weightData.as<float>();
+				}
+
+				if (const auto& speedData = layerData["Speed"])
+				{
+					layer.speed = speedData.as<float>();
+				}
+
+				if (const auto& currentTimeData = layerData["CurrentTime"])
+				{
+					layer.currentTime = currentTimeData.as<float>();
+				}
+
+				if (const auto& blendModeData = layerData["BlendMode"])
+				{
+					layer.blendMode = static_cast<SkeletalAnimator::AnimationLayer::BlendMode>(blendModeData.as<int>());
+				}
+
+				if (const auto& playInPlaceData = layerData["PlayInPlace"])
+				{
+					layer.playInPlace = playInPlaceData.as<bool>();
+				}
+
+				if (const auto& boneMaskData = layerData["BoneMask"])
+				{
+					for (const auto& boneIdData : boneMaskData)
+					{
+						layer.boneMask.push_back(boneIdData.as<uint32_t>());
+					}
+				}
+
+				skeletalAnimator.AddLayer(std::move(layer));
+			}
 		}
 	}
 }
@@ -5370,9 +5495,10 @@ void Serializer::SerializeScene(const std::filesystem::path& filepath, const std
 
 	out << YAML::EndMap;
 
-	std::ofstream fout(filepath);
-	fout << out.c_str();
-	fout.close();
+	WriteAtomically(filepath, std::ios::out, [&](std::ofstream& fout)
+	{
+		fout << out.c_str();
+	});
 
 	Logger::Log("Scene:" + filepath.string() + " has been saved!", BOLDGREEN);
 }
@@ -5463,6 +5589,16 @@ void Serializer::SerializeGraphicsSettings(const GraphicsSettings& graphicsSetti
 
 	out << YAML::BeginMap;
 
+	// HiZOcclusionCulling.
+	out << YAML::Key << "HiZOcclusionCulling";
+	out << YAML::Value << YAML::BeginMap;
+
+	out << YAML::Key << "IsEnabled" << YAML::Value << graphicsSettings.hiZOcclusionCulling.isEnabled;
+	out << YAML::Key << "DepthBias" << YAML::Value << graphicsSettings.hiZOcclusionCulling.depthBias;
+
+	out << YAML::EndMap;
+	//
+	
 	// SSAO.
 	out << YAML::Key << "SSAO";
 	out << YAML::Value << YAML::BeginMap;
@@ -5574,16 +5710,66 @@ void Serializer::SerializeGraphicsSettings(const GraphicsSettings& graphicsSetti
 
 	out << YAML::Key << "Gamma" << YAML::Value << graphicsSettings.postProcess.gamma;
 	out << YAML::Key << "ToneMapper" << YAML::Value << (int)graphicsSettings.postProcess.toneMapper;
-	out << YAML::Key << "FXAA" << YAML::Value << graphicsSettings.postProcess.fxaa;
+
+	out << YAML::EndMap;
+	//
+
+	// Antialiasing.
+	out << YAML::Key << "Antialiasing";
+	out << YAML::Value << YAML::BeginMap;
+
+	out << YAML::Key << "Mode" << YAML::Value << (int)graphicsSettings.antialiasing.mode;
+	out << YAML::Key << "TAAJitterScale" << YAML::Value << graphicsSettings.antialiasing.taa.jitterScale;
+	out << YAML::Key << "TAAVarianceGamma" << YAML::Value << graphicsSettings.antialiasing.taa.varianceGamma;
+	out << YAML::Key << "TAAMinBlendFactor" << YAML::Value << graphicsSettings.antialiasing.taa.minBlendFactor;
+	out << YAML::Key << "TAAMaxBlendFactor" << YAML::Value << graphicsSettings.antialiasing.taa.maxBlendFactor;
+
+	out << YAML::EndMap;
+	//
+
+	// Ray Traced Shadows.
+	out << YAML::Key << "RayTracedShadows";
+	out << YAML::Value << YAML::BeginMap;
+
+	out << YAML::Key << "DirectionalLight" << YAML::Value << graphicsSettings.rayTracing.shadows.directionalLight;
+	out << YAML::Key << "PointLight" << YAML::Value << graphicsSettings.rayTracing.shadows.pointLight;
+	out << YAML::Key << "SpotLight" << YAML::Value << graphicsSettings.rayTracing.shadows.spotLight;
+
+	out << YAML::EndMap;
+	//
+
+	// Ray Traced Reflections.
+	out << YAML::Key << "RayTracedReflections";
+	out << YAML::Value << YAML::BeginMap;
+
+	out << YAML::Key << "IsRayTraced" << YAML::Value << graphicsSettings.rayTracing.reflections.isRayTraced;
+
+	out << YAML::EndMap;
+	//
+
+	// DDGI.
+	out << YAML::Key << "DDGI";
+	out << YAML::Value << YAML::BeginMap;
+
+	out << YAML::Key << "IsEnabled" << YAML::Value << graphicsSettings.ddgi.isEnabled;
+	out << YAML::Key << "VisualizeProbes" << YAML::Value << graphicsSettings.ddgi.visualizeProbes;
+	out << YAML::Key << "GridX" << YAML::Value << graphicsSettings.ddgi.gridX;
+	out << YAML::Key << "GridY" << YAML::Value << graphicsSettings.ddgi.gridY;
+	out << YAML::Key << "GridZ" << YAML::Value << graphicsSettings.ddgi.gridZ;
+	out << YAML::Key << "ProbeSpacing" << YAML::Value << graphicsSettings.ddgi.probeSpacing;
+	out << YAML::Key << "RaysPerProbe" << YAML::Value << graphicsSettings.ddgi.raysPerProbe;
+	out << YAML::Key << "FollowCamera" << YAML::Value << graphicsSettings.ddgi.followCamera;
+	out << YAML::Key << "FixedOrigin" << YAML::Value << graphicsSettings.ddgi.fixedOrigin;
 
 	out << YAML::EndMap;
 	//
 
 	out << YAML::EndMap;
 
-	std::ofstream fout(graphicsSettings.GetFilepath());
-	fout << out.c_str();
-	fout.close();
+	WriteAtomically(graphicsSettings.GetFilepath(), std::ios::out, [&](std::ofstream& fout)
+	{
+		fout << out.c_str();
+	});
 }
 
 GraphicsSettings Serializer::DeserializeGraphicsSettings(const std::filesystem::path& filepath)
@@ -5609,6 +5795,19 @@ GraphicsSettings Serializer::DeserializeGraphicsSettings(const std::filesystem::
 		FATAL_ERROR(filepath.string() + ":Failed to load yaml file! The file doesn't contain data or doesn't exist!");
 	}
 
+	if (const auto& hiZOcclusionCullingData = data["HiZOcclusionCulling"])
+	{
+		if (const auto& isEnabledData = hiZOcclusionCullingData["IsEnabled"])
+		{
+			graphicsSettings.hiZOcclusionCulling.isEnabled = isEnabledData.as<bool>();
+		}
+
+		if (const auto& depthBiasData = hiZOcclusionCullingData["DepthBias"])
+		{
+			graphicsSettings.hiZOcclusionCulling.depthBias = depthBiasData.as<float>();
+		}
+	}
+	
 	if (const auto& ssaoData = data["SSAO"])
 	{
 		if (const auto& isEnabledData = ssaoData["IsEnabled"])
@@ -5888,9 +6087,117 @@ GraphicsSettings Serializer::DeserializeGraphicsSettings(const std::filesystem::
 			graphicsSettings.postProcess.toneMapper = (GraphicsSettings::PostProcess::ToneMapper)toneMapperData.as<int>();
 		}
 
-		if (const auto& fxaaData = postProcessData["FXAA"])
+		// Migrate legacy FXAA bool → Antialiasing mode (only if new Antialiasing block absent)
+		if (!data["Antialiasing"])
 		{
-			graphicsSettings.postProcess.fxaa = fxaaData.as<bool>();
+			if (const auto& fxaaData = postProcessData["FXAA"])
+			{
+				graphicsSettings.antialiasing.mode = fxaaData.as<bool>()
+					? GraphicsSettings::Antialiasing::Mode::FXAA
+					: GraphicsSettings::Antialiasing::Mode::NONE;
+			}
+		}
+	}
+
+	if (const auto& aaData = data["Antialiasing"])
+	{
+		if (const auto& modeData = aaData["Mode"])
+		{
+			graphicsSettings.antialiasing.mode = (GraphicsSettings::Antialiasing::Mode)modeData.as<int>();
+		}
+
+		if (const auto& v = aaData["TAAJitterScale"])
+		{
+			graphicsSettings.antialiasing.taa.jitterScale = v.as<float>();
+		}
+
+		if (const auto& v = aaData["TAAVarianceGamma"])
+		{
+			graphicsSettings.antialiasing.taa.varianceGamma = v.as<float>();
+		}
+
+		if (const auto& v = aaData["TAAMinBlendFactor"])
+		{
+			graphicsSettings.antialiasing.taa.minBlendFactor = v.as<float>();
+		}
+
+		if (const auto& v = aaData["TAAMaxBlendFactor"])
+		{
+			graphicsSettings.antialiasing.taa.maxBlendFactor = v.as<float>();
+		}
+	}
+
+	if (const auto& rayTracedShadowsData = data["RayTracedShadows"])
+	{
+		if (const auto& directionalLightData = rayTracedShadowsData["DirectionalLight"])
+		{
+			graphicsSettings.rayTracing.shadows.directionalLight = directionalLightData.as<bool>();
+		}
+
+		if (const auto& pointLightData = rayTracedShadowsData["PointLight"])
+		{
+			graphicsSettings.rayTracing.shadows.pointLight = pointLightData.as<bool>();
+		}
+
+		if (const auto& spotLightData = rayTracedShadowsData["SpotLight"])
+		{
+			graphicsSettings.rayTracing.shadows.spotLight = spotLightData.as<bool>();
+		}
+	}
+
+	if (const auto& rayTracedReflectionsData = data["RayTracedReflections"])
+	{
+		if (const auto& isRayTracedData = rayTracedReflectionsData["IsRayTraced"])
+		{
+			graphicsSettings.rayTracing.reflections.isRayTraced = isRayTracedData.as<bool>();
+		}
+	}
+
+	if (const auto& ddgiData = data["DDGI"])
+	{
+		if (const auto& isEnabledData = ddgiData["IsEnabled"])
+		{
+			graphicsSettings.ddgi.isEnabled = isEnabledData.as<bool>();
+		}
+
+		if (const auto& visualizeProbesData = ddgiData["VisualizeProbes"])
+		{
+			graphicsSettings.ddgi.visualizeProbes = visualizeProbesData.as<bool>();
+		}
+
+		if (const auto& gridXData = ddgiData["GridX"])
+		{
+			graphicsSettings.ddgi.gridX = glm::clamp(gridXData.as<int>(), 1, 64);
+		}
+
+		if (const auto& gridYData = ddgiData["GridY"])
+		{
+			graphicsSettings.ddgi.gridY = glm::clamp(gridYData.as<int>(), 1, 32);
+		}
+
+		if (const auto& gridZData = ddgiData["GridZ"])
+		{
+			graphicsSettings.ddgi.gridZ = glm::clamp(gridZData.as<int>(), 1, 64);
+		}
+
+		if (const auto& probeSpacingData = ddgiData["ProbeSpacing"])
+		{
+			graphicsSettings.ddgi.probeSpacing = glm::clamp(probeSpacingData.as<float>(), 0.1f, 10.0f);
+		}
+
+		if (const auto& raysPerProbeData = ddgiData["RaysPerProbe"])
+		{
+			graphicsSettings.ddgi.raysPerProbe = glm::clamp(raysPerProbeData.as<int>(), 8, 512);
+		}
+
+		if (const auto& followCameraData = ddgiData["FollowCamera"])
+		{
+			graphicsSettings.ddgi.followCamera = followCameraData.as<bool>();
+		}
+
+		if (const auto& fixedOriginData = ddgiData["FixedOrigin"])
+		{
+			graphicsSettings.ddgi.fixedOrigin = fixedOriginData.as<glm::vec3>();
 		}
 	}
 
@@ -5914,9 +6221,10 @@ void Serializer::SerializeTextureMeta(const Texture::Meta& meta)
 
 	out << YAML::EndMap;
 
-	std::ofstream fout(meta.filepath);
-	fout << out.c_str();
-	fout.close();
+	WriteAtomically(meta.filepath, std::ios::out, [&](std::ofstream& fout)
+	{
+		fout << out.c_str();
+	});
 }
 
 std::optional<Texture::Meta> Serializer::DeserializeTextureMeta(const std::filesystem::path& filepath)
@@ -5991,9 +6299,10 @@ void Serializer::SerializeThumbnailMeta(const std::filesystem::path& filepath, c
 		Logger::Error("Failed to save thumbnail meta, filepath is empty!");
 	}
 
-	std::ofstream out(filepath, std::ifstream::binary);
-	out.write((char*)&lastWriteTime, static_cast<std::streamsize>(sizeof(lastWriteTime)));
-	out.close();
+	WriteAtomically(filepath, std::ios::binary, [&](std::ofstream& out)
+	{
+		out.write((char*)&lastWriteTime, static_cast<std::streamsize>(sizeof(lastWriteTime)));
+	});
 }
 
 size_t Serializer::DeserializeThumbnailMeta(const std::filesystem::path& filepath)
@@ -6040,21 +6349,20 @@ void Serializer::SerializeAnimationTrack(
 		return;
 	}
 
-	std::ofstream out(filepath, std::ios::binary);
-
-	size_t keyframeCount = animationTrack.keyframes.size();
-	out.write(reinterpret_cast<const char*>(&keyframeCount), sizeof(size_t));
-
-	for (const auto& keyframe : animationTrack.keyframes)
+	WriteAtomically(filepath, std::ios::binary, [&](std::ofstream& out)
 	{
-		out.write(reinterpret_cast<const char*>(&keyframe.time), sizeof(float));
-		out.write(reinterpret_cast<const char*>(&keyframe.translation), sizeof(glm::vec3));
-		out.write(reinterpret_cast<const char*>(&keyframe.rotation), sizeof(glm::vec3));
-		out.write(reinterpret_cast<const char*>(&keyframe.scale), sizeof(glm::vec3));
-		out.write(reinterpret_cast<const char*>(&keyframe.interpType), sizeof(EntityAnimator::Keyframe::InterpolationType));
-	}
+		size_t keyframeCount = animationTrack.keyframes.size();
+		out.write(reinterpret_cast<const char*>(&keyframeCount), sizeof(size_t));
 
-	out.close();
+		for (const auto& keyframe : animationTrack.keyframes)
+		{
+			out.write(reinterpret_cast<const char*>(&keyframe.time), sizeof(float));
+			out.write(reinterpret_cast<const char*>(&keyframe.translation), sizeof(glm::vec3));
+			out.write(reinterpret_cast<const char*>(&keyframe.rotation), sizeof(glm::vec3));
+			out.write(reinterpret_cast<const char*>(&keyframe.scale), sizeof(glm::vec3));
+			out.write(reinterpret_cast<const char*>(&keyframe.interpType), sizeof(EntityAnimator::Keyframe::InterpolationType));
+		}
+	});
 }
 
 std::optional<EntityAnimator::AnimationTrack> Serializer::DeserializeAnimationTrack(const std::filesystem::path& filepath)

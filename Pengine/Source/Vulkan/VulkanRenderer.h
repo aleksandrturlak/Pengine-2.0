@@ -67,16 +67,34 @@ namespace Pengine::Vk
 			const size_t instanceBufferOffset,
 			void* frame) override;
 
+		virtual void Draw(
+			const uint32_t vertexCount,
+			const uint32_t instanceCount,
+			const uint32_t firstVertex,
+			const uint32_t firstInstance,
+			void* frame) override;
+
 		virtual void DrawIndexed(
 			const uint32_t indexCount,
-			const uint32_t instanceCount,
+    		const uint32_t instanceCount,
+    		const uint32_t firstIndex,
+    		const int32_t vertexOffset,
+    		const uint32_t firstInstance,
+			void* frame) override;
+
+		virtual void DrawIndirectCount(
+			const NativeHandle indirectBuffer,
+			const size_t offset,
+			const NativeHandle countBuffer,
+			const size_t countBufferOffset,
+			const uint32_t maxDrawCount,
 			void* frame) override;
 
 		virtual void Dispatch(
 			const glm::uvec3& groupCount,
 			void* frame) override;
 
-		virtual void MemoryBarrierFragmentReadWrite(void* frame) override;
+		virtual void PipelineBarrier(const BarrierBatch& batch, void* frame) override;
 
 		virtual void BeginCommandLabel(
 			const std::string& name,
@@ -88,6 +106,26 @@ namespace Pengine::Vk
 		virtual void ClearDepthStencilImage(
 			std::shared_ptr<Texture> texture,
 			const RenderPass::ClearDepth& clearDepth,
+			void* frame) override;
+
+		virtual void ClearColorImage(
+			std::shared_ptr<Texture> texture,
+			const glm::vec4& clearColor,
+			void* frame) override;
+
+		virtual void FillBuffer(
+			NativeHandle buffer,
+			const size_t size,
+			const size_t offset,
+			uint32_t value,
+			void* frame) override;
+
+		virtual void PushConstants(
+			const std::shared_ptr<Pipeline>& pipeline,
+			ShaderStage stageFlags,
+			uint32_t offset,
+			uint32_t size,
+			const void* data,
 			void* frame) override;
 	};
 

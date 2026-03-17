@@ -4,6 +4,7 @@
 #include "LineRenderer.h"
 #include "SSAORenderer.h"
 #include "CSMRenderer.h"
+#include "DDGIRenderer.h"
 
 #include "../Graphics/ComputePass.h"
 #include "../Graphics/RenderPass.h"
@@ -53,7 +54,13 @@ namespace Pengine
 			const std::vector<Pipeline::DescriptorSetIndexType>& descriptorSetIndexTypes,
 			std::shared_ptr<UniformWriter> objectUniformWriter = nullptr);
 
+		static glm::mat4 JitteredProjectionMat4(const RenderPass::RenderCallbackInfo& renderInfo);
+
 		static void PrepareUniformsPerViewportBeforeDraw(const RenderPass::RenderCallbackInfo& renderInfo);
+
+		static void ProcessEntities(const RenderPass::RenderCallbackInfo& renderInfo);
+
+		static void ProcessLights(const RenderPass::RenderCallbackInfo& renderInfo);
 
 		std::shared_ptr<Texture> ScaleTexture(
 			std::shared_ptr<Texture> sourceTexture,
@@ -77,13 +84,52 @@ namespace Pengine
 		using MeshesByMaterial = std::unordered_map<std::shared_ptr<class Material>, EntitiesByMesh>;
 		using RenderableEntities = std::unordered_map<std::shared_ptr<class BaseMaterial>, MeshesByMaterial>;
 
-		struct VisibleData : public CustomData
+		struct MultiPassLightData : public CustomData
 		{
-			std::vector<entt::entity> visibleEntities;
+			struct PointLight
+			{
+				std::array<glm::mat4, 6> viewProjectionMat4;
+				entt::entity entity;
+				uint32_t index;
+			};
+
+			struct SpotLight
+			{
+				glm::mat4 viewProjectionMat4;
+				entt::entity entity;
+				uint32_t index;
+			};
+
+			std::vector<PointLight> pointLights;
+			std::vector<SpotLight> spotLights;
+		};
+
+		struct MultiPassEntityData : public CustomData
+		{
+			std::shared_ptr<Buffer> entityBuffer;
+			std::shared_ptr<UniformWriter> entityUniformWriter;
+			
+			uint32_t totalEntityCount = 0;
+		
+			struct PassData
+			{
+				struct PipelineInfo
+				{
+					uint32_t maxDrawCount = 0;
+					int id = -1;
+				};
+				
+				std::unordered_map<std::shared_ptr<Pipeline>, PipelineInfo> pipelineInfos;
+				std::map<int, std::shared_ptr<Pipeline>> sortedPipelines;
+				uint32_t entityCount = 0;
+			};
+			
+			std::unordered_map<std::string, PassData> passesByName;
 		};
 
 		struct InstanceData
 		{
+			size_t materialBuffer;
 			glm::mat4 transform;
 			glm::mat3 inverseTransform;
 		};
@@ -97,7 +143,9 @@ namespace Pengine
 			std::vector<NativeHandle>& vertexBuffers,
 			std::vector<size_t>& vertexBufferOffsets);
 
-		void CreateZPrePass();
+		void CreateComputeIndirectDrawGBuffer();
+
+		void CreateComputeIndirectDrawCSM();
 
 		void CreateGBuffer();
 
@@ -119,7 +167,17 @@ namespace Pengine
 
 		void CreateSSR();
 
-		void CreateSSRBlur();
+		void CreateBlurReflections();
+
+		void CreateRayTracedReflections();
+
+		void CreateDDGIProbeOffset();
+
+		void CreateDDGIProbeUpdate();
+
+		void CreateDDGIProbeBlend();
+
+		void CreateDDGIProbeDebug();
 
 		void CreateSSAO();
 
@@ -129,6 +187,10 @@ namespace Pengine
 
 		void CreateSSSBlur();
 
+		void CreateHiZPyramid();
+
+		void CreateGPUSkinningPass();
+
 		void CreateUI();
 
 		void CreateDecalPass();
@@ -136,6 +198,18 @@ namespace Pengine
 		void CreateToneMappingPass();
 
 		void CreateAntiAliasingAndComposePass();
+
+		void CreateMotionVectorsPass();
+
+		void CreateTAAPass();
+
+		static std::shared_ptr<class UniformWriter> ResolveUniformWriter(
+			Pipeline::DescriptorSetIndexType type,
+			const std::string& name,
+			const std::shared_ptr<class BaseMaterial>& baseMaterial,
+			const std::shared_ptr<class Material>& material,
+			const RenderPass::RenderCallbackInfo& renderInfo,
+			const std::shared_ptr<class UniformWriter>& objectUniformWriter);
 
 		static bool FlushUniformWriters(const std::vector<std::shared_ptr<class UniformWriter>>& uniformWriters);
 
@@ -150,30 +224,31 @@ namespace Pengine
 			std::shared_ptr<class Pipeline> pipeline,
 			Pipeline::DescriptorSetIndexType descriptorSetIndexType,
 			const std::string& uniformWriterName,
-			const std::string& uniformWriterIndexByName = {});
+			const std::string& uniformWriterIndexByName = {},
+			const bool isMultiBuffered = true);
 
-		static std::shared_ptr<class UniformWriter> GetOrCreateRendererUniformWriter(
-			std::shared_ptr<class RenderView> renderView,
-			std::shared_ptr<class Pipeline> pipeline,
-			const std::string& uniformWriterName,
-			const std::string& uniformWriterIndexByName = {});
-
-		static std::shared_ptr<class Buffer> GetOrCreateRenderBuffer(
+		static std::shared_ptr<class Buffer> GetOrCreateBuffer(
 			std::shared_ptr<class RenderView> renderView,
 			std::shared_ptr<class UniformWriter> uniformWriter,
 			const std::string& bufferName,
-			const std::string& setBufferName = {});
-
-		static void UpdateSkeletalAnimator(
-			class SkeletalAnimator* skeletalAnimator,
-			std::shared_ptr<class BaseMaterial> baseMaterial,
-			std::shared_ptr<class Pipeline> pipeline);
+			const std::string& setBufferName = {},
+			const std::vector<Buffer::Usage>& usages = { Buffer::Usage::UNIFORM_BUFFER },
+			const MemoryType memoryType = MemoryType::CPU,
+			const bool isMultiBuffered = false);
 
 		static size_t GetLod(
 			const glm::vec3& cameraPosition,
 			const glm::vec3& meshPosition,
 			const float radius,
 			const std::vector<Mesh::Lod>& distanceThresholds);
+
+		struct TAAData : public CustomData
+		{
+			uint32_t jitterIndex = 0;
+			glm::vec2 jitterXY = {};
+			glm::vec2 previousJitterXY = {};
+			uint32_t frameIndex = 0;
+		};
 
 		std::unordered_map<std::string, std::shared_ptr<Pass>> m_PassesByName;
 	};

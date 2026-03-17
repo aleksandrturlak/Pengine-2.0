@@ -73,6 +73,7 @@ struct ImGui_ImplVulkan_InitInfo
     VkRenderPass                    RenderPass;                   // Ignored if using dynamic rendering
     uint32_t                        MinImageCount;                // >= 2
     uint32_t                        ImageCount;                   // >= MinImageCount
+    uint32_t                        FrameInFlightCount;           // Number of simultaneous in-flight frames (default: 2)
     VkSampleCountFlagBits           MSAASamples;                  // 0 defaults to VK_SAMPLE_COUNT_1_BIT
 
     // (Optional)
@@ -171,12 +172,17 @@ struct ImGui_ImplVulkanH_Window
     bool                UseDynamicRendering;
     bool                ClearEnable;
     VkClearValue        ClearValue;
-    uint32_t            FrameIndex;             // Current frame being rendered to (0 <= FrameIndex < FrameInFlightCount)
-    uint32_t            ImageCount;             // Number of simultaneous in-flight frames (returned by vkGetSwapchainImagesKHR, usually derived from min_image_count)
+    uint32_t            FrameIndex;             // Current in-flight frame being render (0 <= FrameIndex < FrameInFlightCount)
+    uint32_t            ImageIndex;             // Currently acquired swapchain image index
+    uint32_t            ImageCount;             // Number of swapchain images (returned by vkGetSwapchainImagesKHR)
+    uint32_t            FrameInFlightCount;     // Number of simultaneous in-flight frames
     uint32_t            SemaphoreCount;         // Number of simultaneous in-flight frames + 1, to be able to use it in vkAcquireNextImageKHR
     uint32_t            SemaphoreIndex;         // Current set of swapchain wait semaphores we're using (needs to be distinct from per frame data)
     ImGui_ImplVulkanH_Frame*            Frames;
     ImGui_ImplVulkanH_FrameSemaphores*  FrameSemaphores;
+    VkImage*                            Backbuffers;        // All swapchain backbuffer images
+    VkImageView*                        BackbufferViews;    // Image views for all swapchain images
+    VkFramebuffer*                      Framebuffers;       // Framebuffers for all swapchain images
 
     ImGui_ImplVulkanH_Window()
     {

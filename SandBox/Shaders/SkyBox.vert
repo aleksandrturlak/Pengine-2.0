@@ -4,11 +4,8 @@ layout(location = 0) in vec3 positionA;
 
 layout(location = 0) out vec3 uv;
 
-#include "Shaders/Includes/Camera.h"
-layout(set = 0, binding = 0) uniform GlobalBuffer
-{
-	Camera camera;
-};
+#include "Shaders/Includes/SetMacros/CameraSet.h"
+CAMERA_SET(0)
 
 void main()
 {

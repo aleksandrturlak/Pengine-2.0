@@ -39,7 +39,7 @@ void VulkanRenderer::Render(
 	const VulkanFrameInfo* vkFrame = static_cast<VulkanFrameInfo*>(frame);
 	
 	const std::shared_ptr<VulkanGraphicsPipeline>& vkPipeline = std::static_pointer_cast<VulkanGraphicsPipeline>(pipeline);
-	vkPipeline->Bind(vkFrame->CommandBuffer);
+	vkCmdBindPipeline(vkFrame->CommandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, vkPipeline->GetPipeline());
 
 	if (!uniformWriters.empty())
 	{
@@ -57,7 +57,7 @@ void VulkanRenderer::Render(
 	}
 
 	BindVertexBuffers(vertexBuffers, vertexBufferOffsets, indexBuffer, indexBufferOffset, instanceBuffer, instanceBufferOffset, frame);
-	DrawIndexed(indexCount, count, frame);
+	DrawIndexed(indexCount, count, 0, 0, 0, frame);
 }
 
 void VulkanRenderer::Compute(
@@ -71,7 +71,7 @@ void VulkanRenderer::Compute(
 	const VulkanFrameInfo* vkFrame = static_cast<VulkanFrameInfo*>(frame);
 
 	const std::shared_ptr<VulkanComputePipeline>& vkPipeline = std::dynamic_pointer_cast<VulkanComputePipeline>(pipeline);
-	vkPipeline->Bind(vkFrame->CommandBuffer);
+	vkCmdBindPipeline(vkFrame->CommandBuffer, VK_PIPELINE_BIND_POINT_COMPUTE, vkPipeline->GetPipeline());
 
 	if (!uniformWriters.empty())
 	{
@@ -94,7 +94,21 @@ void VulkanRenderer::BindPipeline(
 	void* frame)
 {
 	const VulkanFrameInfo* vkFrame = static_cast<VulkanFrameInfo*>(frame);
-	std::static_pointer_cast<VulkanGraphicsPipeline>(pipeline)->Bind(vkFrame->CommandBuffer);
+	switch (pipeline->GetType())
+	{
+	case Pipeline::Type::GRAPHICS:
+		vkCmdBindPipeline(
+			vkFrame->CommandBuffer,
+			VK_PIPELINE_BIND_POINT_GRAPHICS,
+			std::static_pointer_cast<VulkanGraphicsPipeline>(pipeline)->GetPipeline());
+		break;
+	case Pipeline::Type::COMPUTE:
+		vkCmdBindPipeline(
+			vkFrame->CommandBuffer,
+			VK_PIPELINE_BIND_POINT_COMPUTE,
+			std::static_pointer_cast<VulkanComputePipeline>(pipeline)->GetPipeline());
+		break;
+	}
 }
 
 void VulkanRenderer::BindUniformWriters(
@@ -161,17 +175,56 @@ void VulkanRenderer::BindVertexBuffers(
 	vkCmdBindIndexBuffer(vkFrame->CommandBuffer, *(VkBuffer*)&indexBuffer, indexBufferOffset, VK_INDEX_TYPE_UINT32);
 }
 
+void VulkanRenderer::Draw(
+	const uint32_t vertexCount,
+	const uint32_t instanceCount,
+	const uint32_t firstVertex,
+	const uint32_t firstInstance,
+	void *frame)
+{
+	PROFILER_SCOPE(__FUNCTION__);
+
+	const VulkanFrameInfo* vkFrame = static_cast<VulkanFrameInfo*>(frame);
+	vkCmdDraw(vkFrame->CommandBuffer, vertexCount, instanceCount, firstVertex, firstInstance);
+	drawCallCount++;
+	triangleCount += (vertexCount / 3) * instanceCount;
+}
+
 void VulkanRenderer::DrawIndexed(
 	const uint32_t indexCount,
 	const uint32_t instanceCount,
+	const uint32_t firstIndex,
+	const int32_t vertexOffset,
+	const uint32_t firstInstance,
 	void* frame)
 {
 	PROFILER_SCOPE(__FUNCTION__);
 
 	const VulkanFrameInfo* vkFrame = static_cast<VulkanFrameInfo*>(frame);
-	vkCmdDrawIndexed(vkFrame->CommandBuffer, indexCount, instanceCount, 0, 0, 0);
+	vkCmdDrawIndexed(vkFrame->CommandBuffer, indexCount, instanceCount, firstIndex, vertexOffset, firstInstance);
 	drawCallCount++;
 	triangleCount += (indexCount / 3) * instanceCount;
+}
+
+void VulkanRenderer::DrawIndirectCount(
+	const NativeHandle indirectBuffer,
+	const size_t offset,
+	const NativeHandle countBuffer,
+	const size_t countBufferOffset,
+	const uint32_t maxDrawCount,
+	void* frame)
+{
+	PROFILER_SCOPE(__FUNCTION__);
+
+	const VulkanFrameInfo* vkFrame = static_cast<VulkanFrameInfo*>(frame);
+	vkCmdDrawIndirectCount(
+		vkFrame->CommandBuffer,
+		*(VkBuffer*)&indirectBuffer,
+		offset * sizeof(VkDrawIndirectCommand),
+		*(VkBuffer*)&countBuffer,
+		countBufferOffset * sizeof(uint32_t),
+		maxDrawCount,
+		sizeof(VkDrawIndirectCommand));
 }
 
 void VulkanRenderer::Dispatch(
@@ -184,27 +237,127 @@ void VulkanRenderer::Dispatch(
 	vkCmdDispatch(vkFrame->CommandBuffer, groupCount.x, groupCount.y, groupCount.z);
 }
 
-void VulkanRenderer::MemoryBarrierFragmentReadWrite(void* frame)
+static VkPipelineStageFlags ToVkStage(PipelineStage stage)
+{
+	VkPipelineStageFlags flags = 0;
+	if (static_cast<uint32_t>(stage & PipelineStage::DrawIndirect))    flags |= VK_PIPELINE_STAGE_DRAW_INDIRECT_BIT;
+	if (static_cast<uint32_t>(stage & PipelineStage::VertexInput))     flags |= VK_PIPELINE_STAGE_VERTEX_INPUT_BIT;
+	if (static_cast<uint32_t>(stage & PipelineStage::VertexShader))    flags |= VK_PIPELINE_STAGE_VERTEX_SHADER_BIT;
+	if (static_cast<uint32_t>(stage & PipelineStage::FragmentShader))  flags |= VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT;
+	if (static_cast<uint32_t>(stage & PipelineStage::ColorAttachment)) flags |= VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
+	if (static_cast<uint32_t>(stage & PipelineStage::EarlyDepth))      flags |= VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT;
+	if (static_cast<uint32_t>(stage & PipelineStage::LateDepth))       flags |= VK_PIPELINE_STAGE_LATE_FRAGMENT_TESTS_BIT;
+	if (static_cast<uint32_t>(stage & PipelineStage::ComputeShader))   flags |= VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT;
+	if (static_cast<uint32_t>(stage & PipelineStage::Transfer))        flags |= VK_PIPELINE_STAGE_TRANSFER_BIT;
+	if (static_cast<uint32_t>(stage & PipelineStage::Host))            flags |= VK_PIPELINE_STAGE_HOST_BIT;
+	if (static_cast<uint32_t>(stage & PipelineStage::AllGraphics))              flags |= VK_PIPELINE_STAGE_ALL_GRAPHICS_BIT;
+	if (static_cast<uint32_t>(stage & PipelineStage::AllCommands))              flags |= VK_PIPELINE_STAGE_ALL_COMMANDS_BIT;
+	if (static_cast<uint32_t>(stage & PipelineStage::AccelerationStructureBuild)) flags |= VK_PIPELINE_STAGE_ACCELERATION_STRUCTURE_BUILD_BIT_KHR;
+	return flags;
+}
+
+static VkAccessFlags ToVkAccess(Access access)
+{
+	VkAccessFlags flags = 0;
+	if (static_cast<uint32_t>(access & Access::IndirectCommandRead))  flags |= VK_ACCESS_INDIRECT_COMMAND_READ_BIT;
+	if (static_cast<uint32_t>(access & Access::VertexAttributeRead))  flags |= VK_ACCESS_VERTEX_ATTRIBUTE_READ_BIT;
+	if (static_cast<uint32_t>(access & Access::UniformRead))          flags |= VK_ACCESS_UNIFORM_READ_BIT;
+	if (static_cast<uint32_t>(access & Access::ShaderRead))           flags |= VK_ACCESS_SHADER_READ_BIT;
+	if (static_cast<uint32_t>(access & Access::ShaderWrite))          flags |= VK_ACCESS_SHADER_WRITE_BIT;
+	if (static_cast<uint32_t>(access & Access::ColorAttachmentRead))  flags |= VK_ACCESS_COLOR_ATTACHMENT_READ_BIT;
+	if (static_cast<uint32_t>(access & Access::ColorAttachmentWrite)) flags |= VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
+	if (static_cast<uint32_t>(access & Access::DepthAttachmentRead))  flags |= VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_READ_BIT;
+	if (static_cast<uint32_t>(access & Access::DepthAttachmentWrite)) flags |= VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT;
+	if (static_cast<uint32_t>(access & Access::TransferRead))         flags |= VK_ACCESS_TRANSFER_READ_BIT;
+	if (static_cast<uint32_t>(access & Access::TransferWrite))        flags |= VK_ACCESS_TRANSFER_WRITE_BIT;
+	if (static_cast<uint32_t>(access & Access::HostRead))             flags |= VK_ACCESS_HOST_READ_BIT;
+	if (static_cast<uint32_t>(access & Access::HostWrite))            flags |= VK_ACCESS_HOST_WRITE_BIT;
+	if (static_cast<uint32_t>(access & Access::MemoryRead))                    flags |= VK_ACCESS_MEMORY_READ_BIT;
+	if (static_cast<uint32_t>(access & Access::MemoryWrite))                   flags |= VK_ACCESS_MEMORY_WRITE_BIT;
+	if (static_cast<uint32_t>(access & Access::AccelerationStructureRead))     flags |= VK_ACCESS_ACCELERATION_STRUCTURE_READ_BIT_KHR;
+	if (static_cast<uint32_t>(access & Access::AccelerationStructureWrite))    flags |= VK_ACCESS_ACCELERATION_STRUCTURE_WRITE_BIT_KHR;
+	return flags;
+}
+
+static VkImageLayout ToVkLayout(ImageLayout layout)
+{
+	switch (layout)
+	{
+	case ImageLayout::Undefined:        return VK_IMAGE_LAYOUT_UNDEFINED;
+	case ImageLayout::General:          return VK_IMAGE_LAYOUT_GENERAL;
+	case ImageLayout::ColorAttachment:  return VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+	case ImageLayout::DepthAttachment:  return VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
+	case ImageLayout::ShaderReadOnly:   return VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+	case ImageLayout::TransferSrc:      return VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL;
+	case ImageLayout::TransferDst:      return VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
+	case ImageLayout::Present:          return VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
+	default:                            return VK_IMAGE_LAYOUT_UNDEFINED;
+	}
+}
+
+void VulkanRenderer::PipelineBarrier(const BarrierBatch& batch, void* frame)
 {
 	PROFILER_SCOPE(__FUNCTION__);
 
 	const VulkanFrameInfo* vkFrame = static_cast<VulkanFrameInfo*>(frame);
 
-	VkMemoryBarrier memoryBarrier{};
-	memoryBarrier.sType = VK_STRUCTURE_TYPE_MEMORY_BARRIER;
-	memoryBarrier.srcAccessMask = VK_ACCESS_SHADER_READ_BIT | VK_ACCESS_SHADER_WRITE_BIT;
-	memoryBarrier.dstAccessMask = VK_ACCESS_SHADER_READ_BIT | VK_ACCESS_SHADER_WRITE_BIT;
+	std::vector<VkMemoryBarrier> memoryBarriers;
+	memoryBarriers.reserve(batch.memory.size());
+	for (const MemoryBarrierDesc& memory : batch.memory)
+	{
+		VkMemoryBarrier barrier{};
+		barrier.sType = VK_STRUCTURE_TYPE_MEMORY_BARRIER;
+		barrier.srcAccessMask = ToVkAccess(memory.srcAccess);
+		barrier.dstAccessMask = ToVkAccess(memory.dstAccess);
+		memoryBarriers.push_back(barrier);
+	}
+
+	std::vector<VkBufferMemoryBarrier> bufferBarriers;
+	bufferBarriers.reserve(batch.buffers.size());
+	for (const BufferBarrierDesc& buffer : batch.buffers)
+	{
+		VkBufferMemoryBarrier barrier{};
+		barrier.sType = VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER;
+		barrier.srcAccessMask = ToVkAccess(buffer.srcAccess);
+		barrier.dstAccessMask = ToVkAccess(buffer.dstAccess);
+		barrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+		barrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+		barrier.buffer = *(VkBuffer*)&buffer.buffer;
+		barrier.offset = buffer.offset;
+		barrier.size = buffer.size;
+		bufferBarriers.push_back(barrier);
+	}
+
+	std::vector<VkImageMemoryBarrier> imageBarriers;
+	imageBarriers.reserve(batch.images.size());
+	for (const ImageBarrierDesc& image : batch.images)
+	{
+		const std::shared_ptr<VulkanTexture> vkTexture = std::static_pointer_cast<VulkanTexture>(image.texture);
+		VkImageMemoryBarrier barrier{};
+		barrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
+		barrier.srcAccessMask = ToVkAccess(image.srcAccess);
+		barrier.dstAccessMask = ToVkAccess(image.dstAccess);
+		barrier.oldLayout = ToVkLayout(image.oldLayout);
+		barrier.newLayout = ToVkLayout(image.newLayout);
+		barrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+		barrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+		barrier.image = vkTexture->GetImage();
+		barrier.subresourceRange.aspectMask = VulkanTexture::ConvertAspectMask(vkTexture->GetAspectMask());
+		barrier.subresourceRange.baseMipLevel = image.baseMip;
+		barrier.subresourceRange.levelCount = image.mipCount;
+		barrier.subresourceRange.baseArrayLayer = image.baseLayer;
+		barrier.subresourceRange.layerCount = image.layerCount;
+		imageBarriers.push_back(barrier);
+	}
+
 	vkCmdPipelineBarrier(
 		vkFrame->CommandBuffer,
-		VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT,
-		VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT,
+		ToVkStage(batch.srcStage),
+		ToVkStage(batch.dstStage),
 		0,
-		1,
-		&memoryBarrier,
-		0,
-		nullptr,
-		0,
-		nullptr);
+		static_cast<uint32_t>(memoryBarriers.size()), memoryBarriers.data(),
+		static_cast<uint32_t>(bufferBarriers.size()), bufferBarriers.data(),
+		static_cast<uint32_t>(imageBarriers.size()), imageBarriers.data());
 }
 
 void VulkanRenderer::BeginCommandLabel(
@@ -244,6 +397,57 @@ void VulkanRenderer::ClearDepthStencilImage(
 	range.layerCount = vkTexture->GetLayerCount();
 
 	GetVkDevice()->ClearDepthStencilImage(vkTexture->GetImage(), vkTexture->GetLayout(), &clearValue, 1, &range, vkFrame->CommandBuffer);
+}
+
+void VulkanRenderer::ClearColorImage(
+	std::shared_ptr<Texture> texture,
+	const glm::vec4& clearColor,
+	void* frame)
+{
+	const VulkanFrameInfo* vkFrame = static_cast<VulkanFrameInfo*>(frame);
+	const std::shared_ptr<VulkanTexture> vkTexture = std::static_pointer_cast<VulkanTexture>(texture);
+	
+	VkClearColorValue clearValue{};
+	clearValue.float32[0] = clearColor[0];
+	clearValue.float32[1] = clearColor[1];
+	clearValue.float32[2] = clearColor[2];
+	clearValue.float32[3] = clearColor[3];
+
+	VkImageSubresourceRange range{};
+	range.aspectMask = VulkanTexture::ConvertAspectMask(vkTexture->GetAspectMask());
+	range.baseMipLevel = 0;
+	range.levelCount = vkTexture->GetMipLevels();
+	range.baseArrayLayer = 0;
+	range.layerCount = vkTexture->GetLayerCount();
+
+	GetVkDevice()->ClearColorImage(vkTexture->GetImage(), vkTexture->GetLayout(), &clearValue, 1, &range, vkFrame->CommandBuffer);
+}
+
+void VulkanRenderer::FillBuffer(
+	NativeHandle buffer,
+	const size_t size,
+	const size_t offset,
+	uint32_t value,
+	void *frame)
+{
+	PROFILER_SCOPE(__FUNCTION__);
+
+	const VulkanFrameInfo* vkFrame = static_cast<VulkanFrameInfo*>(frame);
+	vkCmdFillBuffer(vkFrame->CommandBuffer, *(VkBuffer*)&buffer, offset, size, value);
+}
+
+void VulkanRenderer::PushConstants(
+	const std::shared_ptr<Pipeline>& pipeline,
+	ShaderStage stageFlags,
+	uint32_t offset,
+	uint32_t size,
+	const void* data,
+	void* frame)
+{
+	const VulkanFrameInfo* vkFrame = static_cast<VulkanFrameInfo*>(frame);
+	const std::shared_ptr<VulkanComputePipeline>& vkPipeline = std::static_pointer_cast<VulkanComputePipeline>(pipeline);
+	vkCmdPushConstants(vkFrame->CommandBuffer, vkPipeline->GetPipelineLayout(),
+		static_cast<VkShaderStageFlags>(stageFlags), offset, size, data);
 }
 
 void VulkanRenderer::BeginRenderPass(

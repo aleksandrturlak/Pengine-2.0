@@ -8,9 +8,9 @@ Basemat:
       TopologyMode: TriangleList
       Vertex: Shaders/ToneMapping.vert
       Fragment: Shaders/ToneMapping.frag
-      DescriptorSets:
+      UniformWriters:
         - Type: Renderer
-          RenderPass: ToneMapping
+          Name: ToneMapping
           Set: 0
       VertexInputBindingDescriptions:
         - Binding: 0
@@ -26,11 +26,11 @@ Basemat:
         - Name: shadingTexture
           TextureAttachment: "GBuffer[2]"
         - Name: rawSSRTexture
-          TextureAttachment: "SSR"
+          TextureAttachment: "Reflections"
           TextureAttachmentDefault: "Black"
-        - Name: blurSSRTexture
-          TextureAttachment: "SSRBlur"
+        - Name: blurredReflectionsTexture
+          TextureAttachment: "BlurredReflections"
           TextureAttachmentDefault: "Black"
         - Name: bloomTexture
-          TextureAttachment: "BloomFrameBuffers(0)[0]"
+          TextureAttachment: "Bloom"
           TextureAttachmentDefault: "Black"

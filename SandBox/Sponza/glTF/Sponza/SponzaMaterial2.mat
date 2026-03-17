@@ -1,0 +1,86 @@
+Mat:
+  Basemat: 0x5e24d711eb129f19fc9801b407c05618
+  Options:
+    - Name: Transparency
+      IsEnabled: false
+      Active:
+        - Transparent
+      Inactive:
+        - GBuffer
+  Pipelines:
+    - RenderPass: SpotLightShadows
+      Uniforms:
+        []
+    - RenderPass: PointLightShadows
+      Uniforms:
+        []
+    - RenderPass: CSM
+      Uniforms:
+        []
+    - RenderPass: Transparent
+      Uniforms:
+        []
+    - RenderPass: GBuffer
+      Uniforms:
+        - Name: MaterialBuffer
+          Values:
+            - Name: material.albedoColor
+              Value: [0.588, 0.588, 0.588, 1]
+              Type: vec4
+            - Name: material.emissiveColor
+              Value: [0, 0, 0, 1]
+              Type: vec4
+            - Name: material.uvTransform
+              Value: [1, 1, 0, 0]
+              Type: vec4
+            - Name: material.metallicFactor
+              Value: 0
+              Type: float
+            - Name: material.roughnessFactor
+              Value: 1
+              Type: float
+            - Name: material.aoFactor
+              Value: 1
+              Type: float
+            - Name: material.emissiveFactor
+              Value: 1
+              Type: float
+            - Name: material.alphaCutoff
+              Value: 0.5
+              Type: float
+            - Name: material.maxParallaxLayers
+              Value: 0
+              Type: int
+            - Name: material.minParallaxLayers
+              Value: 0
+              Type: int
+            - Name: material.parallaxHeightScale
+              Value: 0
+              Type: float
+            - Name: material.useNormalMap
+              Value: 0
+              Type: int
+            - Name: material.useAlphaCutoff
+              Value: 0
+              Type: int
+            - Name: material.useParallaxOcclusion
+              Value: 0
+              Type: int
+            - Name: material.albedoTexture
+              Value: 0xe2378f740f17a21df36bd2e07a14eb0d
+              Type: texture
+            - Name: material.normalTexture
+              Value: White
+              Type: texture
+            - Name: material.metallicRoughnessTexture
+              Value: White
+              Type: texture
+            - Name: material.aoTexture
+              Value: White
+              Type: texture
+            - Name: material.emissiveTexture
+              Value: White
+              Type: texture
+            - Name: material.heightTexture
+              Value: White
+              Type: texture

@@ -1,0 +1,65 @@
+#version 460
+
+#include "Shaders/Includes/Common.h"
+#include "Shaders/Includes/DDGI.h"
+
+layout(set = 0, binding = 0) uniform DDGIBlendUniform
+{
+    DDGIData ddgi;
+};
+
+layout(set = 0, binding = 1, rgba16f) uniform image2D persistentIrradiance;
+layout(set = 0, binding = 2, rgba16f) uniform readonly image2D tempIrradiance;
+layout(set = 0, binding = 3, rg16f)   uniform image2D persistentVisibility;
+layout(set = 0, binding = 4, rg16f)   uniform readonly image2D tempVisibility;
+
+layout(local_size_x = 8, local_size_y = 8, local_size_z = 1) in;
+
+void main()
+{
+    if (ddgi.isEnabled == 0) return;
+
+    ivec2 coord = ivec2(gl_GlobalInvocationID.xy);
+    uint  layer = gl_GlobalInvocationID.z; // 0 = irradiance, 1 = visibility
+
+    // On frameIndex == 0 the persistent atlas is uninitialized (Vulkan undefined content).
+    // Skip hysteresis so we copy the freshly computed values directly without blending garbage.
+    bool firstFrame = (ddgi.frameIndex == 0u);
+
+    if (layer == 0u)
+    {
+        ivec2 atlasSize = imageSize(persistentIrradiance);
+        if (coord.x >= atlasSize.x || coord.y >= atlasSize.y) return;
+
+        vec3 newValue = imageLoad(tempIrradiance, coord).rgb;
+        vec3 blended;
+        if (firstFrame)
+        {
+            blended = newValue;
+        }
+        else
+        {
+            vec3 oldValue = imageLoad(persistentIrradiance, coord).rgb;
+            blended = mix(newValue, oldValue, ddgi.hysteresisIrradiance);
+        }
+        imageStore(persistentIrradiance, coord, vec4(blended, 1.0f));
+    }
+    else
+    {
+        ivec2 atlasSize = imageSize(persistentVisibility);
+        if (coord.x >= atlasSize.x || coord.y >= atlasSize.y) return;
+
+        vec2 newValue = imageLoad(tempVisibility, coord).rg;
+        vec2 blended;
+        if (firstFrame)
+        {
+            blended = newValue;
+        }
+        else
+        {
+            vec2 oldValue = imageLoad(persistentVisibility, coord).rg;
+            blended = mix(newValue, oldValue, ddgi.hysteresisVisibility);
+        }
+        imageStore(persistentVisibility, coord, vec4(blended, 0.0f, 1.0f));
+    }
+}

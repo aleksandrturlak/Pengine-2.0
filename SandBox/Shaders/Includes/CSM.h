@@ -1,4 +1,29 @@
+#ifndef CSM_H
+#define CSM_H
+
 #define MAX_CASCADE_COUNT 10
+
+#ifndef POISSON_DISK_DEFINED
+#define POISSON_DISK_DEFINED
+const vec2 poissonDisk[16] = vec2[](
+   vec2(-0.94201624, -0.39906216),
+   vec2(0.94558609, -0.76890725),
+   vec2(-0.094184101, -0.92938870),
+   vec2(0.34495938, 0.29387760),
+   vec2(-0.91588581, 0.45771432),
+   vec2(-0.81544232, -0.87912464),
+   vec2(-0.38277543, 0.27676845),
+   vec2(0.97484398, 0.75648379),
+   vec2(0.44323325, -0.97511554),
+   vec2(0.53742981, -0.47373420),
+   vec2(-0.26496911, -0.41893023),
+   vec2(0.79197514, 0.19090188),
+   vec2(-0.24188840, 0.99706507),
+   vec2(-0.81409955, 0.91437590),
+   vec2(0.19984126, 0.78641367),
+   vec2(0.14383161, -0.14100790)
+);
+#endif
 
 struct CSM
 {
@@ -28,7 +53,7 @@ vec3 CalculateCSM(
     }
 
     int layer = -1;
-    for(int i = 0; i < csm.cascadeCount; ++i)
+    for (int i = 0; i < csm.cascadeCount; ++i)
     {
         if(depth < csm.distances[i])
         {
@@ -69,11 +94,11 @@ vec3 CalculateCSM(
     vec2 texelSize = 1.0f / vec2(textureSize(CSMTexture, 0));
    
     float shadow = 0.0f;
-    if(csm.filtering == 1)
+    if (csm.filtering == 1)
     {
-        for(int x = -csm.pcfRange; x <= csm.pcfRange; ++x)
+        for (int x = -csm.pcfRange; x <= csm.pcfRange; ++x)
         {
-            for(int y = -csm.pcfRange; y <= csm.pcfRange; ++y)
+            for (int y = -csm.pcfRange; y <= csm.pcfRange; ++y)
             {
                 float pcfDepth = texture(CSMTexture, vec3(uv.xy + vec2(x, y) * texelSize, layer)).r;
                 shadow += (currentDepth - bias) > pcfDepth ? 1.0f : 0.0f;
@@ -89,7 +114,7 @@ vec3 CalculateCSM(
         mat2 rotation = mat2(cos(angle), -sin(angle),
                             sin(angle), cos(angle));
 
-        for(int i = 0; i < 16; i++)
+        for (int i = 0; i < 16; i++)
         {
             vec2 offset = rotation * poissonDisk[i];
             float closestDepth = texture(CSMTexture, vec3(uv.xy + offset * texelSize, layer)).r;
@@ -119,3 +144,5 @@ vec3 CalculateCSM(
 
     return vec3(shadow);
 }
+
+#endif

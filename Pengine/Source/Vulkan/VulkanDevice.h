@@ -86,7 +86,10 @@ namespace Pengine::Vk
 			VmaAllocationCreateFlags memoryFlags,
 			VkBuffer& buffer,
 			VmaAllocation& vmaAllocation,
-			VmaAllocationInfo& vmaAllocationInfo) const;
+			VmaAllocationInfo& vmaAllocationInfo,
+			VkDeviceSize minAlignment = 0) const;
+
+		[[nodiscard]] uint32_t GetMinScratchOffsetAlignment() const { return m_MinScratchOffsetAlignment; }
 
 		void DestroyBuffer(
 			VkBuffer buffer,
@@ -110,6 +113,7 @@ namespace Pengine::Vk
 		void EndSingleTimeCommands(VkCommandBuffer commandBuffer) const;
 
 		void CopyBuffer(
+			VkCommandBuffer commandBuffer,
 			VkBuffer srcBuffer,
 			VkBuffer dstBuffer,
 			VkDeviceSize size,
@@ -177,13 +181,44 @@ namespace Pengine::Vk
 			const VkImageSubresourceRange* ranges,
 			VkCommandBuffer commandBuffer);
 
+		void ClearColorImage(
+			VkImage image,
+			VkImageLayout imageLayout,
+			const VkClearColorValue* clearColorValue,
+			uint32_t rangeCount,
+			const VkImageSubresourceRange* ranges,
+			VkCommandBuffer commandBuffer);
+
 		void CommandEndLabel(VkCommandBuffer commandBuffer) const;
 
 		virtual void WaitIdle() const override;
 
+		void CreateAccelerationStructure(
+			const VkAccelerationStructureCreateInfoKHR& createInfo,
+			VkAccelerationStructureKHR& accelerationStructure) const;
+
+		void DestroyAccelerationStructure(VkAccelerationStructureKHR accelerationStructure) const;
+
+		void GetAccelerationStructureBuildSizes(
+			VkAccelerationStructureBuildTypeKHR buildType,
+			const VkAccelerationStructureBuildGeometryInfoKHR& buildInfo,
+			const uint32_t* maxPrimitiveCounts,
+			VkAccelerationStructureBuildSizesInfoKHR& sizeInfo) const;
+
+		void CmdBuildAccelerationStructures(
+			VkCommandBuffer commandBuffer,
+			uint32_t infoCount,
+			const VkAccelerationStructureBuildGeometryInfoKHR* pInfos,
+			const VkAccelerationStructureBuildRangeInfoKHR* const* ppRangeInfos) const;
+
+		VkDeviceAddress GetAccelerationStructureDeviceAddress(
+			VkAccelerationStructureKHR accelerationStructure) const;
+
 		void DeleteResource(std::function<void()>&& callback);
 
 		virtual void FlushDeletionQueue(bool immediate = false) override;
+
+		virtual void ForEachFrame(const std::function<void()>& callback) override;
 
 		VkCommandBuffer GetCommandBufferFromFrame(void* frame);
 
@@ -237,16 +272,30 @@ namespace Pengine::Vk
 		uint32_t m_GraphicsFamilyIndex{};
 
 		uint32_t m_ApiVersion = VK_API_VERSION_1_3;
+		uint32_t m_MinScratchOffsetAlignment = 128;
 
 		VmaAllocator m_VmaAllocator = VK_NULL_HANDLE;
 
 		PFN_vkCmdBeginDebugUtilsLabelEXT m_VkCmdBeginDebugUtilsLabelEXT;
 		PFN_vkCmdEndDebugUtilsLabelEXT m_VkCmdEndDebugUtilsLabelEXT;
 
-		const std::vector<const char*> validationLayers = { "VK_LAYER_KHRONOS_validation" };
-		const std::vector<const char*> deviceExtensions = { VK_KHR_SWAPCHAIN_EXTENSION_NAME };
+		PFN_vkCreateAccelerationStructureKHR           m_vkCreateAccelerationStructureKHR = nullptr;
+		PFN_vkDestroyAccelerationStructureKHR          m_vkDestroyAccelerationStructureKHR = nullptr;
+		PFN_vkGetAccelerationStructureBuildSizesKHR    m_vkGetAccelerationStructureBuildSizesKHR = nullptr;
+		PFN_vkCmdBuildAccelerationStructuresKHR        m_vkCmdBuildAccelerationStructuresKHR = nullptr;
+		PFN_vkGetAccelerationStructureDeviceAddressKHR m_vkGetAccelerationStructureDeviceAddressKHR = nullptr;
 
-		mutable std::mutex m_Mutex;
+		const std::vector<const char*> validationLayers = { "VK_LAYER_KHRONOS_validation" };
+		const std::vector<const char*> deviceExtensions = {
+			VK_KHR_SWAPCHAIN_EXTENSION_NAME,
+			VK_KHR_SHADER_NON_SEMANTIC_INFO_EXTENSION_NAME,
+			VK_EXT_SHADER_VIEWPORT_INDEX_LAYER_EXTENSION_NAME,
+			VK_KHR_ACCELERATION_STRUCTURE_EXTENSION_NAME,
+			VK_KHR_DEFERRED_HOST_OPERATIONS_EXTENSION_NAME,
+			VK_KHR_RAY_QUERY_EXTENSION_NAME
+		};
+
+		mutable std::recursive_mutex m_Mutex;
 
 		std::unordered_map<size_t, std::deque<std::function<void()>>> m_DeletionQueue;
 

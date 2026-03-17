@@ -18,16 +18,16 @@ VkDeviceSize VulkanBuffer::GetAlignment(const VkDeviceSize instanceSize, const V
 }
 
 void VulkanBuffer::WriteToVulkanBuffer(
-	const uint32_t imageIndex,
+	const uint32_t frameIndex,
 	void* data,
 	const size_t size,
 	const size_t offset)
 {
-	if (m_MemoryType == MemoryType::CPU)
+	if (GetMemoryType() == MemoryType::CPU)
 	{
-		vmaCopyMemoryToAllocation(GetVkDevice()->GetVmaAllocator(), data, m_BufferDatas[imageIndex].m_VmaAllocation, offset, size);
+		vmaCopyMemoryToAllocation(GetVkDevice()->GetVmaAllocator(), data, m_BufferDatas[frameIndex].m_VmaAllocation, offset, size);
 	}
-	else if (m_MemoryType == MemoryType::GPU)
+	else if (GetMemoryType() == MemoryType::GPU)
 	{
 		const std::shared_ptr<VulkanBuffer> stagingBuffer = CreateStagingBuffer(
 			size,
@@ -36,56 +36,30 @@ void VulkanBuffer::WriteToVulkanBuffer(
 		stagingBuffer->WriteToBuffer(data, size, offset);
 
 		GetVkDevice()->CopyBuffer(
-			stagingBuffer->m_BufferDatas[imageIndex].m_Buffer,
-			m_BufferDatas[imageIndex].m_Buffer,
+			VK_NULL_HANDLE,
+			stagingBuffer->m_BufferDatas[frameIndex].m_Buffer,
+			m_BufferDatas[frameIndex].m_Buffer,
 			size,
 			offset);
 	}
 }
 
-std::shared_ptr<VulkanBuffer> VulkanBuffer::Create(
-	const size_t instanceSize,
-	const uint32_t instanceCount,
-	const Usage usage,
-	const MemoryType memoryType,
-	const bool isMultiBuffered)
+std::shared_ptr<VulkanBuffer> VulkanBuffer::Create(const CreateInfo& createInfo)
 {
-	VkBufferUsageFlags bufferUsageFlags = ConvertUsage(usage) | VK_BUFFER_USAGE_TRANSFER_DST_BIT;
-	VmaMemoryUsage memoryUsage{};
-	VmaAllocationCreateFlags memoryFlags{};
-
-	if (memoryType == MemoryType::CPU)
-	{
-		memoryUsage = VMA_MEMORY_USAGE_AUTO_PREFER_HOST;
-		memoryFlags = VMA_ALLOCATION_CREATE_MAPPED_BIT | VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT;
-	}
-	else if (memoryType == MemoryType::GPU)
-	{
-		memoryUsage = VMA_MEMORY_USAGE_AUTO_PREFER_DEVICE;
-	}
-
-	return std::make_shared<VulkanBuffer>(
-		instanceSize,
-		instanceCount,
-		bufferUsageFlags,
-		memoryUsage,
-		memoryFlags,
-		memoryType,
-		(usage == Usage::UNIFORM_BUFFER || usage == Usage::STORAGE_BUFFER) ? true : isMultiBuffered);
+	return std::make_shared<VulkanBuffer>(createInfo);
 }
 
 std::shared_ptr<VulkanBuffer> VulkanBuffer::CreateStagingBuffer(
 	const VkDeviceSize instanceSize,
 	const uint32_t instanceCount)
 {
-	return std::make_shared<VulkanBuffer>(
-		instanceSize,
-		instanceCount,
-		VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
-		VMA_MEMORY_USAGE_AUTO_PREFER_HOST,
-		VMA_ALLOCATION_CREATE_MAPPED_BIT | VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT,
-		MemoryType::CPU,
-		false);
+	Buffer::CreateInfo createInfo{};
+	createInfo.instanceSize = instanceSize;
+	createInfo.instanceCount = instanceCount;
+	createInfo.usages = { Buffer::Usage::TRANSFER_SRC };
+	createInfo.memoryType = MemoryType::CPU;
+	createInfo.isMultiBuffered = false;
+	return std::make_shared<VulkanBuffer>(createInfo);
 }
 
 VkBufferUsageFlagBits VulkanBuffer::ConvertUsage(const Usage usage)
@@ -100,6 +74,14 @@ VkBufferUsageFlagBits VulkanBuffer::ConvertUsage(const Usage usage)
 		return VK_BUFFER_USAGE_INDEX_BUFFER_BIT;
 	case Pengine::Buffer::Usage::STORAGE_BUFFER:
 		return VK_BUFFER_USAGE_STORAGE_BUFFER_BIT;
+	case Pengine::Buffer::Usage::INDIRECT_BUFFER:
+		return VK_BUFFER_USAGE_INDIRECT_BUFFER_BIT;
+	case Pengine::Buffer::Usage::TRANSFER_SRC:
+		return VK_BUFFER_USAGE_TRANSFER_SRC_BIT;
+	case Pengine::Buffer::Usage::TRANSFER_DST:
+		return VK_BUFFER_USAGE_TRANSFER_DST_BIT;
+	case Pengine::Buffer::Usage::ACCELERATION_STRUCTURE_INPUT:
+		return VK_BUFFER_USAGE_ACCELERATION_STRUCTURE_BUILD_INPUT_READ_ONLY_BIT_KHR;
 	}
 
 	FATAL_ERROR("Failed to convert buffer usage!");
@@ -117,48 +99,71 @@ Buffer::Usage VulkanBuffer::ConvertUsage(const VkBufferUsageFlagBits usage)
 		return Pengine::Buffer::Usage::INDEX_BUFFER;
 	case VK_BUFFER_USAGE_STORAGE_BUFFER_BIT:
 		return Pengine::Buffer::Usage::STORAGE_BUFFER;
+	case VK_BUFFER_USAGE_INDIRECT_BUFFER_BIT:
+		return Pengine::Buffer::Usage::INDIRECT_BUFFER;
+	case VK_BUFFER_USAGE_TRANSFER_SRC_BIT:
+		return Pengine::Buffer::Usage::TRANSFER_SRC;
+	case VK_BUFFER_USAGE_TRANSFER_DST_BIT:
+		return Pengine::Buffer::Usage::TRANSFER_DST;
 	}
 
 	FATAL_ERROR("Failed to convert buffer usage!");
 	return {};
 }
 
-VulkanBuffer::VulkanBuffer(
-	const VkDeviceSize instanceSize,
-	const uint32_t instanceCount,
-	const VkBufferUsageFlags bufferUsageFlags,
-	const VmaMemoryUsage memoryUsage,
-	const VmaAllocationCreateFlags memoryFlags,
-	const MemoryType memoryType,
-	const bool isMultiBuffered,
-	const VkDeviceSize minOffsetAlignment)
-	: Buffer(memoryType, isMultiBuffered)
-	, m_InstanceCount(instanceCount)
-	, m_InstanceSize(instanceSize)
-	, m_UsageFlags(bufferUsageFlags)
-	, m_MemoryUsage(memoryUsage)
-	, m_MemoryFlags(memoryFlags)
+VulkanBuffer::VulkanBuffer(const CreateInfo& createInfo)
+	: Buffer(createInfo)
+	, m_InstanceCount(createInfo.instanceCount)
+	, m_InstanceSize(createInfo.instanceSize)
 {
-	m_AlignmentSize = GetAlignment(instanceSize, minOffsetAlignment);
-	m_BufferSize = m_AlignmentSize * instanceCount;
+	m_UsageFlags = VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT;
+	for (const Usage& usage : createInfo.usages)
+	{
+		m_UsageFlags |= ConvertUsage(usage);
+	}
 
-	if (m_IsMultiBuffered)
+	if (m_UsageFlags & (VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_INDEX_BUFFER_BIT))
+	{
+		m_UsageFlags |= VK_BUFFER_USAGE_ACCELERATION_STRUCTURE_BUILD_INPUT_READ_ONLY_BIT_KHR;
+	}
+	
+
+	if (createInfo.memoryType == MemoryType::CPU)
+	{
+		m_MemoryUsage = VMA_MEMORY_USAGE_AUTO_PREFER_HOST;
+		m_MemoryFlags = VMA_ALLOCATION_CREATE_MAPPED_BIT | VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT;
+	}
+	else if (createInfo.memoryType == MemoryType::GPU)
+	{
+		m_MemoryUsage = VMA_MEMORY_USAGE_AUTO_PREFER_DEVICE;
+	}
+
+	m_AlignmentSize = GetAlignment(createInfo.instanceSize, 1);
+	m_BufferSize = m_AlignmentSize * createInfo.instanceCount;
+
+	if (createInfo.isMultiBuffered)
 	{
 		m_Data = new uint8_t[m_BufferSize];
 	}
 
-	m_IsChanged.resize(m_IsMultiBuffered ? swapChainImageCount : 1, false);
-	m_BufferDatas.resize(m_IsMultiBuffered ? swapChainImageCount : 1);
+	m_IsChanged.resize(createInfo.isMultiBuffered ? frameInFlightCount : 1, false);
+	m_BufferDatas.resize(createInfo.isMultiBuffered ? frameInFlightCount : 1);
 	for (BufferData& bufferData : m_BufferDatas)
 	{
 		GetVkDevice()->CreateBuffer(
 			m_BufferSize,
-			bufferUsageFlags,
-			memoryUsage,
-			memoryFlags,
+			m_UsageFlags,
+			m_MemoryUsage,
+			m_MemoryFlags,
 			bufferData.m_Buffer,
 			bufferData.m_VmaAllocation,
 			bufferData.m_VmaAllocationInfo);
+
+		VkBufferDeviceAddressInfo addressInfo{};
+		addressInfo.sType = VK_STRUCTURE_TYPE_BUFFER_DEVICE_ADDRESS_INFO;
+		addressInfo.buffer = bufferData.m_Buffer;
+
+		bufferData.m_DeviceAddress = vkGetBufferDeviceAddress(GetVkDevice()->GetDevice(), &addressInfo);
 	}
 }
 
@@ -178,23 +183,23 @@ VulkanBuffer::~VulkanBuffer()
 
 void* VulkanBuffer::GetData() const
 {
-	if (m_IsMultiBuffered)
+	if (IsMultiBuffered())
 	{
 		return m_Data;
 	}
 
 	// TODO: Make possible get data from GPU.
-	if (m_MemoryType != MemoryType::CPU)
+	if (GetMemoryType() != MemoryType::CPU)
 	{
 		FATAL_ERROR("Can't get data from the buffer that is allocated on GPU!");
 	}
 
-	return m_BufferDatas[swapChainImageIndex].m_VmaAllocationInfo.pMappedData;
+	return m_BufferDatas[frameInFlightIndex].m_VmaAllocationInfo.pMappedData;
 }
 
 void VulkanBuffer::WriteToBuffer(void* data, const size_t size, const size_t offset)
 {
-	if (m_IsMultiBuffered)
+	if (IsMultiBuffered())
 	{
 		m_IsChanged.assign(m_IsChanged.size(), true);
 		memcpy((void*)&m_Data[offset], data, size);
@@ -218,13 +223,14 @@ void VulkanBuffer::Copy(
 
 	m_IsChanged.assign(m_IsChanged.size(), true);
 
-	if (m_IsMultiBuffered)
+	if (IsMultiBuffered())
 	{
 		memcpy((void*)m_Data[dstOffset], vkBuffer->m_Data, GetSize());
 	}
 	else
 	{
 		GetVkDevice()->CopyBuffer(
+			VK_NULL_HANDLE,
 			vkBuffer->GetBuffer(),
 			m_BufferDatas.back().m_Buffer,
 			vkBuffer->GetSize(),
@@ -235,29 +241,29 @@ void VulkanBuffer::Copy(
 
 void VulkanBuffer::Flush()
 {
-	if (!m_IsMultiBuffered)
+	if (!IsMultiBuffered())
 	{
 		return;
 	}
 
-	const uint32_t imageIndex = m_IsChanged.size() == 1 ? 0 : swapChainImageIndex;
+	const uint32_t frameIndex = m_IsChanged.size() == 1 ? 0 : frameInFlightIndex;
 
-	if (!m_IsChanged[imageIndex])
+	if (!m_IsChanged[frameIndex])
 	{
 		return;
 	}
 
 	// TODO: can be done more optimal by coping just updated parts of the buffer.
-	if (m_MemoryType == MemoryType::CPU)
+	if (GetMemoryType() == MemoryType::CPU)
 	{
 		vmaCopyMemoryToAllocation(
 			GetVkDevice()->GetVmaAllocator(),
 			m_Data,
-			m_BufferDatas[imageIndex].m_VmaAllocation,
+			m_BufferDatas[frameIndex].m_VmaAllocation,
 			0,
 			GetSize());
 	}
-	else if (m_MemoryType == MemoryType::GPU)
+	else if (GetMemoryType() == MemoryType::GPU)
 	{
 		const std::shared_ptr<VulkanBuffer> stagingBuffer = CreateStagingBuffer(
 			GetSize(),
@@ -266,27 +272,28 @@ void VulkanBuffer::Flush()
 		stagingBuffer->WriteToBuffer(m_Data, GetSize(), 0);
 
 		GetVkDevice()->CopyBuffer(
+			VK_NULL_HANDLE,
 			stagingBuffer->m_BufferDatas.begin()->m_Buffer,
-			m_BufferDatas[imageIndex].m_Buffer,
+			m_BufferDatas[frameIndex].m_Buffer,
 			GetSize(),
 			0);
 	}
 
-	m_IsChanged[imageIndex] = false;
+	m_IsChanged[frameIndex] = false;
 }
 
-NativeHandle VulkanBuffer::GetNativeHandle() const
+void VulkanBuffer::ClearWrites()
 {
-	return NativeHandle(size_t(GetBuffer()));
+	m_IsChanged.assign(m_IsChanged.size(), false);
 }
 
 VkDescriptorBufferInfo VulkanBuffer::GetDescriptorInfo(
-	const uint32_t imageIndex,
+	const uint32_t frameIndex,
 	const VkDeviceSize size,
 	const VkDeviceSize offset) const
 {
 	return VkDescriptorBufferInfo{
-		m_BufferDatas[imageIndex].m_Buffer,
+		m_BufferDatas[frameIndex].m_Buffer,
 		offset,
 		size,
 	};

@@ -1,3 +1,6 @@
+#ifndef SPOT_LIGHT_H
+#define SPOT_LIGHT_H
+
 struct SpotLight
 {
 	mat4 viewProjectionMat4;
@@ -9,15 +12,13 @@ struct SpotLight
 	float radius;
 
 	vec3 positionWorldSpace;
-	int shadowMapIndex;
+    int castSSS;
 
     vec3 directionViewSpace;
 	float bias;
 
     float innerCutOff;
     float outerCutOff;
-
-    int castSSS;
 };
 
 struct SpotLightShadows
@@ -25,35 +26,38 @@ struct SpotLightShadows
 	int isEnabled;
 	int shadowMapAtlasSize;
 	int faceSize;
+	int isRayTraced;
 };
 
 vec3 CalculateSpotLight(
 	in SpotLight light,
-	in vec3 viewDirectionViewSpace,
-	in vec3 positionViewSpace,
+    in vec3 lightPosition,
+    in vec3 lightDirection,
+	in vec3 viewDirection,
+	in vec3 position,
 	in vec3 basicReflectivity,
-	in vec3 normalViewSpace,
+	in vec3 normal,
 	in vec3 albedo,
 	in float metallic,
 	in float roughness,
 	in float ao,
 	in float shadow)
 {
-	vec3 directionViewSpace = normalize(light.positionViewSpace - positionViewSpace);
-	float theta = dot(directionViewSpace, normalize(-light.directionViewSpace));
+	vec3 direction = normalize(lightPosition - position);
+	float theta = dot(direction, normalize(-lightDirection));
     float epsilon = light.innerCutOff - light.outerCutOff;
     float intensity = clamp((theta - cos(light.outerCutOff)) / epsilon, 0.0f, 1.0f);
 
     if (intensity > 0.0f)
     {
-        vec3 H = normalize(viewDirectionViewSpace + directionViewSpace);
+        vec3 H = normalize(viewDirection + direction);
 
         vec3 radiance = light.color * light.intensity * intensity;
 
-        float NdotV = max(dot(normalViewSpace, viewDirectionViewSpace), 0.0000001f);
-        float NdotL = max(dot(normalViewSpace, directionViewSpace), 0.0000001f);
-        float HdotV = max(dot(H, viewDirectionViewSpace), 0.0f);
-        float NdotH = max(dot(normalViewSpace, H), 0.0f);
+        float NdotV = max(dot(normal, viewDirection), 0.0000001f);
+        float NdotL = max(dot(normal, direction), 0.0000001f);
+        float HdotV = max(dot(H, viewDirection), 0.0f);
+        float NdotH = max(dot(normal, H), 0.0f);
 
         float D = DistributionGGX(NdotH, roughness);
         float G = GeometrySmith(NdotV, NdotL, roughness);
@@ -67,7 +71,7 @@ vec3 CalculateSpotLight(
 
         kD *= 1.0f - metallic;
         
-        float distance    = length(light.positionViewSpace - positionViewSpace);
+        float distance    = length(lightPosition - position);
         float attenuation = max(0.0f,
             (1.0f / (distance * distance)) - (1.0f / (light.radius * light.radius)));
 
@@ -127,7 +131,8 @@ float CalculateSpotLightShadow(
 	in SpotLightShadows spotLightShadows,
     in vec3 positionWorldSpace,
     in vec3 positionViewSpace,
-    float distanceToPoint)
+    float distanceToPoint,
+    int shadowMapIndex)
 {
 	float shadow = 0.0f;
 
@@ -155,18 +160,18 @@ float CalculateSpotLightShadow(
 	
     projectedCoords = (projectedCoords + 1.0f) / 2.0f;
     vec2 baseUV = ((projectedCoords.xy * float(spotLightShadows.faceSize)) / float(spotLightShadows.shadowMapAtlasSize));
-	vec2 atlasUV = baseUV + GetShadowFaceUVLinear(spotLightShadows, light.shadowMapIndex);
+	vec2 atlasUV = baseUV + GetShadowFaceUVLinear(spotLightShadows, shadowMapIndex);
 
 	vec2 minUV;
 	vec2 maxUV;
 	GetFaceUVBounds(
-		light.shadowMapIndex,
+		shadowMapIndex,
     	spotLightShadows.shadowMapAtlasSize,
     	spotLightShadows.faceSize,
     	minUV,
     	maxUV);
 
-	for(int i = 0; i < 16; i++)
+	for (int i = 0; i < 16; i++)
 	{
 		vec2 offset = rotation * poissonDisk[i];
 		vec2 uv = atlasUV.xy + offset * texelSize;
@@ -178,3 +183,5 @@ float CalculateSpotLightShadow(
 
     return shadow;
 }
+
+#endif

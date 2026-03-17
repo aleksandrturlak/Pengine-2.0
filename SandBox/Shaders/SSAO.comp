@@ -13,12 +13,8 @@ layout(set = 0, binding = 1) uniform SSAO
     vec2 viewportScale;
 };
 
-#include "Shaders/Includes/Camera.h"
-
-layout(set = 1, binding = 0) uniform GlobalBuffer
-{
-    Camera camera;
-};
+#include "Shaders/Includes/SetMacros/CameraSet.h"
+CAMERA_SET(1)
 
 layout(set = 0, binding = 2) uniform sampler2D depthTexture;
 layout(set = 0, binding = 3) uniform sampler2D normalTexture;
@@ -37,9 +33,8 @@ void main()
 	vec2 screenPosition = uv * 2.0f - 1.0f;
 	uv.y = 1.0f - uv.y;
 
-	vec2 viewRay;
-	viewRay.x = -screenPosition.x * camera.aspectRatio * camera.tanHalfFOV;
-    viewRay.y = -screenPosition.y * camera.tanHalfFOV;
+    vec2 viewRay = ComputeViewRay(screenPosition, vec2(0.0f), camera.aspectRatio, camera.tanHalfFOV);
+    viewRay.y = -viewRay.y; // negate y: this shader flips uv.y for texture sampling
 
     vec3 positionViewSpace = CalculatePositionFromDepth(
         texture(depthTexture, uv).x,

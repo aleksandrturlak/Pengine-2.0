@@ -13,7 +13,7 @@ namespace Pengine
 	public:
 
 		/**
-		 * @param renderer only needs to be passed if render pass has an attachment that references another render pass attachment.
+		 * @param renderView only needs to be passed if render pass has an attachment that references another render pass attachment.
 		 */
 		static std::shared_ptr<FrameBuffer> Create(
 			std::shared_ptr<RenderPass> renderPass,

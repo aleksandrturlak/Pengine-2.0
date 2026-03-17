@@ -36,6 +36,10 @@ namespace Pengine
 			SpvReflectShaderModule& reflectModule,
 			ShaderReflection::ReflectShaderModule& reflectShaderModule);
 
+		static void ReflectPushConstants(
+			SpvReflectShaderModule& reflectModule,
+			ShaderReflection::ReflectShaderModule& reflectShaderModule);
+
 		static std::map<uint32_t, std::shared_ptr<UniformLayout>> CreateDescriptorSetLayouts(
 			const std::map<uint32_t, std::vector<ShaderReflection::ReflectDescriptorSetBinding>>& bindingsByDescriptorSet);
 

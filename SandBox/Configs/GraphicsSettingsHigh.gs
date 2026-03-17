@@ -1,3 +1,6 @@
+HiZOcclusionCulling:
+  IsEnabled: true
+  DepthBias: 0.0199999996
 SSAO:
   IsEnabled: true
   AoScale: 1
@@ -12,7 +15,7 @@ CSM:
   Quality: 1
   CascadeCount: 4
   SplitFactor: 0.899999976
-  MaxDistance: 100
+  MaxDistance: 500
   FogFactor: 0.200000003
   Filter: 2
   PcfRange: 2
@@ -20,45 +23,66 @@ CSM:
     - 0.0189999994
     - 0.0970000029
     - 0.224999994
-    - 1
+    - 0.699999988
   StabilizeCascades: true
 SSS:
-  IsEnabled: false
+  IsEnabled: true
   ResolutionScale: 2
   ResolutionBlurScale: 2
   MaxRayDistance: 0.100000001
   MaxDistance: 50
-  MaxSteps: 128
+  MaxSteps: 16
   MinThickness: -0.0125000002
-  MaxThickness: 0
+  MaxThickness: -0.00999999978
 PointLightShadows:
   IsEnabled: true
   AtlasQuality: 3
-  FaceQuality: 2
+  FaceQuality: 3
 SpotLightShadows:
   IsEnabled: true
   AtlasQuality: 3
-  FaceQuality: 2
+  FaceQuality: 3
 Bloom:
   IsEnabled: true
-  MipCount: 10
+  MipCount: 9
   BrightnessThreshold: 1
   Intensity: 1
   ResolutionScale: 3
 SSR:
   IsEnabled: true
   MaxDistance: 100
-  Resolution: 0.5
-  ResolutionBlurScale: 2
-  ResolutionScale: 1
+  Resolution: 1
+  ResolutionBlurScale: 3
+  ResolutionScale: 2
   StepCount: 20
-  Thickness: 5
-  BlurRange: 0
+  Thickness: 500
+  BlurRange: 1
   BlurOffset: 1
   MipMultiplier: 0
-  UseSkyBoxFallback: false
+  UseSkyBoxFallback: true
   Blur: 1
 PostProcess:
   Gamma: 2.20000005
   ToneMapper: 1
-  FXAA: true
+Antialiasing:
+  Mode: 2
+  TAAJitterScale: 0.5
+  TAAVarianceGamma: 0.5
+  TAAMinBlendFactor: 0.850000024
+  TAAMaxBlendFactor: 0.970000029
+RayTracedShadows:
+  DirectionalLight: true
+  PointLight: true
+  SpotLight: true
+RayTracedReflections:
+  IsRayTraced: true
+DDGI:
+  IsEnabled: false
+  VisualizeProbes: false
+  GridX: 14
+  GridY: 6
+  GridZ: 10
+  ProbeSpacing: 1.95000005
+  RaysPerProbe: 96
+  FollowCamera: false
+  FixedOrigin: [0, 5.5, 0]

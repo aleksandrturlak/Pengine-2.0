@@ -11,12 +11,7 @@ namespace Pengine::Vk
 	class PENGINE_API VulkanBuffer final : public Buffer
 	{
 	public:
-		static std::shared_ptr<VulkanBuffer> Create(
-			const size_t instanceSize,
-			const uint32_t instanceCount,
-			const Usage usage,
-			const MemoryType memoryType,
-			const bool isMultiBuffered);
+		static std::shared_ptr<VulkanBuffer> Create(const CreateInfo& createInfo);
 
 		static std::shared_ptr<VulkanBuffer> CreateStagingBuffer(
 			VkDeviceSize instanceSize,
@@ -26,15 +21,7 @@ namespace Pengine::Vk
 
 		static Usage ConvertUsage(VkBufferUsageFlagBits usage);
 
-		VulkanBuffer(
-			const VkDeviceSize instanceSize,
-			const uint32_t instanceCount,
-			const VkBufferUsageFlags bufferUsageFlags,
-			const VmaMemoryUsage memoryUsage,
-			const VmaAllocationCreateFlags memoryFlags,
-			const MemoryType memoryType,
-			const bool isMultiBuffered,
-			const VkDeviceSize minOffsetAlignment = 1);
+		VulkanBuffer(const CreateInfo& createInfo);
 		~VulkanBuffer() override;
 		VulkanBuffer(const VkBuffer&) = delete;
 		VulkanBuffer(VkBuffer&&) = delete;
@@ -54,20 +41,24 @@ namespace Pengine::Vk
 
 		virtual void Flush() override;
 
+		virtual void ClearWrites() override;
+
 		[[nodiscard]] virtual size_t GetSize() const override { return m_BufferSize; }
 
 		[[nodiscard]] virtual uint32_t GetInstanceCount() const override { return m_InstanceCount; }
 
 		[[nodiscard]] virtual size_t GetInstanceSize() const override { return m_InstanceSize; }
 
-		[[nodiscard]] virtual NativeHandle GetNativeHandle() const override;
+		[[nodiscard]] virtual NativeHandle GetNativeHandle() const override { return NativeHandle(size_t(GetBuffer())); }
 
+		[[nodiscard]] virtual NativeHandle GetDeviceAddress() const override { return NativeHandle(size_t(m_BufferDatas[frameInFlightIndex * IsMultiBuffered()].m_DeviceAddress)); }
+		
 		[[nodiscard]] VkDescriptorBufferInfo GetDescriptorInfo(
-			const uint32_t imageIndex,
+			const uint32_t frameIndex,
 			VkDeviceSize size = VK_WHOLE_SIZE,
 			VkDeviceSize offset = 0) const;
 
-		[[nodiscard]] inline VkBuffer GetBuffer() const { return m_BufferDatas[swapChainImageIndex * m_IsMultiBuffered].m_Buffer; }
+		[[nodiscard]] inline VkBuffer GetBuffer() const { return m_BufferDatas[frameInFlightIndex * IsMultiBuffered()].m_Buffer; }
 		[[nodiscard]] inline VkDeviceSize GetAlignmentSize() const { return m_AlignmentSize; }
 		[[nodiscard]] inline VkBufferUsageFlags GetUsageFlags() const { return m_UsageFlags; }
 		[[nodiscard]] inline VmaMemoryUsage GetMemoryUsage() const { return m_MemoryUsage; }
@@ -79,7 +70,7 @@ namespace Pengine::Vk
 			VkDeviceSize minOffsetAlignment);
 
 		void WriteToVulkanBuffer(
-			const uint32_t imageIndex,
+			const uint32_t frameIndex,
 			void* data,
 			const size_t size,
 			const size_t offset = 0);
@@ -88,6 +79,7 @@ namespace Pengine::Vk
 		{
 			VkBuffer m_Buffer = VK_NULL_HANDLE;
 			VmaAllocation m_VmaAllocation = VK_NULL_HANDLE;
+			VkDeviceAddress m_DeviceAddress{};
 			VmaAllocationInfo m_VmaAllocationInfo{};
 		};
 
@@ -96,13 +88,13 @@ namespace Pengine::Vk
 
 		VkBuffer m_CurrentBuffer = VK_NULL_HANDLE;
 
-		VkDeviceSize m_BufferSize;
-		uint32_t m_InstanceCount;
-		VkDeviceSize m_InstanceSize;
-		VkDeviceSize m_AlignmentSize;
-		VkBufferUsageFlags m_UsageFlags;
-		VmaMemoryUsage m_MemoryUsage;
-		VmaAllocationCreateFlags m_MemoryFlags;
+		VkDeviceSize m_BufferSize{};
+		uint32_t m_InstanceCount{};
+		VkDeviceSize m_InstanceSize{};
+		VkDeviceSize m_AlignmentSize{};
+		VkBufferUsageFlags m_UsageFlags{};
+		VmaMemoryUsage m_MemoryUsage{};
+		VmaAllocationCreateFlags m_MemoryFlags{};
 
 		std::vector<bool> m_IsChanged;
 	};

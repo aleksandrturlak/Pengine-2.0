@@ -143,8 +143,11 @@ void FirstPersonCharacterSystem::OnUpdate(const float deltaTime, std::shared_ptr
 			character.animations[FirstPersonCharacter::Action::INSPECT] = MeshManager::GetInstance().LoadSkeletalAnimation(animFilepath / "Inspect.anim");
 			character.animations[FirstPersonCharacter::Action::RELOAD] = MeshManager::GetInstance().LoadSkeletalAnimation(animFilepath / "Reload.anim");
 
-			skeletalAnimator.SetCurrentTime(0.0f);
-			skeletalAnimator.SetSkeletalAnimation(character.animations[FirstPersonCharacter::Action::IDLE]);
+			SkeletalAnimator::AnimationLayer baseLayer;
+			baseLayer.animation = character.animations[FirstPersonCharacter::Action::IDLE];
+			baseLayer.speed = 1.0f;
+			baseLayer.weight = 1.0f;
+			skeletalAnimator.AddLayer(baseLayer);
 		
 			character.transitionTimes[FirstPersonCharacter::Action::IDLE] = 0.25f;
 			character.transitionTimes[FirstPersonCharacter::Action::WALK] = 0.25f;
@@ -229,7 +232,7 @@ void FirstPersonCharacterSystem::OnUpdate(const float deltaTime, std::shared_ptr
 			{
 				const float transitionTime = character.action == FirstPersonCharacter::Action::ONESHOT ? 0.0f : character.transitionTimes[character.action];
 				character.action = currentAction;
-				skeletalAnimator.SetNextSkeletalAnimation(character.animations[character.action], transitionTime);
+				skeletalAnimator.CrossfadeLayer(0, character.animations[character.action], transitionTime);
 			}
 		}
 

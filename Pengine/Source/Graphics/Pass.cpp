@@ -4,6 +4,8 @@
 
 using namespace Pengine;
 
+static size_t g_NextPassId = 0;
+
 Pass::Pass(
 	Type type,
 	const std::string& name,
@@ -13,6 +15,7 @@ Pass::Pass(
 	, m_Name(name)
 	, m_ExecuteCallback(executeCallback)
 	, m_CreateCallback(createCallback)
+	, m_Id(g_NextPassId++)
 {
 
 }
@@ -30,4 +33,9 @@ void Pass::SetBuffer(const std::string& name, const std::shared_ptr<Buffer>& buf
 void Pass::SetUniformWriter(std::shared_ptr<UniformWriter> uniformWriter)
 {
 	m_UniformWriter = uniformWriter;
+}
+
+size_t Pass::GetId() const
+{
+	return m_Id;
 }

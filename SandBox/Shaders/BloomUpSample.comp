@@ -1,0 +1,54 @@
+#version 450
+
+layout(set = 0, binding = 0) uniform sampler2D sourceTexture[10];
+
+// Array of output mip images (max 8 mip levels)
+// dstMipLevel = srcMipLevel - 1 (upsampling goes from higher mip to lower)
+layout(set = 0, binding = 1, r11f_g11f_b10f) uniform image2D outBloom[10];
+
+layout(push_constant) uniform PushConstants
+{
+    int dstMipLevel;
+};
+
+layout(local_size_x = 16, local_size_y = 16, local_size_z = 1) in;
+
+void main()
+{
+    ivec2 pixelCoord = ivec2(gl_GlobalInvocationID.xy);
+    ivec2 outSize = imageSize(outBloom[dstMipLevel]);
+
+    if (pixelCoord.x >= outSize.x || pixelCoord.y >= outSize.y)
+        return;
+
+    vec2 uv = (vec2(pixelCoord) + 0.5f) / vec2(outSize);
+
+    // Take 9 samples around current texel using a 3x3 tent filter:
+    //  1   | 1 2 1 |
+    // -- * | 2 4 2 |
+    // 16   | 1 2 1 |
+    vec2 srcSize = vec2(textureSize(sourceTexture[dstMipLevel + 1], 0));
+    float x = 1.0f / srcSize.x;
+    float y = 1.0f / srcSize.y;
+
+    vec3 a = texture(sourceTexture[dstMipLevel + 1], vec2(uv.x - x, uv.y + y)).rgb;
+    vec3 b = texture(sourceTexture[dstMipLevel + 1], vec2(uv.x,     uv.y + y)).rgb;
+    vec3 c = texture(sourceTexture[dstMipLevel + 1], vec2(uv.x + x, uv.y + y)).rgb;
+
+    vec3 d = texture(sourceTexture[dstMipLevel + 1], vec2(uv.x - x, uv.y)).rgb;
+    vec3 e = texture(sourceTexture[dstMipLevel + 1], vec2(uv.x,     uv.y)).rgb;
+    vec3 f = texture(sourceTexture[dstMipLevel + 1], vec2(uv.x + x, uv.y)).rgb;
+
+    vec3 g = texture(sourceTexture[dstMipLevel + 1], vec2(uv.x - x, uv.y - y)).rgb;
+    vec3 h = texture(sourceTexture[dstMipLevel + 1], vec2(uv.x,     uv.y - y)).rgb;
+    vec3 i = texture(sourceTexture[dstMipLevel + 1], vec2(uv.x + x, uv.y - y)).rgb;
+
+    vec3 upSampled = e * 4.0f;
+    upSampled += (b + d + f + h) * 2.0f;
+    upSampled += (a + c + g + i);
+    upSampled *= 1.0f / 16.0f;
+
+    // Additive blend with existing content in the destination mip
+    vec3 existing = imageLoad(outBloom[dstMipLevel], pixelCoord).rgb;
+    imageStore(outBloom[dstMipLevel], pixelCoord, vec4(existing + upSampled, 1.0f));
+}

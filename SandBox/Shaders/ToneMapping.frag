@@ -8,14 +8,13 @@ layout(set = 0, binding = 0) uniform sampler2D deferredTexture;
 layout(set = 0, binding = 1) uniform sampler2D bloomTexture;
 layout(set = 0, binding = 2) uniform sampler2D shadingTexture;
 layout(set = 0, binding = 3) uniform sampler2D rawSSRTexture;
-layout(set = 0, binding = 4) uniform sampler2D blurSSRTexture;
+layout(set = 0, binding = 4) uniform sampler2D blurredReflectionsTexture;
 
 layout(set = 0, binding = 5) uniform ToneMappingBuffer
 {
 	int toneMapperIndex;
 	float gamma;
-	int isSSREnabled;
-	int SSRMipLevels;
+	int isReflectionsEnabled;
 };
 
 #include "Shaders/Includes/ACES.h"
@@ -31,23 +30,24 @@ void main()
 
 	vec4 reflectionColor = vec4(0.0f, 0.0f, 0.0f, 0.0f);
 
-	if (isSSREnabled == 1)
+	if (bool(isReflectionsEnabled))
 	{
-		float SSRExist = ceil(texture(blurSSRTexture, uv).a);
-		reflectionColor = textureLod(blurSSRTexture, uv, roughness * SSRMipLevels * SSRExist);
+		float SSRExist = ceil(texture(blurredReflectionsTexture, uv).a);
+		reflectionColor = texture(blurredReflectionsTexture, uv);
 	}
 
-	deferred = mix(deferred, reflectionColor.xyz, reflectionColor.a * isSSREnabled * alpha);
+	deferred = mix(deferred, reflectionColor.xyz, reflectionColor.a * isReflectionsEnabled * alpha);
 
 	vec3 toneMappedColor;
-	if (toneMapperIndex == 0)
+	switch (toneMapperIndex)
 	{
-		toneMappedColor = pow(deferred + bloom, vec3(1.0f / gamma));
-	}
-	else if (toneMapperIndex == 1)
-	{
-		toneMappedColor = pow(ACES(deferred + bloom), vec3(1.0f / gamma));
-	}
+        case 0:
+            toneMappedColor = pow(deferred + bloom, vec3(1.0f / gamma));
+            break;
+        case 1:
+            toneMappedColor = pow(ACES(deferred + bloom), vec3(1.0f / gamma));
+            break;
+    }
 
 	outColor = vec4(toneMappedColor, 1.0f);
 }

@@ -1,11 +1,7 @@
 #version 450
 
-#include "Shaders/Includes/Camera.h"
-
-layout(set = 0, binding = 0) uniform GlobalBuffer
-{
-    Camera camera;
-};
+#include "Shaders/Includes/SetMacros/CameraSet.h"
+CAMERA_SET(0)
 
 layout(set = 1, binding = 1) uniform sampler2D normalTexture;
 layout(set = 1, binding = 2) uniform sampler2D shadingTexture;
@@ -26,15 +22,54 @@ layout(set = 1, binding = 6) uniform SSR
 layout(set = 1, binding = 7, rgba8) uniform writeonly image2D outColor;
 layout(set = 1, binding = 8, r11f_g11f_b10f) uniform image2D outEmissive;
 
+#ifndef PI
+#define PI 3.14159265359f
+#endif
+
+float Hash(vec3 p)
+{
+    return fract(sin(dot(p.xy, vec2(127.1f, 311.7f))) * 43758.5453123f * p.z);
+}
+
+vec3 PerturbReflection(vec3 reflectionDirection, vec3 normal, float roughness, vec3 seed)
+{
+    if (roughness <= 0.0f) return reflectionDirection;
+
+    float r1 = Hash(seed);
+    float r2 = Hash(seed + vec3(1.0f, 0.0f, 0.0f));
+
+    float phi = 2.0f * PI * r1;
+    float alpha = roughness * roughness;
+    float alpha2 = alpha * alpha;
+    float cosTheta = sqrt((1.0f - r2) / max(1.0f + (alpha2 - 1.0f) * r2, 1e-6f));
+    float sinTheta = sqrt(max(0.0f, 1.0f - cosTheta * cosTheta));
+
+    vec3 up = abs(reflectionDirection.y) < 0.999f ? vec3(0.0f, 1.0f, 0.0f) : vec3(1.0f, 0.0f, 0.0f);
+    vec3 tangent = normalize(cross(up, reflectionDirection));
+    vec3 bitangent = cross(reflectionDirection, tangent);
+
+    vec3 perturbed = normalize(tangent * (sinTheta * cos(phi)) +
+                               bitangent * (sinTheta * sin(phi)) +
+                               reflectionDirection * cosTheta);
+
+    return dot(perturbed, normal) > 0.0f ? perturbed : reflectionDirection;
+}
+
+vec2 ComputeViewRay(vec2 uv)
+{
+    vec2 screenPosition = uv * 2.0f - 1.0f;
+    return ComputeViewRay(screenPosition, vec2(0.0f), camera.aspectRatio, camera.tanHalfFOV);
+}
+
 void RayMarch(
     in vec2 viewportSize,
     in vec3 positionFrom,
     in vec3 pivot,
     in vec3 unitPosition,
     in float roughness,
-    in vec2 viewRay,
     out vec4 color,
-    out vec4 emissive)
+    out vec2 hitFragmentUV,
+    out float hitVisibility)
 {
     vec4 start = vec4(positionFrom, 1.0f);
     vec4 end = vec4(positionFrom + (pivot * maxDistance), 1.0f);
@@ -61,7 +96,8 @@ void RayMarch(
     if (startFragment.z <= 0.0f || endFragment.z <= 0.0f)
     {
         color = vec4(0.0f);
-        emissive = vec4(0.0f);
+        hitFragmentUV = vec2(0.0f);
+        hitVisibility = 0.0f;
         return;
     }
 
@@ -73,6 +109,7 @@ void RayMarch(
 
     float useX = abs(deltaX) >= abs(deltaY) ? 1.0f : 0.0f;
     float delta = mix(abs(deltaY), abs(deltaX), useX) * clamp(resolution * (1.0f - roughness * 0.5f), 0.0f, 1.0f);
+    delta = min(delta, 256.0f);
     vec2 increment = vec2(deltaX, deltaY) / max(delta, 0.001f);
 
     float search0 = 0.0f;
@@ -101,7 +138,7 @@ void RayMarch(
         positionTo = CalculatePositionFromDepth(
             texture(depthTexture, fragmentUV).x,
             camera.projectionMat4,
-            viewRay);
+            ComputeViewRay(fragmentUV));
 
         search1 = mix((fragment.y - startFragment.y) / deltaY, (fragment.x - startFragment.x) / deltaX, useX);
 
@@ -121,7 +158,6 @@ void RayMarch(
 
     search1 = search0 + ((search1 - search0) / 2.0f);
 
-    float minStep = 1.0 / (viewportSize.x * 2.0);
     for (i = 0; i < stepCount * hit0; ++i)
     {
         fragment = mix(startFragment.xy, endFragment.xy, search1);
@@ -136,7 +172,7 @@ void RayMarch(
         positionTo = CalculatePositionFromDepth(
             texture(depthTexture, fragmentUV).x,
             camera.projectionMat4,
-            viewRay);
+            ComputeViewRay(fragmentUV));
 
         viewDistance = (start.z * end.z) / mix(end.z, start.z, search1);
         depth = positionTo.z - viewDistance;
@@ -175,16 +211,15 @@ void RayMarch(
         visibility = 0.0f;
     }
 
-    float depthThreshold = 0.02f * maxDistance;
-    if (abs(depth) > depthThreshold)
+    if (abs(depth) > thickness)
     {
         visibility = 0.0f;
     }
 
     vec3 sceneColor = texture(colorTexture, fragmentUV).xyz;
 
-    ivec2 emissivePixelCoord = ivec2(fragmentUV * imageSize(outEmissive));
-    vec3 bloomColor = imageLoad(outEmissive, emissivePixelCoord).xyz;
+    hitFragmentUV = fragmentUV;
+    hitVisibility = visibility;
 
     if (hit1 == 1)
     {
@@ -195,8 +230,6 @@ void RayMarch(
         vec3 pivotWorldSpace = mat3(camera.inverseViewMat4) * pivot;
         color = vec4(mix(vec3(0.0f, 0.0f, 0.0f), texture(skyboxTexture, pivotWorldSpace).rgb, roughnessVisibility * useSkyBoxFallback), roughnessVisibility * useSkyBoxFallback);
     }
-
-    emissive = vec4(mix(vec3(0.0f, 0.0f, 0.0f), bloomColor, visibility), visibility);
 }
 
 float random(vec2 uv)
@@ -211,13 +244,9 @@ void main()
 
 	ivec2 pixelCoord = ivec2(gl_GlobalInvocationID.xy);
     vec2 uv = (vec2(pixelCoord) + vec2(0.5f)) / viewportSize;
-	vec2 screenPosition = uv * 2.0f - 1.0f;
+	vec2 viewRay = ComputeViewRay(uv);
 
-	vec2 viewRay;
-	viewRay.x = -screenPosition.x * camera.aspectRatio * camera.tanHalfFOV;
-    viewRay.y = screenPosition.y * camera.tanHalfFOV;
-
-    vec3 normalViewSpace = OctDecode(texture(normalTexture, uv).xy);
+    vec3 normalViewSpace = normalize(OctDecode(texture(normalTexture, uv).xy));
     vec4 shading = texture(shadingTexture, uv);
     if (shading.a <= 0.0f || shading.y >= 1.0f)
     {
@@ -231,7 +260,7 @@ void main()
         viewRay);
 
     vec3 unitPosition = normalize(positionViewSpace);
-    vec3 pivot = normalize(reflect(unitPosition, normalize(normalViewSpace)));
+    vec3 pivot = normalize(reflect(unitPosition, normalViewSpace));
     if (pivot.z > 0.0f)
     {
         float roughnessVisibility = (1.0f - shading.y) * (1.0f - shading.y);
@@ -240,16 +269,21 @@ void main()
         return;
     }
 
-    //vec2 jitter = vec2(random(uv + camera.time), random(uv - camera.time)) * 2.0 - 1.0;
-    //jitter *= 0.25 / viewportSize;
+    pivot = PerturbReflection(pivot, normalViewSpace, shading.y, vec3(uv.x, uv.y, uv.x * uv.y));
 
     vec4 color;
-    vec4 emissive;
-    RayMarch(viewportSize, positionViewSpace, pivot, unitPosition, shading.y, viewRay, color, emissive);
+    vec2 hitFragmentUV;
+    float hitVisibility;
+    RayMarch(viewportSize, positionViewSpace, pivot, unitPosition, shading.y, color, hitFragmentUV, hitVisibility);
+
+    imageStore(outColor, pixelCoord, color);
 
     ivec2 emissivePixelCoord = ivec2(uv * imageSize(outEmissive));
     vec4 emissiveSource = imageLoad(outEmissive, emissivePixelCoord);
-    
-    imageStore(outColor, pixelCoord, color);
+
+    ivec2 hitEmissiveCoord = ivec2(hitFragmentUV * imageSize(outEmissive));
+    vec3 bloomColor = imageLoad(outEmissive, hitEmissiveCoord).xyz;
+    vec4 emissive = vec4(mix(vec3(0.0f), bloomColor, hitVisibility), hitVisibility);
+
     imageStore(outEmissive, emissivePixelCoord, emissiveSource + emissive);
 }

@@ -1,5 +1,5 @@
 Mat:
-  Basemat: 0x616a53e2da3e3d97aba359656772585d
+  Basemat: 0x5e24d711eb129f19fc9801b407c05618
   Options:
     - Name: Transparency
       IsEnabled: false
@@ -8,9 +8,6 @@ Mat:
       Inactive:
         - GBuffer
   Pipelines:
-    - RenderPass: ZPrePass
-      Uniforms:
-        []
     - RenderPass: SpotLightShadows
       Uniforms:
         []
@@ -25,7 +22,7 @@ Mat:
         []
     - RenderPass: GBuffer
       Uniforms:
-        - Name: GBufferMaterial
+        - Name: MaterialBuffer
           Values:
             - Name: material.albedoColor
               Value: [1, 1, 1, 1]

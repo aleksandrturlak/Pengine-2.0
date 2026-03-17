@@ -1,24 +1,25 @@
 #version 450
 
-layout(location = 0) in vec3 positionA;
-layout(location = 1) in vec2 uvA;
-layout(location = 2) in uint colorA;
-layout(location = 3) in mat4 transformA;
-layout(location = 7) in int lightIndexA;
+#include "Shaders/Includes/Common.h"
+
+layout(location = 0) in int entityIndexA;
+layout(location = 1) in int lightIndexA;
 
 layout(location = 0) out vec2 uv;
 layout(location = 1) out vec4 positionWorldSpace;
 layout(location = 2) flat out vec3 lightPositionWorldSpace;
 layout(location = 3) flat out float radius;
+layout(location = 4) flat out uint64_t materialBuffer;
 
-#include "Shaders/Includes/Camera.h"
+#include "Shaders/Includes/SetMacros/CameraSet.h"
+CAMERA_SET(0)
+
 #include "Shaders/Includes/DirectionalLight.h"
 #include "Shaders/Includes/PointLight.h"
 #include "Shaders/Includes/SpotLight.h"
-#include "Shaders/Includes/CSM.h"
 #include "Shaders/Includes/SSS.h"
 
-layout(set = 2, binding = 0) uniform Lights
+layout(set = 1, binding = 0) uniform Lights
 {
 	PointLight pointLights[32];
 	int pointLightsCount;
@@ -31,33 +32,85 @@ layout(set = 2, binding = 0) uniform Lights
 
 	float brightnessThreshold;
 
-	CSM csm;
-
 	PointLightShadows pointLightShadows;
     SpotLightShadows spotLightShadows;
     
     SSS sss;
 };
 
-layout(set = 3, binding = 0) uniform GlobalBuffer
+layout(set = 2, binding = 0, scalar) buffer readonly EntityBuffer
 {
-	Camera camera;
+	EntityInfo entities[MAX_ENTITIES];
 };
+
+#include "Shaders/Includes/DefaultMaterial.h"
+layout(buffer_reference, scalar) buffer MaterialBufferReference
+{
+	DefaultMaterial material;
+};
+
+void CalculateSkinning(
+	in vec4 weights,
+	in ivec4 boneIds,
+	in BoneBuffer boneBuffer,
+	inout vec3 position)
+{
+	vec4 totalPosition = vec4(0.0f);
+	for (int i = 0; i < MAX_BONE_INFLUENCE; i++)
+	{
+		if(boneIds[i] == -1) continue;
+		if(boneIds[i] >= MAX_BONES)
+		{
+			totalPosition = vec4(position, 1.0f);
+			break;
+		}
+
+		mat4 boneMat4 = boneBuffer.boneMatrices[boneIds[i]];
+		vec4 localPosition = boneMat4 * vec4(position, 1.0f);
+		totalPosition += localPosition * weights[i];
+	}
+
+	position = totalPosition.xyz;
+}
 
 void main()
 {
-    vec4 windParams = unpackUnorm4x8(colorA);
+	EntityInfo entityInfo = entities[entityIndexA];
+	
+	materialBuffer = entityInfo.materialInfoBuffer.materialBuffers[GBUFFER_PASS];
+	DefaultMaterial material = MaterialBufferReference(materialBuffer).material;
+
+	MeshInfoBuffer meshInfoBuffer = entityInfo.meshInfoBuffer;
+	MeshBufferInfoBuffer meshBufferInfoBuffer = meshInfoBuffer.meshBufferInfoBuffer;
+
+	uint index = meshBufferInfoBuffer.indexBuffer.indices[gl_VertexIndex].index;
+
+	vec3 position = meshBufferInfoBuffer.vertexBufferPosition.vertices[index].position;
+	
+	uint packedColor = meshBufferInfoBuffer.vertexBufferColor.colors[index].color;
+	vec4 windParams = unpackUnorm4x8(packedColor);
 	float stiffness = windParams.r;
-    float oscillation = windParams.g;
+	float oscillation = windParams.g;
 
 	float windWave = sin(camera.time * camera.wind.frequency + float(gl_VertexIndex) * oscillation);
-
 	float windInfluence = (1.0f - stiffness) * camera.wind.strength;
 	vec3 windDisplacement = camera.wind.direction * windWave * windInfluence;
 
-    positionWorldSpace = transformA * vec4(windDisplacement + positionA, 1.0f);
+	position += windDisplacement;
+
+	if (bool(entityInfo.flags & ENTITY_SKINNED))
+	{
+		VertexSkinned vertexSkinned = meshBufferInfoBuffer.vertexBufferSkinned.skinned[index];
+		CalculateSkinning(
+			vertexSkinned.weights,
+			vertexSkinned.boneIds,
+			entityInfo.boneBuffer,
+			position);
+	}
+
+	positionWorldSpace = vec4(QuatRotate(entityInfo.rotation, position * entityInfo.scale) + entityInfo.position, 1.0);
 	gl_Position = spotLights[lightIndexA].viewProjectionMat4 * positionWorldSpace;
     lightPositionWorldSpace = spotLights[lightIndexA].positionWorldSpace;
     radius = spotLights[lightIndexA].radius;
-	uv = uvA;
+	uv = meshBufferInfoBuffer.vertexBufferPosition.vertices[index].uv * material.uvTransform.xy + material.uvTransform.zw;
 }

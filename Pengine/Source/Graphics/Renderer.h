@@ -1,6 +1,7 @@
 #pragma once
 
 #include "../Core/Core.h"
+#include "../Graphics/BarrierBatch.h"
 #include "../Graphics/Buffer.h"
 #include "../Graphics/FrameBuffer.h"
 #include "../Graphics/RenderPass.h"
@@ -91,16 +92,34 @@ namespace Pengine
 			const size_t instanceBufferOffset,
 			void* frame) = 0;
 
+		virtual void Draw(
+			const uint32_t vertexCount,
+			const uint32_t instanceCount,
+			const uint32_t firstVertex,
+			const uint32_t firstInstance,
+			void* frame) = 0;
+			
 		virtual void DrawIndexed(
 			const uint32_t indexCount,
-			const uint32_t instanceCount,
+    		const uint32_t instanceCount,
+    		const uint32_t firstIndex,
+    		const int32_t vertexOffset,
+    		const uint32_t firstInstance,
+			void* frame) = 0;
+
+		virtual void DrawIndirectCount(
+			const NativeHandle indirectBuffer,
+			const size_t offset,
+			const NativeHandle countBuffer,
+			const size_t countBufferOffset,
+			const uint32_t maxDrawCount,
 			void* frame) = 0;
 
 		virtual void Dispatch(
 			const glm::uvec3& groupCount,
 			void* frame) = 0;
 
-		virtual void MemoryBarrierFragmentReadWrite(void* frame) = 0;
+		virtual void PipelineBarrier(const BarrierBatch& batch, void* frame) = 0;
 
 		virtual void BeginCommandLabel(
 			const std::string& name,
@@ -112,6 +131,26 @@ namespace Pengine
 		virtual void ClearDepthStencilImage(
 			std::shared_ptr<Texture> texture,
 			const RenderPass::ClearDepth& clearDepth,
+			void* frame) = 0;
+
+		virtual void ClearColorImage(
+			std::shared_ptr<Texture> texture,
+			const glm::vec4& clearColor,
+			void* frame) = 0;
+
+		virtual void FillBuffer(
+			NativeHandle buffer,
+			const size_t size,
+			const size_t offset,
+			uint32_t value,
+			void* frame) = 0;
+
+		virtual void PushConstants(
+			const std::shared_ptr<Pipeline>& pipeline,
+			ShaderStage stageFlags,
+			uint32_t offset,
+			uint32_t size,
+			const void* data,
 			void* frame) = 0;
 	};
 

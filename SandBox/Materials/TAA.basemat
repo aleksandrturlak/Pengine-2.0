@@ -1,0 +1,19 @@
+Basemat:
+  Pipelines:
+    - RenderPass: TAA
+      Type: Compute
+      Compute: Shaders/TAA.comp
+      UniformWriters:
+        - Type: Renderer
+          Name: Camera
+          Set: 0
+        - Type: Renderer
+          Name: TAA
+          Set: 1
+      Uniforms:
+        - Name: colorTexture
+          TextureAttachment: "ToneMapping[0]"
+        - Name: motionVectorTexture
+          TextureAttachment: "MotionVectors"
+        - Name: depthTexture
+          TextureAttachment: "GBuffer[4]"

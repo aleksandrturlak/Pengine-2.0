@@ -26,7 +26,23 @@ static VKAPI_ATTR VkBool32 VKAPI_CALL DebugCallback(
 	const VkDebugUtilsMessengerCallbackDataEXT *pCallbackData,
 	void *pUserData)
 {
-	Logger::Error(std::string("Validation layer: ") + pCallbackData->pMessage);
+	switch (messageSeverity)
+	{
+	case VK_DEBUG_UTILS_MESSAGE_SEVERITY_VERBOSE_BIT_EXT:
+		Logger::Log(std::string("Validation layer: ") + pCallbackData->pMessage);
+		break;
+	case VK_DEBUG_UTILS_MESSAGE_SEVERITY_INFO_BIT_EXT:
+		Logger::Log(std::string("Validation layer: ") + pCallbackData->pMessage);
+		break;
+	case VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT:
+		Logger::Warning(std::string("Validation layer: ") + pCallbackData->pMessage);
+		break;
+	case VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT:
+		Logger::Error(std::string("Validation layer: ") + pCallbackData->pMessage);
+		break;
+	default:
+		break;
+	}
 	
 	return VK_FALSE;
 }
@@ -88,13 +104,28 @@ void VulkanDevice::CreateInstance(const std::string& applicationName)
 	createInfo.ppEnabledExtensionNames = extensions.data();
 
 	VkDebugUtilsMessengerCreateInfoEXT debugCreateInfo;
+	VkValidationFeaturesEXT validationFeatures{};
+	VkValidationFeatureEnableEXT enabledValidationFeatures[] =
+	{
+		//VK_VALIDATION_FEATURE_ENABLE_GPU_ASSISTED_EXT,
+		//VK_VALIDATION_FEATURE_ENABLE_GPU_ASSISTED_RESERVE_BINDING_SLOT_EXT,
+		//VK_VALIDATION_FEATURE_ENABLE_BEST_PRACTICES_EXT,
+		VK_VALIDATION_FEATURE_ENABLE_DEBUG_PRINTF_EXT,
+		//VK_VALIDATION_FEATURE_ENABLE_SYNCHRONIZATION_VALIDATION_EXT,
+	};
+	
 	if (enableValidationLayers)
 	{
 		createInfo.enabledLayerCount = static_cast<uint32_t>(validationLayers.size());
 		createInfo.ppEnabledLayerNames = validationLayers.data();
 
+		validationFeatures.sType = VK_STRUCTURE_TYPE_VALIDATION_FEATURES_EXT;
+		validationFeatures.enabledValidationFeatureCount = 1;
+		validationFeatures.pEnabledValidationFeatures = enabledValidationFeatures;
+		
 		PopulateDebugMessengerCreateInfo(debugCreateInfo);
-		createInfo.pNext = (VkDebugUtilsMessengerCreateInfoEXT*)&debugCreateInfo;
+		debugCreateInfo.pNext = &validationFeatures;
+		createInfo.pNext = &debugCreateInfo;
 	}
 	else
 	{
@@ -183,6 +214,14 @@ void VulkanDevice::PickPhysicalDevice()
 	}
 
 	Logger::Log(std::string("Choosen physical device: ") + m_PhysicalDeviceProperties.deviceName, BOLDGREEN);
+
+	VkPhysicalDeviceAccelerationStructurePropertiesKHR asProps{};
+	asProps.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_ACCELERATION_STRUCTURE_PROPERTIES_KHR;
+	VkPhysicalDeviceProperties2 props2{};
+	props2.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_PROPERTIES_2;
+	props2.pNext = &asProps;
+	vkGetPhysicalDeviceProperties2(m_PhysicalDevice, &props2);
+	m_MinScratchOffsetAlignment = asProps.minAccelerationStructureScratchOffsetAlignment;
 }
 
 void VulkanDevice::CreateLogicalDevice()
@@ -212,10 +251,31 @@ void VulkanDevice::CreateLogicalDevice()
 	deviceFeatures.depthClamp = VK_TRUE;
 	deviceFeatures.independentBlend = VK_TRUE;
 	deviceFeatures.fragmentStoresAndAtomics = VK_TRUE;
+	deviceFeatures.shaderInt64 = VK_TRUE;
+
+	VkPhysicalDeviceMaintenance6Features vulkanMaintenance6Features{};
+	vulkanMaintenance6Features.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_MAINTENANCE_6_FEATURES;
+	vulkanMaintenance6Features.maintenance6 = true;
+
+	VkPhysicalDeviceRayQueryFeaturesKHR vulkanRayQueryFeatures{};
+	vulkanRayQueryFeatures.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_RAY_QUERY_FEATURES_KHR;
+	vulkanRayQueryFeatures.pNext = &vulkanMaintenance6Features;
+	vulkanRayQueryFeatures.rayQuery = VK_TRUE;
+	
+	VkPhysicalDeviceAccelerationStructureFeaturesKHR vulkanAccelerationStructureFeatures{};
+	vulkanAccelerationStructureFeatures.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_ACCELERATION_STRUCTURE_FEATURES_KHR;
+	vulkanAccelerationStructureFeatures.pNext = &vulkanRayQueryFeatures;
+	vulkanAccelerationStructureFeatures.accelerationStructure = VK_TRUE;
+	vulkanAccelerationStructureFeatures.descriptorBindingAccelerationStructureUpdateAfterBind = VK_TRUE;
+
+	VkPhysicalDeviceVulkan11Features vulkan11Features{};
+	vulkan11Features.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_1_FEATURES;
+	vulkan11Features.pNext = &vulkanAccelerationStructureFeatures;
+	vulkan11Features.shaderDrawParameters = VK_TRUE;
 
 	VkPhysicalDeviceVulkan12Features vulkan12Features{};
 	vulkan12Features.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_2_FEATURES;
-
+	vulkan12Features.pNext = &vulkan11Features;
 	vulkan12Features.scalarBlockLayout = VK_TRUE;
 	vulkan12Features.bufferDeviceAddress = VK_TRUE;
 	vulkan12Features.descriptorIndexing = VK_TRUE;
@@ -226,7 +286,10 @@ void VulkanDevice::CreateLogicalDevice()
 	vulkan12Features.descriptorBindingStorageBufferUpdateAfterBind = VK_TRUE;
 	vulkan12Features.descriptorBindingSampledImageUpdateAfterBind = VK_TRUE;
 	vulkan12Features.descriptorBindingStorageImageUpdateAfterBind = VK_TRUE;
-	
+	vulkan12Features.drawIndirectCount = VK_TRUE;
+	vulkan12Features.shaderOutputViewportIndex = VK_TRUE;
+	vulkan12Features.shaderOutputLayer = VK_TRUE;
+
 	VkDeviceCreateInfo createInfo{};
 	createInfo.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO;
 	createInfo.pNext = &vulkan12Features;
@@ -253,6 +316,17 @@ void VulkanDevice::CreateLogicalDevice()
 	}
 
 	vkGetDeviceQueue(m_Device, indices.graphicsFamily, 0, &m_GraphicsQueue);
+
+	m_vkCreateAccelerationStructureKHR = reinterpret_cast<PFN_vkCreateAccelerationStructureKHR>(
+		vkGetDeviceProcAddr(m_Device, "vkCreateAccelerationStructureKHR"));
+	m_vkDestroyAccelerationStructureKHR = reinterpret_cast<PFN_vkDestroyAccelerationStructureKHR>(
+		vkGetDeviceProcAddr(m_Device, "vkDestroyAccelerationStructureKHR"));
+	m_vkGetAccelerationStructureBuildSizesKHR = reinterpret_cast<PFN_vkGetAccelerationStructureBuildSizesKHR>(
+		vkGetDeviceProcAddr(m_Device, "vkGetAccelerationStructureBuildSizesKHR"));
+	m_vkCmdBuildAccelerationStructuresKHR = reinterpret_cast<PFN_vkCmdBuildAccelerationStructuresKHR>(
+		vkGetDeviceProcAddr(m_Device, "vkCmdBuildAccelerationStructuresKHR"));
+	m_vkGetAccelerationStructureDeviceAddressKHR = reinterpret_cast<PFN_vkGetAccelerationStructureDeviceAddressKHR>(
+		vkGetDeviceProcAddr(m_Device, "vkGetAccelerationStructureDeviceAddressKHR"));
 }
 
 VkCommandPool VulkanDevice::CreateCommandPool()
@@ -318,6 +392,7 @@ void VulkanDevice::CreateVmaAllocator()
 	allocatorInfo.device = m_Device;
 	allocatorInfo.instance = m_Instance;
 	allocatorInfo.vulkanApiVersion = GetVulkanApiVersion();
+	allocatorInfo.flags = VMA_ALLOCATOR_CREATE_BUFFER_DEVICE_ADDRESS_BIT;
 
 	const VkResult result = vmaCreateAllocator(&allocatorInfo, &m_VmaAllocator);
 	if (result != VK_SUCCESS)
@@ -374,8 +449,10 @@ void VulkanDevice::PopulateDebugMessengerCreateInfo(VkDebugUtilsMessengerCreateI
 {
 	createInfo = {};
 	createInfo.sType = VK_STRUCTURE_TYPE_DEBUG_UTILS_MESSENGER_CREATE_INFO_EXT;
-	createInfo.messageSeverity = VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT |
-		VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT;
+	createInfo.messageSeverity = VK_DEBUG_UTILS_MESSAGE_SEVERITY_VERBOSE_BIT_EXT |
+		VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT |
+		VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT |
+		VK_DEBUG_UTILS_MESSAGE_SEVERITY_INFO_BIT_EXT;
 	createInfo.messageType = VK_DEBUG_UTILS_MESSAGE_TYPE_GENERAL_BIT_EXT |
 		VK_DEBUG_UTILS_MESSAGE_TYPE_VALIDATION_BIT_EXT |
 		VK_DEBUG_UTILS_MESSAGE_TYPE_PERFORMANCE_BIT_EXT;
@@ -620,6 +697,7 @@ VulkanDevice::VulkanDevice(const std::string& applicationName)
 			.AddPoolSize(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 10000)
 			.AddPoolSize(VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 10000)
 			.AddPoolSize(VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, 10000)
+			.AddPoolSize(VK_DESCRIPTOR_TYPE_ACCELERATION_STRUCTURE_KHR, 10000)
 			.Build(m_Device);
 	}
 }
@@ -678,7 +756,8 @@ void VulkanDevice::CreateBuffer(
 	const VmaAllocationCreateFlags memoryFlags,
 	VkBuffer& buffer,
 	VmaAllocation& vmaAllocation,
-	VmaAllocationInfo& vmaAllocationInfo) const
+	VmaAllocationInfo& vmaAllocationInfo,
+	const VkDeviceSize minAlignment) const
 {
 	VkBufferCreateInfo bufferCreateInfo{};
 	bufferCreateInfo.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
@@ -690,13 +769,13 @@ void VulkanDevice::CreateBuffer(
 	allocationCreateInfo.usage = memoryUsage;
 	allocationCreateInfo.flags = memoryFlags;
 
-	if (vmaCreateBuffer(
-		m_VmaAllocator,
-		&bufferCreateInfo,
-		&allocationCreateInfo,
-		&buffer,
-		&vmaAllocation,
-		&vmaAllocationInfo) != VK_SUCCESS)
+	const VkResult result = minAlignment > 0
+		? vmaCreateBufferWithAlignment(m_VmaAllocator, &bufferCreateInfo, &allocationCreateInfo,
+			minAlignment, &buffer, &vmaAllocation, &vmaAllocationInfo)
+		: vmaCreateBuffer(m_VmaAllocator, &bufferCreateInfo, &allocationCreateInfo,
+			&buffer, &vmaAllocation, &vmaAllocationInfo);
+
+	if (result != VK_SUCCESS)
 	{
 		FATAL_ERROR("Device:<" + GetName() + "> Failed to create buffer!");
 	}
@@ -806,15 +885,36 @@ void VulkanDevice::EndSingleTimeCommands(const VkCommandBuffer commandBuffer) co
 		return;
 	}
 
-	vkEndCommandBuffer(commandBuffer);
+	VkResult result;
+	
+	result = vkEndCommandBuffer(commandBuffer);
+	if (result != VK_SUCCESS)
+	{
+		FATAL_ERROR("Failed to end command buffer!");
+	}
 
+	VkFence fence;
+	VkFenceCreateInfo fenceInfo{ VK_STRUCTURE_TYPE_FENCE_CREATE_INFO };
+	vkCreateFence(m_Device, &fenceInfo, nullptr, &fence);
+	
 	VkSubmitInfo submitInfo{};
 	submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
 	submitInfo.commandBufferCount = 1;
 	submitInfo.pCommandBuffers = &commandBuffer;
 
-	vkQueueSubmit(m_GraphicsQueue, 1, &submitInfo, VK_NULL_HANDLE);
-	vkQueueWaitIdle(m_GraphicsQueue);
+	result = vkQueueSubmit(m_GraphicsQueue, 1, &submitInfo, fence);
+	if (result != VK_SUCCESS)
+	{
+		FATAL_ERROR("Failed to submit to command buffer!");
+	}
+
+	result = vkWaitForFences(m_Device, 1, &fence, VK_TRUE, UINT64_MAX);
+	if (result != VK_SUCCESS)
+	{
+		FATAL_ERROR("Failed wait for fences!");
+	}
+
+	vkDestroyFence(m_Device, fence, nullptr);
 
 	FreeCommandBuffer(GetCommandPool(), commandBuffer);
 
@@ -823,21 +923,30 @@ void VulkanDevice::EndSingleTimeCommands(const VkCommandBuffer commandBuffer) co
 }
 
 void VulkanDevice::CopyBuffer(
+	VkCommandBuffer commandBuffer,
 	const VkBuffer srcBuffer,
 	const VkBuffer dstBuffer,
 	const VkDeviceSize size,
 	const VkDeviceSize srcOffset,
 	const VkDeviceSize dstOffset) const
 {
-	const VkCommandBuffer commandBuffer = BeginSingleTimeCommands();
-
+	bool isCreatedSingleTimeCommands = false;
+	if (commandBuffer == VK_NULL_HANDLE)
+	{
+		commandBuffer = BeginSingleTimeCommands();
+		isCreatedSingleTimeCommands = true;
+	}
+	
 	VkBufferCopy copyRegion{};
 	copyRegion.srcOffset = srcOffset;
 	copyRegion.dstOffset = dstOffset;
 	copyRegion.size = size;
 	vkCmdCopyBuffer(commandBuffer, srcBuffer, dstBuffer, 1, &copyRegion);
 
-	EndSingleTimeCommands(commandBuffer);
+	if (isCreatedSingleTimeCommands)
+	{
+		EndSingleTimeCommands(commandBuffer);
+	}
 }
 
 void VulkanDevice::CopyBufferToImage(
@@ -1188,6 +1297,17 @@ void VulkanDevice::ClearDepthStencilImage(
 	vkCmdClearDepthStencilImage(commandBuffer, image, imageLayout, depthStencilClearValue, rangeCount, ranges);
 }
 
+void VulkanDevice::ClearColorImage(
+	VkImage image,
+	VkImageLayout imageLayout,
+	const VkClearColorValue* clearColorValue,
+	uint32_t rangeCount,
+	const VkImageSubresourceRange* ranges,
+	VkCommandBuffer commandBuffer)
+{
+	vkCmdClearColorImage(commandBuffer, image, imageLayout, clearColorValue, rangeCount, ranges);
+}
+
 void VulkanDevice::CommandEndLabel(const VkCommandBuffer commandBuffer) const
 {
 	if (m_VkCmdEndDebugUtilsLabelEXT)
@@ -1215,7 +1335,7 @@ void VulkanDevice::FlushDeletionQueue(bool immediate)
 	std::vector<size_t> queuesToDelete;
 	for (auto& [frame, queue] : m_DeletionQueue)
 	{
-		if (!immediate && currentFrame <= frame + swapChainImageCount)
+		if (!immediate && currentFrame <= frame + frameInFlightCount)
 		{
 			continue;
 		}
@@ -1236,6 +1356,17 @@ void VulkanDevice::FlushDeletionQueue(bool immediate)
 	}
 }
 
+void VulkanDevice::ForEachFrame(const std::function<void()>& callback)
+{
+	Lock lock;
+	const uint32_t frameInFlightIndexCopy = Vk::frameInFlightIndex;
+	for (Vk::frameInFlightIndex = 0; Vk::frameInFlightIndex < Vk::frameInFlightCount; Vk::frameInFlightIndex++)
+	{
+		callback();
+	}
+	Vk::frameInFlightIndex = frameInFlightIndexCopy;
+}
+
 VkCommandBuffer VulkanDevice::GetCommandBufferFromFrame(void* frame)
 {
 	if (frame)
@@ -1250,4 +1381,47 @@ VkCommandBuffer VulkanDevice::GetCommandBufferFromFrame(void* frame)
 std::shared_ptr<VulkanDevice> Pengine::Vk::GetVkDevice()
 {
 	return std::static_pointer_cast<VulkanDevice>(device);
+}
+
+void VulkanDevice::CreateAccelerationStructure(
+	const VkAccelerationStructureCreateInfoKHR& createInfo,
+	VkAccelerationStructureKHR& accelerationStructure) const
+{
+	if (m_vkCreateAccelerationStructureKHR(m_Device, &createInfo, nullptr, &accelerationStructure) != VK_SUCCESS)
+	{
+		FATAL_ERROR("Device:<" + GetName() + "> Failed to create acceleration structure!");
+	}
+}
+
+void VulkanDevice::DestroyAccelerationStructure(const VkAccelerationStructureKHR accelerationStructure) const
+{
+	m_vkDestroyAccelerationStructureKHR(m_Device, accelerationStructure, nullptr);
+}
+
+void VulkanDevice::GetAccelerationStructureBuildSizes(
+	const VkAccelerationStructureBuildTypeKHR buildType,
+	const VkAccelerationStructureBuildGeometryInfoKHR& buildInfo,
+	const uint32_t* maxPrimitiveCounts,
+	VkAccelerationStructureBuildSizesInfoKHR& sizeInfo) const
+{
+	sizeInfo.sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_BUILD_SIZES_INFO_KHR;
+	m_vkGetAccelerationStructureBuildSizesKHR(m_Device, buildType, &buildInfo, maxPrimitiveCounts, &sizeInfo);
+}
+
+void VulkanDevice::CmdBuildAccelerationStructures(
+	const VkCommandBuffer commandBuffer,
+	const uint32_t infoCount,
+	const VkAccelerationStructureBuildGeometryInfoKHR* pInfos,
+	const VkAccelerationStructureBuildRangeInfoKHR* const* ppRangeInfos) const
+{
+	m_vkCmdBuildAccelerationStructuresKHR(commandBuffer, infoCount, pInfos, ppRangeInfos);
+}
+
+VkDeviceAddress VulkanDevice::GetAccelerationStructureDeviceAddress(
+	const VkAccelerationStructureKHR accelerationStructure) const
+{
+	VkAccelerationStructureDeviceAddressInfoKHR addressInfo{};
+	addressInfo.sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_DEVICE_ADDRESS_INFO_KHR;
+	addressInfo.accelerationStructure = accelerationStructure;
+	return m_vkGetAccelerationStructureDeviceAddressKHR(m_Device, &addressInfo);
 }

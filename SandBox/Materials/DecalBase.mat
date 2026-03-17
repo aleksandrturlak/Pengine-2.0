@@ -1,14 +1,14 @@
 Mat:
-  Basemat: 0xb4ece70155b18cc7c648bb6994b87058
+  Basemat: 0x40c218f9907c07f12717f60a345b8102
   Options:
     []
   Pipelines:
     - RenderPass: Decals
       Uniforms:
-        - Name: GBufferMaterial
+        - Name: MaterialBuffer
           Values:
             - Name: material.albedoColor
-              Value: [0.337552726, 0.337552726, 0.337552726, 1]
+              Value: [0.337254912, 0.337254912, 0.337254912, 1]
               Type: vec4
             - Name: material.emissiveColor
               Value: [1, 1, 1, 1]
@@ -29,7 +29,7 @@ Mat:
               Value: 0
               Type: float
             - Name: material.alphaCutoff
-              Value: 0.00999999978
+              Value: 0.150000006
               Type: float
             - Name: material.maxParallaxLayers
               Value: 0
@@ -41,7 +41,7 @@ Mat:
               Value: 0
               Type: float
             - Name: material.useNormalMap
-              Value: 1
+              Value: 0
               Type: int
             - Name: material.useAlphaCutoff
               Value: 1
@@ -53,7 +53,7 @@ Mat:
               Value: 0x3b7fe01a6b00eb14caa3d7a7de935a33
               Type: texture
             - Name: material.normalTexture
-              Value: 0xf97f2797b46e6bb936148a3543dfe504
+              Value: Black
               Type: texture
             - Name: material.metallicRoughnessTexture
               Value: White

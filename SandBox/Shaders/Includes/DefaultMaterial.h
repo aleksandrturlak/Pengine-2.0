@@ -1,3 +1,6 @@
+#ifndef DEFAULT_MATERIAL_H
+#define DEFAULT_MATERIAL_H
+
 struct DefaultMaterial
 {
 	vec4 albedoColor;
@@ -26,3 +29,5 @@ struct DefaultMaterial
 	int emissiveTexture;
 	int heightTexture;
 };
+
+#endif

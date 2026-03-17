@@ -33,6 +33,8 @@ namespace Pengine
 		
 		virtual void DestroyFrame(void* frame) = 0;
 
+		virtual void ForEachFrame(const std::function<void()>& callback) = 0;
+
 	protected:
 		Device() = default;
 		virtual ~Device() = default;

@@ -53,6 +53,10 @@
 #include "UUID.h"
 #include "NativeHandle.h"
 
+// Render pass constants
+#define MAX_PIPELINE_COUNT_PER_MATERIAL 8
+#define MAX_PIPELINE_COUNT 128
+
 #define RTTR_CAT_IMPL(a, b) a##b
 #define RTTR_CAT(a, b) RTTR_CAT_IMPL(a, b)
 
@@ -129,6 +133,8 @@ namespace Pengine
 
 	namespace Vk
 	{
+		inline uint32_t frameInFlightCount = 0;
+		inline uint32_t frameInFlightIndex = 0;
 		inline uint32_t swapChainImageCount = 0;
 		inline uint32_t swapChainImageIndex = 0;
 	}
@@ -148,6 +154,9 @@ namespace Pengine
 		size_t GetTriangleCount() const;
 		size_t GetCurrentFrame() const;
 		int64_t GetVramAllocated() const;
+
+		uint32_t& GetFrameInFlightCount();
+		uint32_t& GetFrameInFlightIndex();
 
 		uint32_t& GetSwapChainImageCount();
 		uint32_t& GetSwapChainImageIndex();

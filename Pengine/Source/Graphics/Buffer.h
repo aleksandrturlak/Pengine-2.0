@@ -13,19 +13,25 @@ namespace Pengine
 			UNIFORM_BUFFER,
 			VERTEX_BUFFER,
 			INDEX_BUFFER,
-			STORAGE_BUFFER
+			STORAGE_BUFFER,
+			INDIRECT_BUFFER,
+			TRANSFER_SRC,
+			TRANSFER_DST,
+			ACCELERATION_STRUCTURE_INPUT
 		};
 
-		static std::shared_ptr<Buffer> Create(
-			const size_t instanceSize,
-			const uint32_t instanceCount,
-			const Usage usage,
-			const MemoryType memoryType,
-			const bool isMultiBuffered = false);
+		struct CreateInfo
+		{
+			size_t instanceSize = 0;
+			uint32_t instanceCount = 1;
+			std::vector<Usage> usages;
+			MemoryType memoryType = MemoryType::CPU;
+			bool isMultiBuffered = false;
+		};
 
-		Buffer(
-			const MemoryType memoryType,
-			const bool isMultiBuffered);
+		static std::shared_ptr<Buffer> Create(const CreateInfo& createInfo);
+
+		Buffer(const CreateInfo& createInfo);
 		virtual ~Buffer() = default;
 		Buffer(const Buffer&) = delete;
 		Buffer& operator=(const Buffer&) = delete;
@@ -43,6 +49,8 @@ namespace Pengine
 
 		virtual void Flush() = 0;
 
+		virtual void ClearWrites() = 0;
+
 		[[nodiscard]] virtual NativeHandle GetNativeHandle() const = 0;
 
 		[[nodiscard]] virtual size_t GetSize() const = 0;
@@ -51,14 +59,14 @@ namespace Pengine
 
 		[[nodiscard]] virtual size_t GetInstanceSize() const = 0;
 
-		[[nodiscard]] MemoryType GetMemoryType() const { return m_MemoryType; }
+		[[nodiscard]] virtual NativeHandle GetDeviceAddress() const = 0;
 
-		[[nodiscard]] bool IsMultiBuffered() const { return m_IsMultiBuffered; }
+		[[nodiscard]] MemoryType GetMemoryType() const { return m_CreateInfo.memoryType; }
+
+		[[nodiscard]] bool IsMultiBuffered() const { return m_CreateInfo.isMultiBuffered; }
 
 	protected:
-		MemoryType m_MemoryType = MemoryType::CPU;
-
-		bool m_IsMultiBuffered = false;
+		CreateInfo m_CreateInfo;
 	};
 
 }

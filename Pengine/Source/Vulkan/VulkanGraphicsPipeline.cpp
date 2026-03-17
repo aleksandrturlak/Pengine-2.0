@@ -561,12 +561,6 @@ void VulkanGraphicsPipeline::CollectBindingsByDescriptorSet(
 	}
 }
 
-void VulkanGraphicsPipeline::Bind(const VkCommandBuffer commandBuffer) const
-{
-	PROFILER_SCOPE(__FUNCTION__);
-	vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, m_GraphicsPipeline);
-}
-
 void VulkanGraphicsPipeline::DefaultPipelineConfigInfo(PipelineConfigInfo& pipelineConfigInfo)
 {
 	pipelineConfigInfo.inputAssemblyInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO;

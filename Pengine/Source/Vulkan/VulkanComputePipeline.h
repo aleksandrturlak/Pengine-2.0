@@ -11,7 +11,6 @@ namespace Pengine::Vk
 	class PENGINE_API VulkanComputePipeline final : public ComputePipeline
 	{
 	public:
-		void Bind(VkCommandBuffer commandBuffer) const;
 
 		explicit VulkanComputePipeline(const CreateComputeInfo& createComputeInfo);
 		virtual ~VulkanComputePipeline() override;

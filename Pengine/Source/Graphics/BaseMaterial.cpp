@@ -4,6 +4,7 @@
 #include "../Core/Profiler.h"
 #include "../Core/Serializer.h"
 #include "../Core/TextureManager.h"
+#include "../Core/BindlessUniformWriter.h"
 #include "../EventSystem/EventSystem.h"
 #include "../EventSystem/NextFrameEvent.h"
 
@@ -123,8 +124,14 @@ bool BaseMaterial::GetUniformDetails(
 			{
 				if (squareBracketOpenOffset != std::string::npos)
 				{
-					searchingName = valueName.substr(0, squareBracketOpenOffset);
-
+					if (dotOffset < squareBracketOpenOffset)
+					{
+						searchingName = valueName.substr(0, dotOffset);
+					}
+					else
+					{
+						searchingName = valueName.substr(0, squareBracketOpenOffset);
+					}
 				}
 				else
 				{
@@ -290,6 +297,30 @@ std::optional<ShaderReflection::ReflectVariable> BaseMaterial::GetUniformValue(
 	return std::nullopt;
 }
 
+std::shared_ptr<Texture> BaseMaterial::GetBindlessTexture(const int index) const
+{
+	auto bindlessTextureByIndex = m_BindlessTexturesByIndex.find(index);
+	if (bindlessTextureByIndex != m_BindlessTexturesByIndex.end())
+	{
+		return bindlessTextureByIndex->second;
+	}
+
+	return nullptr;
+}
+
+int BaseMaterial::BindBindlessTexture(const std::shared_ptr<Texture>& texture)
+{
+    const int index = BindlessUniformWriter::GetInstance().BindTexture(texture);
+	m_BindlessTexturesByIndex[index] = texture;
+	return index;
+}
+
+void BaseMaterial::UnBindBindlessTexture(const std::shared_ptr<Texture>& texture)
+{
+	m_BindlessTexturesByIndex.erase(texture->GetBindlessIndex());
+	BindlessUniformWriter::GetInstance().UnBindTexture(texture);
+}
+
 void BaseMaterial::CreateResources(const CreateInfo& createInfo)
 {
 	for (const GraphicsPipeline::CreateGraphicsInfo& pipelineCreateGraphicsInfo : createInfo.pipelineCreateGraphicsInfos)
@@ -323,6 +354,16 @@ void BaseMaterial::CreateResources(const CreateInfo& createInfo)
 			m_PipelinesByPass[passName] = nullptr;
 		}
 	}
+
+	{
+		Buffer::CreateInfo createInfo{};
+		createInfo.instanceSize = sizeof(BaseMaterialInfoBuffer);
+		createInfo.instanceCount = 1;
+		createInfo.usages = { Buffer::Usage::STORAGE_BUFFER };
+		createInfo.memoryType = MemoryType::CPU;
+		createInfo.isMultiBuffered = true;
+		m_BaseMaterialInfoBuffer = Buffer::Create(createInfo);
+	}
 }
 
 void BaseMaterial::CreatePipelineResources(
@@ -351,14 +392,16 @@ void BaseMaterial::CreatePipelineResources(
 					usage = Buffer::Usage::STORAGE_BUFFER;
 				}
 
-				const std::shared_ptr<Buffer> buffer = Buffer::Create(
-					binding.buffer->size,
-					1,
-					usage,
-					MemoryType::CPU);
+				Buffer::CreateInfo createInfo{};
+				createInfo.instanceSize = binding.buffer->size;
+				createInfo.instanceCount = 1;
+				createInfo.usages = { usage };
+				createInfo.memoryType = MemoryType::CPU;
+				createInfo.isMultiBuffered = true;
+				const std::shared_ptr<Buffer> buffer = Buffer::Create(createInfo);
 
 				m_BuffersByName[binding.buffer->name] = buffer;
-				uniformWriter->WriteBuffer(binding.buffer->name, buffer);
+				uniformWriter->WriteBufferToAllFrames(binding.buffer->name, buffer);
 				uniformWriter->Flush();
 			}
 		}
@@ -373,7 +416,7 @@ void BaseMaterial::CreatePipelineResources(
 	for (const auto& [name, filepath] : uniformInfo.texturesByName)
 	{
 		std::shared_ptr<Texture> texture = TextureManager::GetInstance().Load(filepath);
-		uniformWriter->WriteTexture(name, texture);
+		uniformWriter->WriteTextureToAllFrames(name, texture);
 	}
 	uniformWriter->Flush();
 
@@ -403,5 +446,14 @@ void BaseMaterial::CreatePipelineResources(
 		{
 			WriteToBuffer(uniformBufferName, loadedValueName, loadedValue);
 		}
+
+		for (const auto& [name, filepath] : bufferInfo.texturesByName)
+		{
+			std::shared_ptr<Texture> texture = TextureManager::GetInstance().Load(filepath);
+			const int index = BindBindlessTexture(texture);
+			WriteToBuffer(uniformBufferName, name, index);
+		}
+
+		GetBuffer(uniformBufferName)->Flush();
 	}
 }

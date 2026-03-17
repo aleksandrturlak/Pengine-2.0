@@ -1,27 +1,32 @@
 #version 450
 
-layout(location = 0) flat in mat4 inverseTransform;
+#include "Shaders/Includes/Common.h"
+
+layout(location = 0) flat in uint64_t materialBuffer;
+layout(location = 1) flat in mat4 inverseTransform;
 
 layout(location = 0) out vec4 outAlbedo;
 layout(location = 1) out vec4 outShading;
 layout(location = 2) out vec4 outEmissive;
 
-#include "Shaders/Includes/Camera.h"
-layout(set = 0, binding = 0) uniform GlobalBuffer
-{
-	Camera camera;
-};
+#include "Shaders/Includes/SetMacros/CameraSet.h"
+CAMERA_SET(0)
+
+layout(set = 1, binding = 0) uniform sampler2D bindlessTextures[MAX_BINDLESS_TEXTURES];
+
+layout(set = 2, binding = 0) uniform sampler2D depthGBufferTexture;
+layout(set = 2, binding = 1, rg16f) uniform image2D normalGBufferTexture;
 
 #include "Shaders/Includes/DefaultMaterial.h"
-layout(set = 1, binding = 0) uniform GBufferMaterial
+layout(set = 3, binding = 0, scalar) uniform MaterialBuffer
 {
 	DefaultMaterial material;
 };
 
-layout(set = 2, binding = 0) uniform sampler2D bindlessTextures[10000];
-
-layout(set = 3, binding = 0) uniform sampler2D depthGBufferTexture;
-layout(set = 3, binding = 1, rg16f) uniform image2D normalGBufferTexture;
+layout(buffer_reference, scalar) buffer MaterialBufferReference
+{
+	DefaultMaterial material;
+};
 
 #include "Shaders/Includes/ParallaxOcclusionMapping.h"
 
@@ -41,25 +46,24 @@ mat3 ConstructTBN( vec3 N, vec3 p, vec2 uv )
 
 void main()
 {
+	DefaultMaterial material = MaterialBufferReference(materialBuffer).material;
     ivec2 pixelCoord = ivec2(gl_FragCoord.xy);
     vec2 screenUV = (vec2(pixelCoord) + vec2(0.5f)) / camera.viewportSize;
 	vec2 screenPosition = screenUV * 2.0f - 1.0f;
 	
-	vec2 viewRay;
-	viewRay.x = -screenPosition.x * camera.aspectRatio * camera.tanHalfFOV;
-    viewRay.y = screenPosition.y * camera.tanHalfFOV;
+    vec2 viewRay = ComputeViewRay(screenPosition, vec2(0.0f), camera.aspectRatio, camera.tanHalfFOV);
 
     vec3 positionViewSpace = CalculatePositionFromDepth(
-        texture(depthGBufferTexture, screenUV).x,
-        camera.projectionMat4,
-        viewRay);
+       texture(depthGBufferTexture, screenUV).x,
+       camera.projectionMat4,
+       viewRay);
 
     vec3 positionWorldSpace = (camera.inverseViewMat4 * vec4(positionViewSpace, 1.0f)).xyz;
     vec3 localPositionWorldSpace = vec4(inverseTransform * vec4(positionWorldSpace, 1.0f)).xyz;
     vec2 decalUV = localPositionWorldSpace.xz * 0.5f + 0.5f;
 
     if (abs(localPositionWorldSpace.x) > 1.0f || abs(localPositionWorldSpace.z) > 1.0f ||
-        abs(localPositionWorldSpace.y) > 1.0f)
+       abs(localPositionWorldSpace.y) > 1.0f)
     {
 		discard;
 	}

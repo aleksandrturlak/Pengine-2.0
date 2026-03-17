@@ -1,0 +1,135 @@
+Name: Sketchfab_model
+IsEnabled: true
+Transform:
+  Position: [0, 0, 0]
+  Rotation: [-1.57079637, -0, 0]
+  Scale: [1, 1, 1]
+  FollowOwner: true
+Childs:
+  - Name: Mainv2.obj.cleaner.materialmerger.gles
+    IsEnabled: true
+    Transform:
+      Position: [0, 0, 0]
+      Rotation: [0, -0, 0]
+      Scale: [1, 1, 1]
+      FollowOwner: true
+    Childs:
+      - Name: Object_2
+        IsEnabled: true
+        Transform:
+          Position: [0, 0, 0]
+          Rotation: [0, -0, 0]
+          Scale: [1, 1, 1]
+          FollowOwner: true
+        Renderer3D:
+          Mesh: 0x436252dcaff1550cd231d8d484ed16b1
+          Material: 0x8d3b1da3b35e39d98344e2a30788e412
+          RenderingOrder: 5
+          IsEnabled: true
+          CastShadows: true
+          ObjectVisibilityMask: 255
+          ShadowVisibilityMask: 255
+        Childs:
+          []
+      - Name: Object_3
+        IsEnabled: true
+        Transform:
+          Position: [0, 0, 0]
+          Rotation: [0, -0, 0]
+          Scale: [1, 1, 1]
+          FollowOwner: true
+        Renderer3D:
+          Mesh: 0xeb8bb93411800f262b87b989ae3ef809
+          Material: 0xa30d18555c82ec11bd72bf343e74bdec
+          RenderingOrder: 5
+          IsEnabled: true
+          CastShadows: true
+          ObjectVisibilityMask: 255
+          ShadowVisibilityMask: 255
+        Childs:
+          []
+      - Name: Object_4
+        IsEnabled: true
+        Transform:
+          Position: [0, 0, 0]
+          Rotation: [0, -0, 0]
+          Scale: [1, 1, 1]
+          FollowOwner: true
+        Renderer3D:
+          Mesh: 0xcffd51abd04464c1e7cc299e3beb8e11
+          Material: 0x625352a71234e1f92c0c3902c54cfdcc
+          RenderingOrder: 5
+          IsEnabled: true
+          CastShadows: true
+          ObjectVisibilityMask: 255
+          ShadowVisibilityMask: 255
+        Childs:
+          []
+      - Name: Object_5
+        IsEnabled: true
+        Transform:
+          Position: [0, 0, 0]
+          Rotation: [0, -0, 0]
+          Scale: [1, 1, 1]
+          FollowOwner: true
+        Renderer3D:
+          Mesh: 0x1511f7843edb822e310a0b4bd222053f
+          Material: 0xc040c8c905fd22d94ac2b3f7e735d9ad
+          RenderingOrder: 5
+          IsEnabled: true
+          CastShadows: true
+          ObjectVisibilityMask: 255
+          ShadowVisibilityMask: 255
+        Childs:
+          []
+      - Name: Object_6
+        IsEnabled: true
+        Transform:
+          Position: [0, 0, 0]
+          Rotation: [0, -0, 0]
+          Scale: [1, 1, 1]
+          FollowOwner: true
+        Renderer3D:
+          Mesh: 0x3e2c2ef2a5158a8fb34d37cbb878aa07
+          Material: 0x83468033016d57ed6bf2222068c64f6a
+          RenderingOrder: 5
+          IsEnabled: true
+          CastShadows: true
+          ObjectVisibilityMask: 255
+          ShadowVisibilityMask: 255
+        Childs:
+          []
+      - Name: Object_7
+        IsEnabled: true
+        Transform:
+          Position: [0, 0, 0]
+          Rotation: [0, -0, 0]
+          Scale: [1, 1, 1]
+          FollowOwner: true
+        Renderer3D:
+          Mesh: 0xf64eae161a5fbc3469ea2f3ff0e13c12
+          Material: 0x0020297060357e077944a16c03b89b07
+          RenderingOrder: 5
+          IsEnabled: true
+          CastShadows: true
+          ObjectVisibilityMask: 255
+          ShadowVisibilityMask: 255
+        Childs:
+          []
+      - Name: Object_8
+        IsEnabled: true
+        Transform:
+          Position: [0, 0, 0]
+          Rotation: [0, -0, 0]
+          Scale: [1, 1, 1]
+          FollowOwner: true
+        Renderer3D:
+          Mesh: 0x576de0a8fa2d61833e382019e35c9e46
+          Material: 0xe434d3b8735626d764643b85e2f86369
+          RenderingOrder: 5
+          IsEnabled: true
+          CastShadows: true
+          ObjectVisibilityMask: 255
+          ShadowVisibilityMask: 255
+        Childs:
+          []

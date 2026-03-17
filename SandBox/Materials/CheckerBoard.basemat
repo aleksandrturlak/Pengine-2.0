@@ -8,38 +8,17 @@ Basemat:
       TopologyMode: TriangleList
       Vertex: Shaders/CheckerBoard.vert
       Fragment: Shaders/CheckerBoard.frag
-      DescriptorSets:
+      UniformWriters:
         - Type: Renderer
-          RenderPass: DefaultReflection
+          Name: Camera
           Set: 0
-        - Type: Material
-          RenderPass: GBuffer
-          Set: 1
         - Type: Bindless
+          Set: 1
+        - Type: Scene
+          Name: Scene
           Set: 2
-      VertexInputBindingDescriptions:
-        - Binding: 0
-          InputRate: Vertex
-          Tag: Position
-          Names:
-            - positionA
-            - uvA
-        - Binding: 1
-          InputRate: Vertex
-          Tag: Normal
-          Names:
-            - normalA
-            - tangentA
-        - Binding: 2
-          InputRate: Vertex
-          Tag: Color
-          Names:
-            - colorA
-        - Binding: 3
-          InputRate: Instance
-          Names:
-            - transformA
-            - inverseTransformA
+        - Type: BufferDeviceAddress
+          Set: 3
       ColorBlendStates:
         - BlendEnabled: false
         - BlendEnabled: false
@@ -52,21 +31,18 @@ Basemat:
       PolygonMode: Fill
       Vertex: Shaders/Transparent.vert
       Fragment: Shaders/Transparent.frag
-      DescriptorSets:
+      UniformWriters:
         - Type: Renderer
-          RenderPass: DefaultReflection
+          Name: Camera
           Set: 0
-        - Type: Material
-          RenderPass: GBuffer
-          Set: 1
         - Type: Bindless
+          Set: 1
+        - Type: Renderer
+          Name: Deferred
           Set: 2
         - Type: Renderer
-          RenderPass: Deferred
+          Name: Lights
           Set: 3
-        - Type: Renderer
-          RenderPass: Lights
-          Set: 4
       VertexInputBindingDescriptions:
         - Binding: 0
           InputRate: Vertex
@@ -88,6 +64,7 @@ Basemat:
         - Binding: 3
           InputRate: Instance
           Names:
+            - materialIndexA
             - transformA
             - inverseTransformA
       ColorBlendStates:
@@ -100,62 +77,83 @@ Basemat:
       DepthWrite: true
       DepthClamp: true
       DepthCompare: LessOrEqual
-      CullMode: Front
+      CullMode: None
       PolygonMode: Fill
       TopologyMode: TriangleList
       Vertex: Shaders/CSM.vert
-      Geometry: Shaders/CSM.geom
       Fragment: Shaders/CSM.frag
-      DescriptorSets:
+      UniformWriters:
         - Type: Renderer
-          RenderPass: CSM
+          Name: Camera
           Set: 0
-        - Type: Material
-          RenderPass: GBuffer
+        - Type: Scene
+          Name: Scene
           Set: 1
-        - Type: Bindless
+        - Type: Renderer
+          Name: ComputeIndirectDrawCSMBuffers
           Set: 2
-      VertexInputBindingDescriptions:
-        - Binding: 0
-          InputRate: Vertex
-          Tag: Position
-          Names:
-            - positionA
-            - uvA
-        - Binding: 1
-          InputRate: Instance
-          Names:
-            - transformA
-            - layersA
+        - Type: Bindless
+          Set: 3
       ColorBlendStates:
         []
-    - RenderPass: ZPrePass
+    - RenderPass: PointLightShadows
       DepthTest: true
       DepthWrite: true
-      CullMode: Back
+      DepthClamp: true
+      DepthCompare: LessOrEqual
+      CullMode: None
       PolygonMode: Fill
       TopologyMode: TriangleList
-      Vertex: Shaders/ZPrePass.vert
-      Fragment: Shaders/ZPrePass.frag
-      DescriptorSets:
+      Vertex: Shaders/PointLightShadows.vert
+      Fragment: Shaders/PointLightShadows.frag
+      UniformWriters:
         - Type: Renderer
-          RenderPass: DefaultReflection
+          Name: Camera
           Set: 0
-        - Type: Material
-          RenderPass: GBuffer
+        - Type: Renderer
+          Name: Lights
           Set: 1
-        - Type: Bindless
+        - Type: Scene
+          Name: Scene
           Set: 2
+        - Type: Bindless
+          Set: 3
       VertexInputBindingDescriptions:
         - Binding: 0
-          InputRate: Vertex
-          Tag: Position
-          Names:
-            - positionA
-            - uvA
-        - Binding: 1
           InputRate: Instance
           Names:
-            - transformA
+            - entityIndexA
+            - lightIndexA
+            - faceIndexA
+      ColorBlendStates:
+        []
+    - RenderPass: SpotLightShadows
+      DepthTest: true
+      DepthWrite: true
+      DepthClamp: true
+      DepthCompare: LessOrEqual
+      CullMode: None
+      PolygonMode: Fill
+      TopologyMode: TriangleList
+      Vertex: Shaders/SpotLightShadows.vert
+      Fragment: Shaders/SpotLightShadows.frag
+      UniformWriters:
+        - Type: Renderer
+          Name: Camera
+          Set: 0
+        - Type: Renderer
+          Name: Lights
+          Set: 1
+        - Type: Scene
+          Name: Scene
+          Set: 2
+        - Type: Bindless
+          Set: 3
+      VertexInputBindingDescriptions:
+        - Binding: 0
+          InputRate: Instance
+          Names:
+            - entityIndexA
+            - lightIndexA
       ColorBlendStates:
         []

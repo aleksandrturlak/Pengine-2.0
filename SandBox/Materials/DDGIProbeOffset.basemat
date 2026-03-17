@@ -1,0 +1,8 @@
+Basemat:
+  Pipelines:
+    - RenderPass: DDGIProbeOffset
+      Type: Compute
+      Compute: Shaders/DDGIProbeOffset.comp
+      UniformWriters:
+        - { Type: Renderer, Name: Camera, Set: 0 }
+        - { Type: Renderer, Name: DDGIProbeOffset, Set: 1 }

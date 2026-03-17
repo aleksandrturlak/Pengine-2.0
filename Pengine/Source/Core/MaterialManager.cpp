@@ -1,6 +1,7 @@
 #include "MaterialManager.h"
 
 #include "Logger.h"
+#include "BindlessUniformWriter.h"
 
 #include "../Graphics/ShaderModuleManager.h"
 

@@ -3,12 +3,12 @@ Basemat:
     - RenderPass: SSR
       Type: Compute
       Compute: Shaders/SSR.comp
-      DescriptorSets:
+      UniformWriters:
         - Type: Renderer
-          RenderPass: DefaultReflection
+          Name: Camera
           Set: 0
         - Type: Renderer
-          RenderPass: SSR
+          Name: SSR
           Set: 1
       Uniforms:
         - Name: normalTexture

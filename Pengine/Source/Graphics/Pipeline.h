@@ -27,6 +27,7 @@ namespace Pengine
 			BASE_MATERIAL,
 			MATERIAL,
 			OBJECT,
+			BUFFER_DEVICE_ADDRESS,
 			TOTAL
 		};
 
@@ -54,7 +55,7 @@ namespace Pengine
 
 		struct UniformInfo
 		{
-			// For descriptor sets of BASEMATERIAL,MATERIAL type.
+			// For descriptor sets of BASEMATERIAL, MATERIAL type.
 			std::unordered_map<std::string, UniformBufferInfo> uniformBuffersByName;
 			std::unordered_map<std::string, std::string> texturesByName;
 

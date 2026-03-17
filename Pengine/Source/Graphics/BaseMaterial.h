@@ -57,6 +57,14 @@ namespace Pengine
 			const std::string& uniformBufferName,
 			const std::string& valueName);
 
+		std::shared_ptr<Texture> GetBindlessTexture(const int index) const;
+
+		int BindBindlessTexture(const std::shared_ptr<Texture>& texture);
+
+		void UnBindBindlessTexture(const std::shared_ptr<Texture>& texture);
+
+		std::shared_ptr<Buffer> GetBaseMaterialInfoBuffer() const { return m_BaseMaterialInfoBuffer; }
+
 		template<typename T>
 		void WriteToBuffer(
 			const std::string& uniformBufferName,
@@ -121,8 +129,15 @@ namespace Pengine
 			else
 			{
 				Logger::Warning("Failed to get buffer value: " + uniformBufferName + " | " + valueName + "!");
+
+				return {};
 			}
 		}
+
+		struct BaseMaterialInfoBuffer
+		{
+			uint32_t pipelineIds[MAX_PIPELINE_COUNT_PER_MATERIAL];
+		};
 
 	private:
 		void CreateResources(const CreateInfo& createInfo);
@@ -135,10 +150,14 @@ namespace Pengine
 		std::unordered_map<std::string, std::shared_ptr<Pipeline>> m_PipelinesByPass;
 		std::unordered_map<std::string, std::shared_ptr<UniformWriter>> m_UniformWriterByPass;
 		std::unordered_map<std::string, std::shared_ptr<Buffer>> m_BuffersByName;
+		
+		std::unordered_map<int, std::shared_ptr<class Texture>> m_BindlessTexturesByIndex;
 
 		mutable std::mutex m_UniformCacheMutex;
 		// map<BufferName, map<ValueName, <Size, Offset>>>
 		mutable std::unordered_map<std::string, std::unordered_map<std::string, std::pair<uint32_t, uint32_t>>> m_UniformsCache;
+
+		std::shared_ptr<Buffer> m_BaseMaterialInfoBuffer;
 	};
 
 }

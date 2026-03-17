@@ -1,0 +1,1759 @@
+Name: Unnamed
+IsEnabled: true
+Transform:
+  Position: [0, 0, 0]
+  Rotation: [0, -0, 0]
+  Scale: [1, 1, 1]
+  FollowOwner: true
+Childs:
+  - Name: Unnamed
+    IsEnabled: true
+    Transform:
+      Position: [0, 0, 0]
+      Rotation: [0, -0, 0]
+      Scale: [0.00800000038, 0.00800000038, 0.00800000038]
+      FollowOwner: true
+    Renderer3D:
+      Mesh: 0x7b25843239a46e664f629fe2343739c4
+      Material: 0x25522063cd1d6c4f106cb8c02c5c21ca
+      RenderingOrder: 5
+      IsEnabled: true
+      CastShadows: true
+      ObjectVisibilityMask: 255
+      ShadowVisibilityMask: 255
+    Childs:
+      []
+  - Name: Unnamed
+    IsEnabled: true
+    Transform:
+      Position: [0, 0, 0]
+      Rotation: [0, -0, 0]
+      Scale: [0.00800000038, 0.00800000038, 0.00800000038]
+      FollowOwner: true
+    Renderer3D:
+      Mesh: 0x77e5c4db872e5bbf7a7ee3114d9a9acc
+      Material: 0xd60e32c41ec175acf4afb6fe06e8d296
+      RenderingOrder: 5
+      IsEnabled: true
+      CastShadows: true
+      ObjectVisibilityMask: 255
+      ShadowVisibilityMask: 255
+    Childs:
+      []
+  - Name: Unnamed
+    IsEnabled: true
+    Transform:
+      Position: [0, 0, 0]
+      Rotation: [0, -0, 0]
+      Scale: [0.00800000038, 0.00800000038, 0.00800000038]
+      FollowOwner: true
+    Renderer3D:
+      Mesh: 0x3104191c749562f7a9d418c16267e0cd
+      Material: 0x4d101d80a97f2437c851bb3cb803f4b7
+      RenderingOrder: 5
+      IsEnabled: true
+      CastShadows: true
+      ObjectVisibilityMask: 255
+      ShadowVisibilityMask: 255
+    Childs:
+      []
+  - Name: Unnamed
+    IsEnabled: true
+    Transform:
+      Position: [0, 0, 0]
+      Rotation: [0, -0, 0]
+      Scale: [0.00800000038, 0.00800000038, 0.00800000038]
+      FollowOwner: true
+    Renderer3D:
+      Mesh: 0xe8eda5f98ce1914f74c7ad14f70a4ab8
+      Material: 0xac343ed1d0e56064001e0531ff50ffa1
+      RenderingOrder: 5
+      IsEnabled: true
+      CastShadows: true
+      ObjectVisibilityMask: 255
+      ShadowVisibilityMask: 255
+    Childs:
+      []
+  - Name: Unnamed
+    IsEnabled: true
+    Transform:
+      Position: [0, 0, 0]
+      Rotation: [0, -0, 0]
+      Scale: [0.00800000038, 0.00800000038, 0.00800000038]
+      FollowOwner: true
+    Renderer3D:
+      Mesh: 0xcf358b7ddf6012adcd9cd20d42ab93c0
+      Material: 0x9a3ba6f7eed373d84f7d94e8f8fd875d
+      RenderingOrder: 5
+      IsEnabled: true
+      CastShadows: true
+      ObjectVisibilityMask: 255
+      ShadowVisibilityMask: 255
+    Childs:
+      []
+  - Name: Unnamed
+    IsEnabled: true
+    Transform:
+      Position: [0, 0, 0]
+      Rotation: [0, -0, 0]
+      Scale: [0.00800000038, 0.00800000038, 0.00800000038]
+      FollowOwner: true
+    Renderer3D:
+      Mesh: 0x50db77961db97d3e19df87b91beffc2b
+      Material: 0x1c27cd7810fb5bbaa3ab04894f36c0b3
+      RenderingOrder: 5
+      IsEnabled: true
+      CastShadows: true
+      ObjectVisibilityMask: 255
+      ShadowVisibilityMask: 255
+    Childs:
+      []
+  - Name: Unnamed
+    IsEnabled: true
+    Transform:
+      Position: [0, 0, 0]
+      Rotation: [0, -0, 0]
+      Scale: [0.00800000038, 0.00800000038, 0.00800000038]
+      FollowOwner: true
+    Renderer3D:
+      Mesh: 0x71409b8b13411b5ca211e9757b2645eb
+      Material: 0x06051b48258fc563b355a7a0c8a6b693
+      RenderingOrder: 5
+      IsEnabled: true
+      CastShadows: true
+      ObjectVisibilityMask: 255
+      ShadowVisibilityMask: 255
+    Childs:
+      []
+  - Name: Unnamed
+    IsEnabled: true
+    Transform:
+      Position: [0, 0, 0]
+      Rotation: [0, -0, 0]
+      Scale: [0.00800000038, 0.00800000038, 0.00800000038]
+      FollowOwner: true
+    Renderer3D:
+      Mesh: 0xea58f7edc7b8db495df7415573059629
+      Material: 0x9a3ba6f7eed373d84f7d94e8f8fd875d
+      RenderingOrder: 5
+      IsEnabled: true
+      CastShadows: true
+      ObjectVisibilityMask: 255
+      ShadowVisibilityMask: 255
+    Childs:
+      []
+  - Name: Unnamed
+    IsEnabled: true
+    Transform:
+      Position: [0, 0, 0]
+      Rotation: [0, -0, 0]
+      Scale: [0.00800000038, 0.00800000038, 0.00800000038]
+      FollowOwner: true
+    Renderer3D:
+      Mesh: 0x81797875bcd98e960b44ea517183f706
+      Material: 0x06051b48258fc563b355a7a0c8a6b693
+      RenderingOrder: 5
+      IsEnabled: true
+      CastShadows: true
+      ObjectVisibilityMask: 255
+      ShadowVisibilityMask: 255
+    Childs:
+      []
+  - Name: Unnamed
+    IsEnabled: true
+    Transform:
+      Position: [0, 0, 0]
+      Rotation: [0, -0, 0]
+      Scale: [0.00800000038, 0.00800000038, 0.00800000038]
+      FollowOwner: true
+    Renderer3D:
+      Mesh: 0x83614d73e7978e6d32fc4f88243e6b7d
+      Material: 0xce58c308f34b42b40dd4eb99bf56a9cf
+      RenderingOrder: 5
+      IsEnabled: true
+      CastShadows: true
+      ObjectVisibilityMask: 255
+      ShadowVisibilityMask: 255
+    Childs:
+      []
+  - Name: Unnamed
+    IsEnabled: true
+    Transform:
+      Position: [0, 0, 0]
+      Rotation: [0, -0, 0]
+      Scale: [0.00800000038, 0.00800000038, 0.00800000038]
+      FollowOwner: true
+    Renderer3D:
+      Mesh: 0x0cbe6b01d88a933423ad0047efb39940
+      Material: 0x9a3ba6f7eed373d84f7d94e8f8fd875d
+      RenderingOrder: 5
+      IsEnabled: true
+      CastShadows: true
+      ObjectVisibilityMask: 255
+      ShadowVisibilityMask: 255
+    Childs:
+      []
+  - Name: Unnamed
+    IsEnabled: true
+    Transform:
+      Position: [0, 0, 0]
+      Rotation: [0, -0, 0]
+      Scale: [0.00800000038, 0.00800000038, 0.00800000038]
+      FollowOwner: true
+    Renderer3D:
+      Mesh: 0x2ba5f97a655a606fe1692cebcf5e2571
+      Material: 0xf96a68b410ce52a2ff9636308136b437
+      RenderingOrder: 5
+      IsEnabled: true
+      CastShadows: true
+      ObjectVisibilityMask: 255
+      ShadowVisibilityMask: 255
+    Childs:
+      []
+  - Name: Unnamed
+    IsEnabled: true
+    Transform:
+      Position: [0, 0, 0]
+      Rotation: [0, -0, 0]
+      Scale: [0.00800000038, 0.00800000038, 0.00800000038]
+      FollowOwner: true
+    Renderer3D:
+      Mesh: 0x58ee7ed37d51bcea985b1dabbd59280f
+      Material: 0xa59f7848ac8f2ddf39c34bc03af6b680
+      RenderingOrder: 5
+      IsEnabled: true
+      CastShadows: true
+      ObjectVisibilityMask: 255
+      ShadowVisibilityMask: 255
+    Childs:
+      []
+  - Name: Unnamed
+    IsEnabled: true
+    Transform:
+      Position: [0, 0, 0]
+      Rotation: [0, -0, 0]
+      Scale: [0.00800000038, 0.00800000038, 0.00800000038]
+      FollowOwner: true
+    Renderer3D:
+      Mesh: 0xe67f23357a29fcf359bb27b2ae9e628d
+      Material: 0x06051b48258fc563b355a7a0c8a6b693
+      RenderingOrder: 5
+      IsEnabled: true
+      CastShadows: true
+      ObjectVisibilityMask: 255
+      ShadowVisibilityMask: 255
+    Childs:
+      []
+  - Name: Unnamed
+    IsEnabled: true
+    Transform:
+      Position: [0, 0, 0]
+      Rotation: [0, -0, 0]
+      Scale: [0.00800000038, 0.00800000038, 0.00800000038]
+      FollowOwner: true
+    Renderer3D:
+      Mesh: 0x1fb910d77c0135f1d110cd9711afbbca
+      Material: 0x06051b48258fc563b355a7a0c8a6b693
+      RenderingOrder: 5
+      IsEnabled: true
+      CastShadows: true
+      ObjectVisibilityMask: 255
+      ShadowVisibilityMask: 255
+    Childs:
+      []
+  - Name: Unnamed
+    IsEnabled: true
+    Transform:
+      Position: [0, 0, 0]
+      Rotation: [0, -0, 0]
+      Scale: [0.00800000038, 0.00800000038, 0.00800000038]
+      FollowOwner: true
+    Renderer3D:
+      Mesh: 0x7298d6870df6898ba115be0b0274e053
+      Material: 0x4d101d80a97f2437c851bb3cb803f4b7
+      RenderingOrder: 5
+      IsEnabled: true
+      CastShadows: true
+      ObjectVisibilityMask: 255
+      ShadowVisibilityMask: 255
+    Childs:
+      []
+  - Name: Unnamed
+    IsEnabled: true
+    Transform:
+      Position: [0, 0, 0]
+      Rotation: [0, -0, 0]
+      Scale: [0.00800000038, 0.00800000038, 0.00800000038]
+      FollowOwner: true
+    Renderer3D:
+      Mesh: 0xa6e4f80d00d1cd09919c2f71fc31a8b7
+      Material: 0x06051b48258fc563b355a7a0c8a6b693
+      RenderingOrder: 5
+      IsEnabled: true
+      CastShadows: true
+      ObjectVisibilityMask: 255
+      ShadowVisibilityMask: 255
+    Childs:
+      []
+  - Name: Unnamed
+    IsEnabled: true
+    Transform:
+      Position: [0, 0, 0]
+      Rotation: [0, -0, 0]
+      Scale: [0.00800000038, 0.00800000038, 0.00800000038]
+      FollowOwner: true
+    Renderer3D:
+      Mesh: 0xc854aad476e10a1e4e0e01c71a378125
+      Material: 0x9a3ba6f7eed373d84f7d94e8f8fd875d
+      RenderingOrder: 5
+      IsEnabled: true
+      CastShadows: true
+      ObjectVisibilityMask: 255
+      ShadowVisibilityMask: 255
+    Childs:
+      []
+  - Name: Unnamed
+    IsEnabled: true
+    Transform:
+      Position: [0, 0, 0]
+      Rotation: [0, -0, 0]
+      Scale: [0.00800000038, 0.00800000038, 0.00800000038]
+      FollowOwner: true
+    Renderer3D:
+      Mesh: 0x3458fe1b03caf76743a9764e916affeb
+      Material: 0x9a3ba6f7eed373d84f7d94e8f8fd875d
+      RenderingOrder: 5
+      IsEnabled: true
+      CastShadows: true
+      ObjectVisibilityMask: 255
+      ShadowVisibilityMask: 255
+    Childs:
+      []
+  - Name: Unnamed
+    IsEnabled: true
+    Transform:
+      Position: [0, 0, 0]
+      Rotation: [0, -0, 0]
+      Scale: [0.00800000038, 0.00800000038, 0.00800000038]
+      FollowOwner: true
+    Renderer3D:
+      Mesh: 0x68b9e29b0bbf71746fb79672053ab5db
+      Material: 0x06051b48258fc563b355a7a0c8a6b693
+      RenderingOrder: 5
+      IsEnabled: true
+      CastShadows: true
+      ObjectVisibilityMask: 255
+      ShadowVisibilityMask: 255
+    Childs:
+      []
+  - Name: Unnamed
+    IsEnabled: true
+    Transform:
+      Position: [0, 0, 0]
+      Rotation: [0, -0, 0]
+      Scale: [0.00800000038, 0.00800000038, 0.00800000038]
+      FollowOwner: true
+    Renderer3D:
+      Mesh: 0xf1864fdf31c4d946df23bcb3adc0eec4
+      Material: 0x9a3ba6f7eed373d84f7d94e8f8fd875d
+      RenderingOrder: 5
+      IsEnabled: true
+      CastShadows: true
+      ObjectVisibilityMask: 255
+      ShadowVisibilityMask: 255
+    Childs:
+      []
+  - Name: Unnamed
+    IsEnabled: true
+    Transform:
+      Position: [0, 0, 0]
+      Rotation: [0, -0, 0]
+      Scale: [0.00800000038, 0.00800000038, 0.00800000038]
+      FollowOwner: true
+    Renderer3D:
+      Mesh: 0xcd73b32b362c8e6b1686ba903e86a84b
+      Material: 0x06051b48258fc563b355a7a0c8a6b693
+      RenderingOrder: 5
+      IsEnabled: true
+      CastShadows: true
+      ObjectVisibilityMask: 255
+      ShadowVisibilityMask: 255
+    Childs:
+      []
+  - Name: Unnamed
+    IsEnabled: true
+    Transform:
+      Position: [0, 0, 0]
+      Rotation: [0, -0, 0]
+      Scale: [0.00800000038, 0.00800000038, 0.00800000038]
+      FollowOwner: true
+    Renderer3D:
+      Mesh: 0xb6c6531bb9da92db7c16951a021615a9
+      Material: 0x9a3ba6f7eed373d84f7d94e8f8fd875d
+      RenderingOrder: 5
+      IsEnabled: true
+      CastShadows: true
+      ObjectVisibilityMask: 255
+      ShadowVisibilityMask: 255
+    Childs:
+      []
+  - Name: Unnamed
+    IsEnabled: true
+    Transform:
+      Position: [0, 0, 0]
+      Rotation: [0, -0, 0]
+      Scale: [0.00800000038, 0.00800000038, 0.00800000038]
+      FollowOwner: true
+    Renderer3D:
+      Mesh: 0x7deb1b5a0b5ed19143fcfd1184aeb0ad
+      Material: 0x9a3ba6f7eed373d84f7d94e8f8fd875d
+      RenderingOrder: 5
+      IsEnabled: true
+      CastShadows: true
+      ObjectVisibilityMask: 255
+      ShadowVisibilityMask: 255
+    Childs:
+      []
+  - Name: Unnamed
+    IsEnabled: true
+    Transform:
+      Position: [0, 0, 0]
+      Rotation: [0, -0, 0]
+      Scale: [0.00800000038, 0.00800000038, 0.00800000038]
+      FollowOwner: true
+    Renderer3D:
+      Mesh: 0xe90ab30697f0b3224ed773f87c5ad43d
+      Material: 0x06051b48258fc563b355a7a0c8a6b693
+      RenderingOrder: 5
+      IsEnabled: true
+      CastShadows: true
+      ObjectVisibilityMask: 255
+      ShadowVisibilityMask: 255
+    Childs:
+      []
+  - Name: Unnamed
+    IsEnabled: true
+    Transform:
+      Position: [0, 0, 0]
+      Rotation: [0, -0, 0]
+      Scale: [0.00800000038, 0.00800000038, 0.00800000038]
+      FollowOwner: true
+    Renderer3D:
+      Mesh: 0xf039d40256ee8627694464ed7ef5bb1f
+      Material: 0x06051b48258fc563b355a7a0c8a6b693
+      RenderingOrder: 5
+      IsEnabled: true
+      CastShadows: true
+      ObjectVisibilityMask: 255
+      ShadowVisibilityMask: 255
+    Childs:
+      []
+  - Name: Unnamed
+    IsEnabled: true
+    Transform:
+      Position: [0, 0, 0]
+      Rotation: [0, -0, 0]
+      Scale: [0.00800000038, 0.00800000038, 0.00800000038]
+      FollowOwner: true
+    Renderer3D:
+      Mesh: 0x7f96046cf36e9f6d74fb46ddca81c6a2
+      Material: 0x9a3ba6f7eed373d84f7d94e8f8fd875d
+      RenderingOrder: 5
+      IsEnabled: true
+      CastShadows: true
+      ObjectVisibilityMask: 255
+      ShadowVisibilityMask: 255
+    Childs:
+      []
+  - Name: Unnamed
+    IsEnabled: true
+    Transform:
+      Position: [0, 0, 0]
+      Rotation: [0, -0, 0]
+      Scale: [0.00800000038, 0.00800000038, 0.00800000038]
+      FollowOwner: true
+    Renderer3D:
+      Mesh: 0x8fada11818d0684ebeaf0a3b5c02aee0
+      Material: 0x9a3ba6f7eed373d84f7d94e8f8fd875d
+      RenderingOrder: 5
+      IsEnabled: true
+      CastShadows: true
+      ObjectVisibilityMask: 255
+      ShadowVisibilityMask: 255
+    Childs:
+      []
+  - Name: Unnamed
+    IsEnabled: true
+    Transform:
+      Position: [0, 0, 0]
+      Rotation: [0, -0, 0]
+      Scale: [0.00800000038, 0.00800000038, 0.00800000038]
+      FollowOwner: true
+    Renderer3D:
+      Mesh: 0xff62d6a25d954d645d2241a30945e1c4
+      Material: 0x06051b48258fc563b355a7a0c8a6b693
+      RenderingOrder: 5
+      IsEnabled: true
+      CastShadows: true
+      ObjectVisibilityMask: 255
+      ShadowVisibilityMask: 255
+    Childs:
+      []
+  - Name: Unnamed
+    IsEnabled: true
+    Transform:
+      Position: [0, 0, 0]
+      Rotation: [0, -0, 0]
+      Scale: [0.00800000038, 0.00800000038, 0.00800000038]
+      FollowOwner: true
+    Renderer3D:
+      Mesh: 0x936aff81167cbbbe649a490b26394dfc
+      Material: 0x9a3ba6f7eed373d84f7d94e8f8fd875d
+      RenderingOrder: 5
+      IsEnabled: true
+      CastShadows: true
+      ObjectVisibilityMask: 255
+      ShadowVisibilityMask: 255
+    Childs:
+      []
+  - Name: Unnamed
+    IsEnabled: true
+    Transform:
+      Position: [0, 0, 0]
+      Rotation: [0, -0, 0]
+      Scale: [0.00800000038, 0.00800000038, 0.00800000038]
+      FollowOwner: true
+    Renderer3D:
+      Mesh: 0xb5c3038496662cfd6ee8f2a7feeeaa35
+      Material: 0x9a3ba6f7eed373d84f7d94e8f8fd875d
+      RenderingOrder: 5
+      IsEnabled: true
+      CastShadows: true
+      ObjectVisibilityMask: 255
+      ShadowVisibilityMask: 255
+    Childs:
+      []
+  - Name: Unnamed
+    IsEnabled: true
+    Transform:
+      Position: [0, 0, 0]
+      Rotation: [0, -0, 0]
+      Scale: [0.00800000038, 0.00800000038, 0.00800000038]
+      FollowOwner: true
+    Renderer3D:
+      Mesh: 0x602a2aa9d9ccde49cce172e12d0a7799
+      Material: 0x9a3ba6f7eed373d84f7d94e8f8fd875d
+      RenderingOrder: 5
+      IsEnabled: true
+      CastShadows: true
+      ObjectVisibilityMask: 255
+      ShadowVisibilityMask: 255
+    Childs:
+      []
+  - Name: Unnamed
+    IsEnabled: true
+    Transform:
+      Position: [0, 0, 0]
+      Rotation: [0, -0, 0]
+      Scale: [0.00800000038, 0.00800000038, 0.00800000038]
+      FollowOwner: true
+    Renderer3D:
+      Mesh: 0xa418acdc4e069ba177b32aa901ad8a63
+      Material: 0x06051b48258fc563b355a7a0c8a6b693
+      RenderingOrder: 5
+      IsEnabled: true
+      CastShadows: true
+      ObjectVisibilityMask: 255
+      ShadowVisibilityMask: 255
+    Childs:
+      []
+  - Name: Unnamed
+    IsEnabled: true
+    Transform:
+      Position: [0, 0, 0]
+      Rotation: [0, -0, 0]
+      Scale: [0.00800000038, 0.00800000038, 0.00800000038]
+      FollowOwner: true
+    Renderer3D:
+      Mesh: 0x83f44644bfa1a510ddd0335aa68f2a13
+      Material: 0x9a3ba6f7eed373d84f7d94e8f8fd875d
+      RenderingOrder: 5
+      IsEnabled: true
+      CastShadows: true
+      ObjectVisibilityMask: 255
+      ShadowVisibilityMask: 255
+    Childs:
+      []
+  - Name: Unnamed
+    IsEnabled: true
+    Transform:
+      Position: [0, 0, 0]
+      Rotation: [0, -0, 0]
+      Scale: [0.00800000038, 0.00800000038, 0.00800000038]
+      FollowOwner: true
+    Renderer3D:
+      Mesh: 0x23d998c19e9b67f2bb6d7129a995281f
+      Material: 0x06051b48258fc563b355a7a0c8a6b693
+      RenderingOrder: 5
+      IsEnabled: true
+      CastShadows: true
+      ObjectVisibilityMask: 255
+      ShadowVisibilityMask: 255
+    Childs:
+      []
+  - Name: Unnamed
+    IsEnabled: true
+    Transform:
+      Position: [0, 0, 0]
+      Rotation: [0, -0, 0]
+      Scale: [0.00800000038, 0.00800000038, 0.00800000038]
+      FollowOwner: true
+    Renderer3D:
+      Mesh: 0xbb5cd475070428a7a88d99a1fbaccbd7
+      Material: 0x4d101d80a97f2437c851bb3cb803f4b7
+      RenderingOrder: 5
+      IsEnabled: true
+      CastShadows: true
+      ObjectVisibilityMask: 255
+      ShadowVisibilityMask: 255
+    Childs:
+      []
+  - Name: Unnamed
+    IsEnabled: true
+    Transform:
+      Position: [0, 0, 0]
+      Rotation: [0, -0, 0]
+      Scale: [0.00800000038, 0.00800000038, 0.00800000038]
+      FollowOwner: true
+    Renderer3D:
+      Mesh: 0x13df114dbc0ca13fa1e214448f5e56fe
+      Material: 0x4d101d80a97f2437c851bb3cb803f4b7
+      RenderingOrder: 5
+      IsEnabled: true
+      CastShadows: true
+      ObjectVisibilityMask: 255
+      ShadowVisibilityMask: 255
+    Childs:
+      []
+  - Name: Unnamed
+    IsEnabled: true
+    Transform:
+      Position: [0, 0, 0]
+      Rotation: [0, -0, 0]
+      Scale: [0.00800000038, 0.00800000038, 0.00800000038]
+      FollowOwner: true
+    Renderer3D:
+      Mesh: 0x332a0b2a49d0d905024a698b7c3daf28
+      Material: 0x4d101d80a97f2437c851bb3cb803f4b7
+      RenderingOrder: 5
+      IsEnabled: true
+      CastShadows: true
+      ObjectVisibilityMask: 255
+      ShadowVisibilityMask: 255
+    Childs:
+      []
+  - Name: Unnamed
+    IsEnabled: true
+    Transform:
+      Position: [0, 0, 0]
+      Rotation: [0, -0, 0]
+      Scale: [0.00800000038, 0.00800000038, 0.00800000038]
+      FollowOwner: true
+    Renderer3D:
+      Mesh: 0x8f58e41ad0ba71d57a7fb45d104ed842
+      Material: 0x94b395d3a72c6a4bb778b95840203a87
+      RenderingOrder: 5
+      IsEnabled: true
+      CastShadows: true
+      ObjectVisibilityMask: 255
+      ShadowVisibilityMask: 255
+    Childs:
+      []
+  - Name: Unnamed
+    IsEnabled: true
+    Transform:
+      Position: [0, 0, 0]
+      Rotation: [0, -0, 0]
+      Scale: [0.00800000038, 0.00800000038, 0.00800000038]
+      FollowOwner: true
+    Renderer3D:
+      Mesh: 0xcb66484107a387d5cbc57bf660f0e4fe
+      Material: 0x94b395d3a72c6a4bb778b95840203a87
+      RenderingOrder: 5
+      IsEnabled: true
+      CastShadows: true
+      ObjectVisibilityMask: 255
+      ShadowVisibilityMask: 255
+    Childs:
+      []
+  - Name: Unnamed
+    IsEnabled: true
+    Transform:
+      Position: [0, 0, 0]
+      Rotation: [0, -0, 0]
+      Scale: [0.00800000038, 0.00800000038, 0.00800000038]
+      FollowOwner: true
+    Renderer3D:
+      Mesh: 0xafd413cf4248d07e932f82985f363173
+      Material: 0xe04ff933dd072a502d36c815474dc9ab
+      RenderingOrder: 5
+      IsEnabled: true
+      CastShadows: true
+      ObjectVisibilityMask: 255
+      ShadowVisibilityMask: 255
+    Childs:
+      []
+  - Name: Unnamed
+    IsEnabled: true
+    Transform:
+      Position: [0, 0, 0]
+      Rotation: [0, -0, 0]
+      Scale: [0.00800000038, 0.00800000038, 0.00800000038]
+      FollowOwner: true
+    Renderer3D:
+      Mesh: 0xe7055f5d95f8710ce1da8dfddc680e0e
+      Material: 0x4d101d80a97f2437c851bb3cb803f4b7
+      RenderingOrder: 5
+      IsEnabled: true
+      CastShadows: true
+      ObjectVisibilityMask: 255
+      ShadowVisibilityMask: 255
+    Childs:
+      []
+  - Name: Unnamed
+    IsEnabled: true
+    Transform:
+      Position: [0, 0, 0]
+      Rotation: [0, -0, 0]
+      Scale: [0.00800000038, 0.00800000038, 0.00800000038]
+      FollowOwner: true
+    Renderer3D:
+      Mesh: 0xd993f3c15710721f84789a79177d1f05
+      Material: 0x94b395d3a72c6a4bb778b95840203a87
+      RenderingOrder: 5
+      IsEnabled: true
+      CastShadows: true
+      ObjectVisibilityMask: 255
+      ShadowVisibilityMask: 255
+    Childs:
+      []
+  - Name: Unnamed
+    IsEnabled: true
+    Transform:
+      Position: [0, 0, 0]
+      Rotation: [0, -0, 0]
+      Scale: [0.00800000038, 0.00800000038, 0.00800000038]
+      FollowOwner: true
+    Renderer3D:
+      Mesh: 0x23e04c4bf1f24d6d9e5c4fdb6d6711b9
+      Material: 0x1c27cd7810fb5bbaa3ab04894f36c0b3
+      RenderingOrder: 5
+      IsEnabled: true
+      CastShadows: true
+      ObjectVisibilityMask: 255
+      ShadowVisibilityMask: 255
+    Childs:
+      []
+  - Name: Unnamed
+    IsEnabled: true
+    Transform:
+      Position: [0, 0, 0]
+      Rotation: [0, -0, 0]
+      Scale: [0.00800000038, 0.00800000038, 0.00800000038]
+      FollowOwner: true
+    Renderer3D:
+      Mesh: 0x35932bef5de37d890f01b94ccc439137
+      Material: 0x4d101d80a97f2437c851bb3cb803f4b7
+      RenderingOrder: 5
+      IsEnabled: true
+      CastShadows: true
+      ObjectVisibilityMask: 255
+      ShadowVisibilityMask: 255
+    Childs:
+      []
+  - Name: Unnamed
+    IsEnabled: true
+    Transform:
+      Position: [0, 0, 0]
+      Rotation: [0, -0, 0]
+      Scale: [0.00800000038, 0.00800000038, 0.00800000038]
+      FollowOwner: true
+    Renderer3D:
+      Mesh: 0x328293d16b8bde5f9af0ccf98090db99
+      Material: 0xa59f7848ac8f2ddf39c34bc03af6b680
+      RenderingOrder: 5
+      IsEnabled: true
+      CastShadows: true
+      ObjectVisibilityMask: 255
+      ShadowVisibilityMask: 255
+    Childs:
+      []
+  - Name: Unnamed
+    IsEnabled: true
+    Transform:
+      Position: [0, 0, 0]
+      Rotation: [0, -0, 0]
+      Scale: [0.00800000038, 0.00800000038, 0.00800000038]
+      FollowOwner: true
+    Renderer3D:
+      Mesh: 0x7ae3c269eb3a184dd265afcf83c77d19
+      Material: 0x4d101d80a97f2437c851bb3cb803f4b7
+      RenderingOrder: 5
+      IsEnabled: true
+      CastShadows: true
+      ObjectVisibilityMask: 255
+      ShadowVisibilityMask: 255
+    Childs:
+      []
+  - Name: Unnamed
+    IsEnabled: true
+    Transform:
+      Position: [0, 0, 0]
+      Rotation: [0, -0, 0]
+      Scale: [0.00800000038, 0.00800000038, 0.00800000038]
+      FollowOwner: true
+    Renderer3D:
+      Mesh: 0x61886d30d90555c454dda75f3f4595bf
+      Material: 0x4d101d80a97f2437c851bb3cb803f4b7
+      RenderingOrder: 5
+      IsEnabled: true
+      CastShadows: true
+      ObjectVisibilityMask: 255
+      ShadowVisibilityMask: 255
+    Childs:
+      []
+  - Name: Unnamed
+    IsEnabled: true
+    Transform:
+      Position: [0, 0, 0]
+      Rotation: [0, -0, 0]
+      Scale: [0.00800000038, 0.00800000038, 0.00800000038]
+      FollowOwner: true
+    Renderer3D:
+      Mesh: 0x2ea5c1839670059fc4ab2403e0928bc6
+      Material: 0x25522063cd1d6c4f106cb8c02c5c21ca
+      RenderingOrder: 5
+      IsEnabled: true
+      CastShadows: true
+      ObjectVisibilityMask: 255
+      ShadowVisibilityMask: 255
+    Childs:
+      []
+  - Name: Unnamed
+    IsEnabled: true
+    Transform:
+      Position: [0, 0, 0]
+      Rotation: [0, -0, 0]
+      Scale: [0.00800000038, 0.00800000038, 0.00800000038]
+      FollowOwner: true
+    Renderer3D:
+      Mesh: 0xb99cf921bace54b4edcdbe76a9cefc1b
+      Material: 0x9a3ba6f7eed373d84f7d94e8f8fd875d
+      RenderingOrder: 5
+      IsEnabled: true
+      CastShadows: true
+      ObjectVisibilityMask: 255
+      ShadowVisibilityMask: 255
+    Childs:
+      []
+  - Name: Unnamed
+    IsEnabled: true
+    Transform:
+      Position: [0, 0, 0]
+      Rotation: [0, -0, 0]
+      Scale: [0.00800000038, 0.00800000038, 0.00800000038]
+      FollowOwner: true
+    Renderer3D:
+      Mesh: 0xe4cda798be773c8e01349471e7cbd76e
+      Material: 0xd2d4b64b2b6da2c63c70790ab3f2d480
+      RenderingOrder: 5
+      IsEnabled: true
+      CastShadows: true
+      ObjectVisibilityMask: 255
+      ShadowVisibilityMask: 255
+    Childs:
+      []
+  - Name: Unnamed
+    IsEnabled: true
+    Transform:
+      Position: [0, 0, 0]
+      Rotation: [0, -0, 0]
+      Scale: [0.00800000038, 0.00800000038, 0.00800000038]
+      FollowOwner: true
+    Renderer3D:
+      Mesh: 0x713ff38d7bace96fa3734ee6e426d19f
+      Material: 0x5affb8c7059fe33cc4db41b6a86d6d54
+      RenderingOrder: 5
+      IsEnabled: true
+      CastShadows: true
+      ObjectVisibilityMask: 255
+      ShadowVisibilityMask: 255
+    Childs:
+      []
+  - Name: Unnamed
+    IsEnabled: true
+    Transform:
+      Position: [0, 0, 0]
+      Rotation: [0, -0, 0]
+      Scale: [0.00800000038, 0.00800000038, 0.00800000038]
+      FollowOwner: true
+    Renderer3D:
+      Mesh: 0xd4e5d00cbd4f68dce10e94e4a0c80d3d
+      Material: 0x3269d72a69f8bff67995218ef60abf29
+      RenderingOrder: 5
+      IsEnabled: true
+      CastShadows: true
+      ObjectVisibilityMask: 255
+      ShadowVisibilityMask: 255
+    Childs:
+      []
+  - Name: Unnamed
+    IsEnabled: true
+    Transform:
+      Position: [0, 0, 0]
+      Rotation: [0, -0, 0]
+      Scale: [0.00800000038, 0.00800000038, 0.00800000038]
+      FollowOwner: true
+    Renderer3D:
+      Mesh: 0xf415c361de1a0099bd21338c949b2ee3
+      Material: 0x3269d72a69f8bff67995218ef60abf29
+      RenderingOrder: 5
+      IsEnabled: true
+      CastShadows: true
+      ObjectVisibilityMask: 255
+      ShadowVisibilityMask: 255
+    Childs:
+      []
+  - Name: Unnamed
+    IsEnabled: true
+    Transform:
+      Position: [0, 0, 0]
+      Rotation: [0, -0, 0]
+      Scale: [0.00800000038, 0.00800000038, 0.00800000038]
+      FollowOwner: true
+    Renderer3D:
+      Mesh: 0xb6e23a0cce698a0c339856ac1918c0f7
+      Material: 0x75aea599735ceacc2f974c2211d021f6
+      RenderingOrder: 5
+      IsEnabled: true
+      CastShadows: true
+      ObjectVisibilityMask: 255
+      ShadowVisibilityMask: 255
+    Childs:
+      []
+  - Name: Unnamed
+    IsEnabled: true
+    Transform:
+      Position: [0, 0, 0]
+      Rotation: [0, -0, 0]
+      Scale: [0.00800000038, 0.00800000038, 0.00800000038]
+      FollowOwner: true
+    Renderer3D:
+      Mesh: 0xd3b7b718d21c53ff79df2b05bec8b50b
+      Material: 0x5affb8c7059fe33cc4db41b6a86d6d54
+      RenderingOrder: 5
+      IsEnabled: true
+      CastShadows: true
+      ObjectVisibilityMask: 255
+      ShadowVisibilityMask: 255
+    Childs:
+      []
+  - Name: Unnamed
+    IsEnabled: true
+    Transform:
+      Position: [0, 0, 0]
+      Rotation: [0, -0, 0]
+      Scale: [0.00800000038, 0.00800000038, 0.00800000038]
+      FollowOwner: true
+    Renderer3D:
+      Mesh: 0x16cf53b132947443a523ce1ee34da8d8
+      Material: 0x5affb8c7059fe33cc4db41b6a86d6d54
+      RenderingOrder: 5
+      IsEnabled: true
+      CastShadows: true
+      ObjectVisibilityMask: 255
+      ShadowVisibilityMask: 255
+    Childs:
+      []
+  - Name: Unnamed
+    IsEnabled: true
+    Transform:
+      Position: [0, 0, 0]
+      Rotation: [0, -0, 0]
+      Scale: [0.00800000038, 0.00800000038, 0.00800000038]
+      FollowOwner: true
+    Renderer3D:
+      Mesh: 0xe6fc5c2cccbbf14be047529ede4a8831
+      Material: 0x75aea599735ceacc2f974c2211d021f6
+      RenderingOrder: 5
+      IsEnabled: true
+      CastShadows: true
+      ObjectVisibilityMask: 255
+      ShadowVisibilityMask: 255
+    Childs:
+      []
+  - Name: Unnamed
+    IsEnabled: true
+    Transform:
+      Position: [0, 0, 0]
+      Rotation: [0, -0, 0]
+      Scale: [0.00800000038, 0.00800000038, 0.00800000038]
+      FollowOwner: true
+    Renderer3D:
+      Mesh: 0x1114632e08c5f2ac2854fb5cda707396
+      Material: 0x3269d72a69f8bff67995218ef60abf29
+      RenderingOrder: 5
+      IsEnabled: true
+      CastShadows: true
+      ObjectVisibilityMask: 255
+      ShadowVisibilityMask: 255
+    Childs:
+      []
+  - Name: Unnamed
+    IsEnabled: true
+    Transform:
+      Position: [0, 0, 0]
+      Rotation: [0, -0, 0]
+      Scale: [0.00800000038, 0.00800000038, 0.00800000038]
+      FollowOwner: true
+    Renderer3D:
+      Mesh: 0xdae01c953c2ef4929b442700c8b46b03
+      Material: 0x05d2a5ab72b9be5c8f0c905601efd69a
+      RenderingOrder: 5
+      IsEnabled: true
+      CastShadows: true
+      ObjectVisibilityMask: 255
+      ShadowVisibilityMask: 255
+    Childs:
+      []
+  - Name: Unnamed
+    IsEnabled: true
+    Transform:
+      Position: [0, 0, 0]
+      Rotation: [0, -0, 0]
+      Scale: [0.00800000038, 0.00800000038, 0.00800000038]
+      FollowOwner: true
+    Renderer3D:
+      Mesh: 0x370ef36567a3b296c0eea2081f074f1f
+      Material: 0x2d2f50afccb74e531e18ee2b86e5f635
+      RenderingOrder: 5
+      IsEnabled: true
+      CastShadows: true
+      ObjectVisibilityMask: 255
+      ShadowVisibilityMask: 255
+    Childs:
+      []
+  - Name: Unnamed
+    IsEnabled: true
+    Transform:
+      Position: [0, 0, 0]
+      Rotation: [0, -0, 0]
+      Scale: [0.00800000038, 0.00800000038, 0.00800000038]
+      FollowOwner: true
+    Renderer3D:
+      Mesh: 0x8a85740f20352813d9b2a39c3b4c4778
+      Material: 0xf5aadc9ef193a4c696c9df0bd2a7a316
+      RenderingOrder: 5
+      IsEnabled: true
+      CastShadows: true
+      ObjectVisibilityMask: 255
+      ShadowVisibilityMask: 255
+    Childs:
+      []
+  - Name: Unnamed
+    IsEnabled: true
+    Transform:
+      Position: [0, 0, 0]
+      Rotation: [0, -0, 0]
+      Scale: [0.00800000038, 0.00800000038, 0.00800000038]
+      FollowOwner: true
+    Renderer3D:
+      Mesh: 0x57a79f772aa8f303020986a8155a1986
+      Material: 0x9dad6d16980b965dcef7f94ca1c57128
+      RenderingOrder: 5
+      IsEnabled: true
+      CastShadows: true
+      ObjectVisibilityMask: 255
+      ShadowVisibilityMask: 255
+    Childs:
+      []
+  - Name: Unnamed
+    IsEnabled: true
+    Transform:
+      Position: [0, 0, 0]
+      Rotation: [0, -0, 0]
+      Scale: [0.00800000038, 0.00800000038, 0.00800000038]
+      FollowOwner: true
+    Renderer3D:
+      Mesh: 0x8d7760d042deebd75aa895465e2a8d9e
+      Material: 0x2d2f50afccb74e531e18ee2b86e5f635
+      RenderingOrder: 5
+      IsEnabled: true
+      CastShadows: true
+      ObjectVisibilityMask: 255
+      ShadowVisibilityMask: 255
+    Childs:
+      []
+  - Name: Unnamed
+    IsEnabled: true
+    Transform:
+      Position: [0, 0, 0]
+      Rotation: [0, -0, 0]
+      Scale: [0.00800000038, 0.00800000038, 0.00800000038]
+      FollowOwner: true
+    Renderer3D:
+      Mesh: 0x3d5045bdb263e8ce93a29cd27f626df2
+      Material: 0xd2d4b64b2b6da2c63c70790ab3f2d480
+      RenderingOrder: 5
+      IsEnabled: true
+      CastShadows: true
+      ObjectVisibilityMask: 255
+      ShadowVisibilityMask: 255
+    Childs:
+      []
+  - Name: Unnamed
+    IsEnabled: true
+    Transform:
+      Position: [0, 0, 0]
+      Rotation: [0, -0, 0]
+      Scale: [0.00800000038, 0.00800000038, 0.00800000038]
+      FollowOwner: true
+    Renderer3D:
+      Mesh: 0x6946b0bef99097c226fde848fca49db4
+      Material: 0xf5aadc9ef193a4c696c9df0bd2a7a316
+      RenderingOrder: 5
+      IsEnabled: true
+      CastShadows: true
+      ObjectVisibilityMask: 255
+      ShadowVisibilityMask: 255
+    Childs:
+      []
+  - Name: Unnamed
+    IsEnabled: true
+    Transform:
+      Position: [0, 0, 0]
+      Rotation: [0, -0, 0]
+      Scale: [0.00800000038, 0.00800000038, 0.00800000038]
+      FollowOwner: true
+    Renderer3D:
+      Mesh: 0x33b053ce60de50918c7544dabdb97974
+      Material: 0x2d2f50afccb74e531e18ee2b86e5f635
+      RenderingOrder: 5
+      IsEnabled: true
+      CastShadows: true
+      ObjectVisibilityMask: 255
+      ShadowVisibilityMask: 255
+    Childs:
+      []
+  - Name: Unnamed
+    IsEnabled: true
+    Transform:
+      Position: [0, 0, 0]
+      Rotation: [0, -0, 0]
+      Scale: [0.00800000038, 0.00800000038, 0.00800000038]
+      FollowOwner: true
+    Renderer3D:
+      Mesh: 0xac16eef944b5e74e2171309ea9679d63
+      Material: 0x9dad6d16980b965dcef7f94ca1c57128
+      RenderingOrder: 5
+      IsEnabled: true
+      CastShadows: true
+      ObjectVisibilityMask: 255
+      ShadowVisibilityMask: 255
+    Childs:
+      []
+  - Name: Unnamed
+    IsEnabled: true
+    Transform:
+      Position: [0, 0, 0]
+      Rotation: [0, -0, 0]
+      Scale: [0.00800000038, 0.00800000038, 0.00800000038]
+      FollowOwner: true
+    Renderer3D:
+      Mesh: 0xf4d9f52684280e3cd3de502ca66fbcc1
+      Material: 0x05d2a5ab72b9be5c8f0c905601efd69a
+      RenderingOrder: 5
+      IsEnabled: true
+      CastShadows: true
+      ObjectVisibilityMask: 255
+      ShadowVisibilityMask: 255
+    Childs:
+      []
+  - Name: Unnamed
+    IsEnabled: true
+    Transform:
+      Position: [0, 0, 0]
+      Rotation: [0, -0, 0]
+      Scale: [0.00800000038, 0.00800000038, 0.00800000038]
+      FollowOwner: true
+    Renderer3D:
+      Mesh: 0x6fd64f511bc0bebb69b7e7742551cd11
+      Material: 0x0499e1c2359da3dea78b4e016ebfc47d
+      RenderingOrder: 5
+      IsEnabled: true
+      CastShadows: true
+      ObjectVisibilityMask: 255
+      ShadowVisibilityMask: 255
+    Childs:
+      []
+  - Name: Unnamed
+    IsEnabled: true
+    Transform:
+      Position: [0, 0, 0]
+      Rotation: [0, -0, 0]
+      Scale: [0.00800000038, 0.00800000038, 0.00800000038]
+      FollowOwner: true
+    Renderer3D:
+      Mesh: 0x253b79918527ad80942ae55a442500b7
+      Material: 0x05d2a5ab72b9be5c8f0c905601efd69a
+      RenderingOrder: 5
+      IsEnabled: true
+      CastShadows: true
+      ObjectVisibilityMask: 255
+      ShadowVisibilityMask: 255
+    Childs:
+      []
+  - Name: Unnamed
+    IsEnabled: true
+    Transform:
+      Position: [0, 0, 0]
+      Rotation: [0, -0, 0]
+      Scale: [0.00800000038, 0.00800000038, 0.00800000038]
+      FollowOwner: true
+    Renderer3D:
+      Mesh: 0x18edb1625c01b8f1dec2280b73da5f19
+      Material: 0x2d2f50afccb74e531e18ee2b86e5f635
+      RenderingOrder: 5
+      IsEnabled: true
+      CastShadows: true
+      ObjectVisibilityMask: 255
+      ShadowVisibilityMask: 255
+    Childs:
+      []
+  - Name: Unnamed
+    IsEnabled: true
+    Transform:
+      Position: [0, 0, 0]
+      Rotation: [0, -0, 0]
+      Scale: [0.00800000038, 0.00800000038, 0.00800000038]
+      FollowOwner: true
+    Renderer3D:
+      Mesh: 0xaf33cc40ef7c0785430c50d3b8fb679c
+      Material: 0x0499e1c2359da3dea78b4e016ebfc47d
+      RenderingOrder: 5
+      IsEnabled: true
+      CastShadows: true
+      ObjectVisibilityMask: 255
+      ShadowVisibilityMask: 255
+    Childs:
+      []
+  - Name: Unnamed
+    IsEnabled: true
+    Transform:
+      Position: [0, 0, 0]
+      Rotation: [0, -0, 0]
+      Scale: [0.00800000038, 0.00800000038, 0.00800000038]
+      FollowOwner: true
+    Renderer3D:
+      Mesh: 0xb919fbc0ca723f763255c694f7725c54
+      Material: 0x9dad6d16980b965dcef7f94ca1c57128
+      RenderingOrder: 5
+      IsEnabled: true
+      CastShadows: true
+      ObjectVisibilityMask: 255
+      ShadowVisibilityMask: 255
+    Childs:
+      []
+  - Name: Unnamed
+    IsEnabled: true
+    Transform:
+      Position: [0, 0, 0]
+      Rotation: [0, -0, 0]
+      Scale: [0.00800000038, 0.00800000038, 0.00800000038]
+      FollowOwner: true
+    Renderer3D:
+      Mesh: 0x9c5078b77c85c1e6e9f7a57bf81d5551
+      Material: 0xf5aadc9ef193a4c696c9df0bd2a7a316
+      RenderingOrder: 5
+      IsEnabled: true
+      CastShadows: true
+      ObjectVisibilityMask: 255
+      ShadowVisibilityMask: 255
+    Childs:
+      []
+  - Name: Unnamed
+    IsEnabled: true
+    Transform:
+      Position: [0, 0, 0]
+      Rotation: [0, -0, 0]
+      Scale: [0.00800000038, 0.00800000038, 0.00800000038]
+      FollowOwner: true
+    Renderer3D:
+      Mesh: 0x0066c4bda5945f30e2085a42608edaae
+      Material: 0x9dad6d16980b965dcef7f94ca1c57128
+      RenderingOrder: 5
+      IsEnabled: true
+      CastShadows: true
+      ObjectVisibilityMask: 255
+      ShadowVisibilityMask: 255
+    Childs:
+      []
+  - Name: Unnamed
+    IsEnabled: true
+    Transform:
+      Position: [0, 0, 0]
+      Rotation: [0, -0, 0]
+      Scale: [0.00800000038, 0.00800000038, 0.00800000038]
+      FollowOwner: true
+    Renderer3D:
+      Mesh: 0x9279bc7770172767daa6daf169751416
+      Material: 0xd60e32c41ec175acf4afb6fe06e8d296
+      RenderingOrder: 5
+      IsEnabled: true
+      CastShadows: true
+      ObjectVisibilityMask: 255
+      ShadowVisibilityMask: 255
+    Childs:
+      []
+  - Name: Unnamed
+    IsEnabled: true
+    Transform:
+      Position: [0, 0, 0]
+      Rotation: [0, -0, 0]
+      Scale: [0.00800000038, 0.00800000038, 0.00800000038]
+      FollowOwner: true
+    Renderer3D:
+      Mesh: 0x044e9648989e77f07d76ba85c1c07c8f
+      Material: 0xd60e32c41ec175acf4afb6fe06e8d296
+      RenderingOrder: 5
+      IsEnabled: true
+      CastShadows: true
+      ObjectVisibilityMask: 255
+      ShadowVisibilityMask: 255
+    Childs:
+      []
+  - Name: Unnamed
+    IsEnabled: true
+    Transform:
+      Position: [0, 0, 0]
+      Rotation: [0, -0, 0]
+      Scale: [0.00800000038, 0.00800000038, 0.00800000038]
+      FollowOwner: true
+    Renderer3D:
+      Mesh: 0xbbc50352384d6780de6588a8efe89513
+      Material: 0xbdf2cb683efbab0726d97b90c2804606
+      RenderingOrder: 5
+      IsEnabled: true
+      CastShadows: true
+      ObjectVisibilityMask: 255
+      ShadowVisibilityMask: 255
+    Childs:
+      []
+  - Name: Unnamed
+    IsEnabled: true
+    Transform:
+      Position: [0, 0, 0]
+      Rotation: [0, -0, 0]
+      Scale: [0.00800000038, 0.00800000038, 0.00800000038]
+      FollowOwner: true
+    Renderer3D:
+      Mesh: 0x3f22938ebd4c5cecab0153156a882b42
+      Material: 0x0499e1c2359da3dea78b4e016ebfc47d
+      RenderingOrder: 5
+      IsEnabled: true
+      CastShadows: true
+      ObjectVisibilityMask: 255
+      ShadowVisibilityMask: 255
+    Childs:
+      []
+  - Name: Unnamed
+    IsEnabled: true
+    Transform:
+      Position: [0, 0, 0]
+      Rotation: [0, -0, 0]
+      Scale: [0.00800000038, 0.00800000038, 0.00800000038]
+      FollowOwner: true
+    Renderer3D:
+      Mesh: 0x88326f93936d6570ca4cb539567d6c2a
+      Material: 0xf96a68b410ce52a2ff9636308136b437
+      RenderingOrder: 5
+      IsEnabled: true
+      CastShadows: true
+      ObjectVisibilityMask: 255
+      ShadowVisibilityMask: 255
+    Childs:
+      []
+  - Name: Unnamed
+    IsEnabled: true
+    Transform:
+      Position: [0, 0, 0]
+      Rotation: [0, -0, 0]
+      Scale: [0.00800000038, 0.00800000038, 0.00800000038]
+      FollowOwner: true
+    Renderer3D:
+      Mesh: 0x3bfbb510a98915600cd26223ec5d5e86
+      Material: 0xd60e32c41ec175acf4afb6fe06e8d296
+      RenderingOrder: 5
+      IsEnabled: true
+      CastShadows: true
+      ObjectVisibilityMask: 255
+      ShadowVisibilityMask: 255
+    Childs:
+      []
+  - Name: Unnamed
+    IsEnabled: true
+    Transform:
+      Position: [0, 0, 0]
+      Rotation: [0, -0, 0]
+      Scale: [0.00800000038, 0.00800000038, 0.00800000038]
+      FollowOwner: true
+    Renderer3D:
+      Mesh: 0x8cf05f1829df5ca07ae1508543a57a44
+      Material: 0xd60e32c41ec175acf4afb6fe06e8d296
+      RenderingOrder: 5
+      IsEnabled: true
+      CastShadows: true
+      ObjectVisibilityMask: 255
+      ShadowVisibilityMask: 255
+    Childs:
+      []
+  - Name: Unnamed
+    IsEnabled: true
+    Transform:
+      Position: [0, 0, 0]
+      Rotation: [0, -0, 0]
+      Scale: [0.00800000038, 0.00800000038, 0.00800000038]
+      FollowOwner: true
+    Renderer3D:
+      Mesh: 0x905a15a2c6474a58a6ebe0c3c6b914ba
+      Material: 0xd60e32c41ec175acf4afb6fe06e8d296
+      RenderingOrder: 5
+      IsEnabled: true
+      CastShadows: true
+      ObjectVisibilityMask: 255
+      ShadowVisibilityMask: 255
+    Childs:
+      []
+  - Name: Unnamed
+    IsEnabled: true
+    Transform:
+      Position: [0, 0, 0]
+      Rotation: [0, -0, 0]
+      Scale: [0.00800000038, 0.00800000038, 0.00800000038]
+      FollowOwner: true
+    Renderer3D:
+      Mesh: 0x705ce58e17b17eb66b66a783fe24ed44
+      Material: 0x0499e1c2359da3dea78b4e016ebfc47d
+      RenderingOrder: 5
+      IsEnabled: true
+      CastShadows: true
+      ObjectVisibilityMask: 255
+      ShadowVisibilityMask: 255
+    Childs:
+      []
+  - Name: Unnamed
+    IsEnabled: true
+    Transform:
+      Position: [0, 0, 0]
+      Rotation: [0, -0, 0]
+      Scale: [0.00800000038, 0.00800000038, 0.00800000038]
+      FollowOwner: true
+    Renderer3D:
+      Mesh: 0xdd1061cb313a0c3c0b7657011fd901f9
+      Material: 0xf96a68b410ce52a2ff9636308136b437
+      RenderingOrder: 5
+      IsEnabled: true
+      CastShadows: true
+      ObjectVisibilityMask: 255
+      ShadowVisibilityMask: 255
+    Childs:
+      []
+  - Name: Unnamed
+    IsEnabled: true
+    Transform:
+      Position: [0, 0, 0]
+      Rotation: [0, -0, 0]
+      Scale: [0.00800000038, 0.00800000038, 0.00800000038]
+      FollowOwner: true
+    Renderer3D:
+      Mesh: 0x3c8f65e9b11884f663961aa9fafb01a9
+      Material: 0xf96a68b410ce52a2ff9636308136b437
+      RenderingOrder: 5
+      IsEnabled: true
+      CastShadows: true
+      ObjectVisibilityMask: 255
+      ShadowVisibilityMask: 255
+    Childs:
+      []
+  - Name: Unnamed
+    IsEnabled: true
+    Transform:
+      Position: [0, 0, 0]
+      Rotation: [0, -0, 0]
+      Scale: [0.00800000038, 0.00800000038, 0.00800000038]
+      FollowOwner: true
+    Renderer3D:
+      Mesh: 0x961091f3b7752e60379d7ef0f272510b
+      Material: 0xf96a68b410ce52a2ff9636308136b437
+      RenderingOrder: 5
+      IsEnabled: true
+      CastShadows: true
+      ObjectVisibilityMask: 255
+      ShadowVisibilityMask: 255
+    Childs:
+      []
+  - Name: Unnamed
+    IsEnabled: true
+    Transform:
+      Position: [0, 0, 0]
+      Rotation: [0, -0, 0]
+      Scale: [0.00800000038, 0.00800000038, 0.00800000038]
+      FollowOwner: true
+    Renderer3D:
+      Mesh: 0x4411d25b7ef0563a8a66f2dc05883594
+      Material: 0xd60e32c41ec175acf4afb6fe06e8d296
+      RenderingOrder: 5
+      IsEnabled: true
+      CastShadows: true
+      ObjectVisibilityMask: 255
+      ShadowVisibilityMask: 255
+    Childs:
+      []
+  - Name: Unnamed
+    IsEnabled: true
+    Transform:
+      Position: [0, 0, 0]
+      Rotation: [0, -0, 0]
+      Scale: [0.00800000038, 0.00800000038, 0.00800000038]
+      FollowOwner: true
+    Renderer3D:
+      Mesh: 0x538c4fb26965a3b54f68fd9fcdda7d9b
+      Material: 0xd60e32c41ec175acf4afb6fe06e8d296
+      RenderingOrder: 5
+      IsEnabled: true
+      CastShadows: true
+      ObjectVisibilityMask: 255
+      ShadowVisibilityMask: 255
+    Childs:
+      []
+  - Name: Unnamed
+    IsEnabled: true
+    Transform:
+      Position: [0, 0, 0]
+      Rotation: [0, -0, 0]
+      Scale: [0.00800000038, 0.00800000038, 0.00800000038]
+      FollowOwner: true
+    Renderer3D:
+      Mesh: 0xd5195d648a635797bb0f71e4a8a1e769
+      Material: 0xf96a68b410ce52a2ff9636308136b437
+      RenderingOrder: 5
+      IsEnabled: true
+      CastShadows: true
+      ObjectVisibilityMask: 255
+      ShadowVisibilityMask: 255
+    Childs:
+      []
+  - Name: Unnamed
+    IsEnabled: true
+    Transform:
+      Position: [0, 0, 0]
+      Rotation: [0, -0, 0]
+      Scale: [0.00800000038, 0.00800000038, 0.00800000038]
+      FollowOwner: true
+    Renderer3D:
+      Mesh: 0xe35cc8b0792ca584ef73a9d9b04d4a07
+      Material: 0xce58c308f34b42b40dd4eb99bf56a9cf
+      RenderingOrder: 5
+      IsEnabled: true
+      CastShadows: true
+      ObjectVisibilityMask: 255
+      ShadowVisibilityMask: 255
+    Childs:
+      []
+  - Name: Unnamed
+    IsEnabled: true
+    Transform:
+      Position: [0, 0, 0]
+      Rotation: [0, -0, 0]
+      Scale: [0.00800000038, 0.00800000038, 0.00800000038]
+      FollowOwner: true
+    Renderer3D:
+      Mesh: 0xe26c591d1d0499c24f831edd28895da1
+      Material: 0xf96a68b410ce52a2ff9636308136b437
+      RenderingOrder: 5
+      IsEnabled: true
+      CastShadows: true
+      ObjectVisibilityMask: 255
+      ShadowVisibilityMask: 255
+    Childs:
+      []
+  - Name: Unnamed
+    IsEnabled: true
+    Transform:
+      Position: [0, 0, 0]
+      Rotation: [0, -0, 0]
+      Scale: [0.00800000038, 0.00800000038, 0.00800000038]
+      FollowOwner: true
+    Renderer3D:
+      Mesh: 0x5ca42250a8f99bd9ab482225c37c072e
+      Material: 0xac343ed1d0e56064001e0531ff50ffa1
+      RenderingOrder: 5
+      IsEnabled: true
+      CastShadows: true
+      ObjectVisibilityMask: 255
+      ShadowVisibilityMask: 255
+    Childs:
+      []
+  - Name: Unnamed
+    IsEnabled: true
+    Transform:
+      Position: [0, 0, 0]
+      Rotation: [0, -0, 0]
+      Scale: [0.00800000038, 0.00800000038, 0.00800000038]
+      FollowOwner: true
+    Renderer3D:
+      Mesh: 0xb81099e6fa9b429890f1f249ddd500a7
+      Material: 0xad2ca4eb814d87edb1c7e6e7d78a0821
+      RenderingOrder: 5
+      IsEnabled: true
+      CastShadows: true
+      ObjectVisibilityMask: 255
+      ShadowVisibilityMask: 255
+    Childs:
+      []
+  - Name: Unnamed
+    IsEnabled: true
+    Transform:
+      Position: [0, 0, 0]
+      Rotation: [0, -0, 0]
+      Scale: [0.00800000038, 0.00800000038, 0.00800000038]
+      FollowOwner: true
+    Renderer3D:
+      Mesh: 0x8b97b27ae3feb73658c62b1f0e984fcb
+      Material: 0xad2ca4eb814d87edb1c7e6e7d78a0821
+      RenderingOrder: 5
+      IsEnabled: true
+      CastShadows: true
+      ObjectVisibilityMask: 255
+      ShadowVisibilityMask: 255
+    Childs:
+      []
+  - Name: Unnamed
+    IsEnabled: true
+    Transform:
+      Position: [0, 0, 0]
+      Rotation: [0, -0, 0]
+      Scale: [0.00800000038, 0.00800000038, 0.00800000038]
+      FollowOwner: true
+    Renderer3D:
+      Mesh: 0x8e4b754f180830b065fdd09592e7ba78
+      Material: 0x4d101d80a97f2437c851bb3cb803f4b7
+      RenderingOrder: 5
+      IsEnabled: true
+      CastShadows: true
+      ObjectVisibilityMask: 255
+      ShadowVisibilityMask: 255
+    Childs:
+      []
+  - Name: Unnamed
+    IsEnabled: true
+    Transform:
+      Position: [0, 0, 0]
+      Rotation: [0, -0, 0]
+      Scale: [0.00800000038, 0.00800000038, 0.00800000038]
+      FollowOwner: true
+    Renderer3D:
+      Mesh: 0x3826bb84556f131bb84ca865e41c24e3
+      Material: 0xf96a68b410ce52a2ff9636308136b437
+      RenderingOrder: 5
+      IsEnabled: true
+      CastShadows: true
+      ObjectVisibilityMask: 255
+      ShadowVisibilityMask: 255
+    Childs:
+      []
+  - Name: Unnamed
+    IsEnabled: true
+    Transform:
+      Position: [0, 0, 0]
+      Rotation: [0, -0, 0]
+      Scale: [0.00800000038, 0.00800000038, 0.00800000038]
+      FollowOwner: true
+    Renderer3D:
+      Mesh: 0x74b3c851874d94883bfb12d849f9e251
+      Material: 0xac343ed1d0e56064001e0531ff50ffa1
+      RenderingOrder: 5
+      IsEnabled: true
+      CastShadows: true
+      ObjectVisibilityMask: 255
+      ShadowVisibilityMask: 255
+    Childs:
+      []
+  - Name: Unnamed
+    IsEnabled: true
+    Transform:
+      Position: [0, 0, 0]
+      Rotation: [0, -0, 0]
+      Scale: [0.00800000038, 0.00800000038, 0.00800000038]
+      FollowOwner: true
+    Renderer3D:
+      Mesh: 0x3f990c2b4c1b427c7514397a31ecba96
+      Material: 0x4d101d80a97f2437c851bb3cb803f4b7
+      RenderingOrder: 5
+      IsEnabled: true
+      CastShadows: true
+      ObjectVisibilityMask: 255
+      ShadowVisibilityMask: 255
+    Childs:
+      []
+  - Name: Unnamed
+    IsEnabled: true
+    Transform:
+      Position: [0, 0, 0]
+      Rotation: [0, -0, 0]
+      Scale: [0.00800000038, 0.00800000038, 0.00800000038]
+      FollowOwner: true
+    Renderer3D:
+      Mesh: 0x0b5a151d39262e54584602ff60783fd2
+      Material: 0x4c71d3e2fd5b3b8dc8067d10a2bcf9be
+      RenderingOrder: 5
+      IsEnabled: true
+      CastShadows: true
+      ObjectVisibilityMask: 255
+      ShadowVisibilityMask: 255
+    Childs:
+      []
+  - Name: Unnamed
+    IsEnabled: true
+    Transform:
+      Position: [0, 0, 0]
+      Rotation: [0, -0, 0]
+      Scale: [0.00800000038, 0.00800000038, 0.00800000038]
+      FollowOwner: true
+    Renderer3D:
+      Mesh: 0x454378479b4f4fe0a8bfceb865dcfa52
+      Material: 0x662731b0cc238c76fb5a820f049dc42a
+      RenderingOrder: 5
+      IsEnabled: true
+      CastShadows: true
+      ObjectVisibilityMask: 255
+      ShadowVisibilityMask: 255
+    Childs:
+      []
+  - Name: Unnamed
+    IsEnabled: true
+    Transform:
+      Position: [0, 0, 0]
+      Rotation: [0, -0, 0]
+      Scale: [0.00800000038, 0.00800000038, 0.00800000038]
+      FollowOwner: true
+    Renderer3D:
+      Mesh: 0x7399ae9c35af49d521a231ba36566161
+      Material: 0x4d101d80a97f2437c851bb3cb803f4b7
+      RenderingOrder: 5
+      IsEnabled: true
+      CastShadows: true
+      ObjectVisibilityMask: 255
+      ShadowVisibilityMask: 255
+    Childs:
+      []

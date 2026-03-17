@@ -8,10 +8,16 @@ Basemat:
       TopologyMode: TriangleList
       Vertex: Shaders/DefaultReflection.vert
       Fragment: Shaders/DefaultReflection.frag
-      DescriptorSets:
+      UniformWriters:
         - Type: Renderer
-          RenderPass: DefaultReflection
+          Name: Camera
           Set: 0
+        - Type: Bindless
+          Name: DefaultReflection
+          Set: 1
+        - Type: Scene
+          Name: DefaultReflection
+          Set: 2
       VertexInputBindingDescriptions:
         - Binding: 0
           InputRate: Vertex

@@ -1,0 +1,42 @@
+Name: Tree
+IsEnabled: true
+Transform:
+  Position: [0, 0, 0]
+  Rotation: [0, -0, 0]
+  Scale: [1, 1, 1]
+  FollowOwner: true
+Childs:
+  - Name: Bark
+    IsEnabled: true
+    Transform:
+      Position: [0, 0, 0]
+      Rotation: [0, -0, 0]
+      Scale: [1, 1, 1]
+      FollowOwner: true
+    Renderer3D:
+      Mesh: 0x9a32e34f41acd24845f63f3fef191d2a
+      Material: 0x15bc994b2267d185bc4a71444505ada8
+      RenderingOrder: 5
+      IsEnabled: true
+      CastShadows: true
+      ObjectVisibilityMask: 255
+      ShadowVisibilityMask: 255
+    Childs:
+      []
+  - Name: Leaves
+    IsEnabled: true
+    Transform:
+      Position: [0, 0, 0]
+      Rotation: [0, -0, 0]
+      Scale: [1, 1, 1]
+      FollowOwner: true
+    Renderer3D:
+      Mesh: 0x81c5a88808a1f5b9e99f8f285c53be22
+      Material: 0xe7956922cdb8ba613d359dbd5e87f826
+      RenderingOrder: 5
+      IsEnabled: true
+      CastShadows: true
+      ObjectVisibilityMask: 255
+      ShadowVisibilityMask: 255
+    Childs:
+      []

@@ -1,3 +1,6 @@
+#ifndef COMMON_PBR_H
+#define COMMON_PBR_H
+
 float PI = 3.14159265359;
 
 vec3 FresnelSchlick(float HdotV, vec3 basicReflectivity)
@@ -23,3 +26,5 @@ float GeometrySmith(float NdotV, float NdotL, float roughness)
 
 	return ggx1 * ggx2;
 }
+
+#endif

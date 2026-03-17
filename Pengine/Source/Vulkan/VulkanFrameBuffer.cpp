@@ -34,7 +34,9 @@ void VulkanFrameBuffer::Resize(const glm::ivec2& size)
 
 	m_Size = size;
 
-	m_FrameBuffers.resize(swapChainImageCount);
+	const uint32_t frameCount = m_RenderPass->IsFrameBufferMultiBuffered() ? frameInFlightCount : 1;
+
+	m_FrameBuffers.resize(frameCount);
 
 	const auto& renderPassAttachments = m_RenderPass->GetAttachmentDescriptions();
 
@@ -60,14 +62,14 @@ void VulkanFrameBuffer::Resize(const glm::ivec2& size)
 		textureIndex++;
 	}
 
-	for (size_t frameIndex = 0; frameIndex < swapChainImageCount; frameIndex++)
+	for (size_t frameIndex = 0; frameIndex < frameCount; frameIndex++)
 	{
 		std::vector<VkImageView> imageViews;
 
 		for (int i = 0; i < textureIndex; ++i)
 		{
 			std::shared_ptr<VulkanTexture> vkTexture = std::dynamic_pointer_cast<VulkanTexture>(m_Attachments[i]);
-			imageViews.emplace_back(vkTexture->GetImageView(frameIndex));
+			imageViews.emplace_back(vkTexture->GetImageView(renderPassAttachments[i].baseMipLevel, frameIndex));
 		}
 
 		VkFramebufferCreateInfo framebufferInfo{};

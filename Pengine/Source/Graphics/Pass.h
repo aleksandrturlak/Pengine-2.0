@@ -64,6 +64,8 @@ namespace Pengine
 
 			void SetUniformWriter(std::shared_ptr<UniformWriter> uniformWriter);
 
+			size_t GetId() const;
+
 		  protected:
 			Type m_Type;
 			std::string m_Name = none;
@@ -74,6 +76,8 @@ namespace Pengine
 
 			std::shared_ptr<UniformWriter> m_UniformWriter;
 			std::unordered_map<std::string, std::shared_ptr<Buffer>> m_BuffersByName;
+
+			size_t m_Id;
 
 			friend class Renderer;
 	};

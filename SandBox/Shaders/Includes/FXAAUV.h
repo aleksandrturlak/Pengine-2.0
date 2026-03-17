@@ -1,3 +1,6 @@
+#ifndef FXAA_UV_H
+#define FXAA_UV_H
+
 void FXAAUV(
 	in vec2 fragmentPosition,
 	in vec2 viewportSize,
@@ -14,3 +17,5 @@ void FXAAUV(
 	v_rgbSE = (fragmentPosition + vec2(1.0f, 1.0f)) * inverseViewport;
 	v_rgbM = fragmentPosition * inverseViewport;
 }
+
+#endif

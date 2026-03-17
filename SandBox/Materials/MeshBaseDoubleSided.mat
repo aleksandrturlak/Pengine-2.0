@@ -8,9 +8,6 @@ Mat:
       Inactive:
         - GBuffer
   Pipelines:
-    - RenderPass: ZPrePass
-      Uniforms:
-        []
     - RenderPass: SpotLightShadows
       Uniforms:
         []
@@ -25,10 +22,10 @@ Mat:
         []
     - RenderPass: GBuffer
       Uniforms:
-        - Name: GBufferMaterial
+        - Name: MaterialBuffer
           Values:
             - Name: material.albedoColor
-              Value: [0.337254912, 0.337254912, 0.337254912, 1]
+              Value: [0.337254912, 0.337254912, 0.337254912, 0.337254912]
               Type: vec4
             - Name: material.emissiveColor
               Value: [1, 1, 1, 1]

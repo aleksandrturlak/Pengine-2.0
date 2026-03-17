@@ -199,6 +199,21 @@ std::shared_ptr<ComponentSystem> Scene::GetComponentSystem(const std::string& na
 	return nullptr;
 }
 
+void Scene::UpdateTLAS(const std::vector<AccelerationStructure::Instance>& instances, void* frame)
+{
+	if (m_TLAS.empty())
+	{
+		m_TLAS.resize(Vk::frameInFlightCount);
+	}
+
+	if (instances.empty())
+	{
+		return;
+	}
+
+	m_TLAS[Vk::frameInFlightIndex] = AccelerationStructure::CreateTLAS(instances, frame);
+}
+
 std::shared_ptr<Entity> Scene::CreateEmpty()
 {
 	const auto entity = CreateEntity("Empty");

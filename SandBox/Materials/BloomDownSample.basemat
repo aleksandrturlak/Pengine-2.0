@@ -1,22 +1,9 @@
 Basemat:
   Pipelines:
     - RenderPass: Bloom
-      DepthTest: false
-      DepthWrite: false
-      CullMode: None
-      PolygonMode: Fill
-      TopologyMode: TriangleList
-      Vertex: Shaders/BloomDownSample.vert
-      Fragment: Shaders/BloomDownSample.frag
-      DescriptorSets:
+      Type: Compute
+      Compute: Shaders/BloomDownSample.comp
+      UniformWriters:
         - Type: Renderer
-          RenderPass: Bloom
+          Name: BloomDown
           Set: 0
-      VertexInputBindingDescriptions:
-        - Binding: 0
-          InputRate: Vertex
-          Tag: Position
-          Names:
-            - positionA
-      ColorBlendStates:
-        - BlendEnabled: false

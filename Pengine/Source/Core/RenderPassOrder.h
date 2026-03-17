@@ -8,15 +8,21 @@ namespace Pengine
 
 	const std::vector<std::string> passPerSceneOrder =
 	{
+		GPUSkinning,
 		Atmosphere
 	};
 
 	const std::vector<std::string> passPerViewportOrder =
 	{
 		UI,
-		ZPrePass,
+		ComputeIndirectDrawGBuffer,
 		GBuffer,
+		HiZPyramid,
+		DDGIProbeOffset,
+		DDGIProbeUpdate,
+		DDGIProbeBlend,
 		Decals,
+		ComputeIndirectDrawCSM,
 		CSM,
 		PointLightShadows,
 		SpotLightShadows,
@@ -27,9 +33,13 @@ namespace Pengine
 		Deferred,
 		Transparent,
 		SSR,
-		SSRBlur,
+		RayTracedReflection,
+		BlurReflections,
+		DDGIProbeDebug,
 		Bloom,
 		ToneMapping,
+		MotionVectors,
+		TAA,
 		AntiAliasingAndCompose,
 	};
 

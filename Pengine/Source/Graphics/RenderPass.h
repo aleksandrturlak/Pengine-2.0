@@ -8,7 +8,8 @@
 
 namespace Pengine
 {
-	const std::string ZPrePass = "ZPrePass";
+	const std::string ComputeIndirectDrawGBuffer = "ComputeIndirectDrawGBuffer";
+	const std::string ComputeIndirectDrawCSM = "ComputeIndirectDrawCSM";
 	const std::string GBuffer = "GBuffer";
 	const std::string Decals = "Decals";
 	const std::string Deferred = "Deferred";
@@ -26,8 +27,17 @@ namespace Pengine
 	const std::string ToneMapping = "ToneMapping";
 	const std::string AntiAliasingAndCompose = "AntiAliasingAndCompose";
 	const std::string SSR = "SSR";
-	const std::string SSRBlur = "SSRBlur";
+	const std::string BlurReflections = "BlurReflections";
+	const std::string RayTracedReflection = "RayTracedReflection";
+	const std::string HiZPyramid = "HiZPyramid";
 	const std::string UI = "UI";
+	const std::string GPUSkinning = "GPUSkinning";
+	const std::string DDGIProbeOffset = "DDGIProbeOffset";
+	const std::string DDGIProbeUpdate = "DDGIProbeUpdate";
+	const std::string DDGIProbeBlend = "DDGIProbeBlend";
+	const std::string DDGIProbeDebug = "DDGIProbeDebug";
+	const std::string MotionVectors = "MotionVectors";
+	const std::string TAA = "TAA";
 
 	class FrameBuffer;
 	class Window;
@@ -66,6 +76,7 @@ namespace Pengine
 			Texture::Layout layout;
 			Load load = Load::CLEAR;
 			Store store = Store::STORE;
+			uint32_t baseMipLevel = 0;
 			std::function<std::shared_ptr<Texture>(RenderView*)> getFrameBufferCallback;
 		};
 
@@ -102,6 +113,7 @@ namespace Pengine
 			std::function<void(Pass*)> createCallback;
 			bool resizeWithViewport = false;
 			bool createFrameBuffer = true;
+			bool isFrameBufferMultiBuffered = true;
 			glm::vec2 resizeViewportScale = { 1.0f, 1.0f };
 		};
 
@@ -117,6 +129,8 @@ namespace Pengine
 		[[nodiscard]] std::vector<glm::vec4> GetClearColors() const { return m_ClearColors; }
 
 		[[nodiscard]] std::vector<ClearDepth> GetClearDepth() const { return m_ClearDepths; }
+
+		[[nodiscard]] bool IsFrameBufferMultiBuffered() const { return m_IsFrameBufferMultiBuffered; }
 
 		virtual void Execute(const RenderCallbackInfo& renderInfo) const override;
 
@@ -134,6 +148,7 @@ namespace Pengine
 		std::vector<ClearDepth> m_ClearDepths;
 		bool m_ResizeWithViewport = false;
 		bool m_CreateFrameBuffer = true;
+		bool m_IsFrameBufferMultiBuffered = true;
 		glm::vec2 m_ResizeViewportScale = { 1.0f, 1.0f };
 
 		friend class RenderView;

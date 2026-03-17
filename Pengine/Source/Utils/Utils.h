@@ -2,6 +2,7 @@
 
 #include "../Core/Core.h"
 #include "../Core/Logger.h"
+#include "../Core/BoundingBox.h"
 
 #define GLM_ENABLE_EXPERIMENTAL
 #include "glm/gtx/matrix_decompose.hpp"
@@ -67,8 +68,8 @@ namespace Pengine::Utils
 		return {};
 	}
 
-	template<typename T, typename U>
-	T Find(const U& key, const std::unordered_map<U, T>& map)
+	template<typename T, typename U, typename V = T>
+	V Find(const U& key, const std::unordered_map<U, T>& map)
 	{
 		auto foundItem = map.find(key);
 		if (foundItem != map.end())
@@ -79,8 +80,8 @@ namespace Pengine::Utils
 		return {};
 	}
 
-	template<typename T, typename U>
-	T Find(const U& key, const std::map<U, T>& map)
+	template<typename T, typename U, typename V = T>
+	V Find(const U& key, const std::map<U, T>& map)
 	{
 		auto foundItem = map.find(key);
 		if (foundItem != map.end())
@@ -551,20 +552,14 @@ namespace Pengine::Utils
 		const glm::vec3& min,
 		const glm::vec3& max)
 	{
-		const glm::vec3 center = (min + max) * 0.5f;
-		const glm::vec3 extents = max - center;
-
 		for (const auto& plane : planes)
 		{
-			const float distance = glm::dot(center, glm::vec3(plane)) + plane.w;
-			const float radius = glm::dot(extents, glm::abs(glm::vec3(plane)));
-
-			if (distance + radius < 0.0f)
-			{
-				return false;
-			}
+			const float distance = (plane.x >= 0.0f ? max.x : min.x) * plane.x
+				+ (plane.y >= 0.0f ? max.y : min.y) * plane.y
+				+ (plane.z >= 0.0f ? max.z : min.z) * plane.z
+				+ plane.w;
+			if (distance < 0.0f) return false;
 		}
-
 		return true;
 	}
 
@@ -574,15 +569,35 @@ namespace Pengine::Utils
 		const glm::vec3& sphereCenter,
 		float sphereRadius)
 	{
-		glm::vec3 closestPoint;
+		float dist2 = 0.0f;
+		for (int i = 0; i < 3; i++)
+		{
+			const float v = sphereCenter[i];
+			if      (v < boxMin[i]) { const float d = boxMin[i] - v; dist2 += d * d; }
+			else if (v > boxMax[i]) { const float d = v - boxMax[i]; dist2 += d * d; }
+		}
+		return dist2 <= sphereRadius * sphereRadius;
+	}
 
-		closestPoint.x = glm::max(boxMin.x, glm::min(sphereCenter.x, boxMax.x));
-		closestPoint.y = glm::max(boxMin.y, glm::min(sphereCenter.y, boxMax.y));
-		closestPoint.z = glm::max(boxMin.z, glm::min(sphereCenter.z, boxMax.z));
+	inline AABB LocalToWorldAABB(const AABB& localAABB, const glm::mat4& m)
+	{
+		const glm::vec3 center  = (localAABB.min + localAABB.max) * 0.5f;
+		const glm::vec3 extents =  localAABB.max - center;
 
-		const glm::vec3 diff = closestPoint - sphereCenter;
-		const float distance2 = glm::dot(diff, diff);
+		glm::vec3 wMin = { m[3][0], m[3][1], m[3][2] };
+		glm::vec3 wMax = wMin;
 
-		return distance2 <= (sphereRadius * sphereRadius);
+		for (int col = 0; col < 3; col++)
+		{
+			const float cx = center[col];
+			const float ex = extents[col];
+			const glm::vec3 colVec = { m[col][0], m[col][1], m[col][2] };
+			const glm::vec3 a = colVec * cx;
+			const glm::vec3 b = glm::abs(colVec) * ex;
+			wMin += a - b;
+			wMax += a + b;
+		}
+
+		return { wMin, wMax };
 	}
 }

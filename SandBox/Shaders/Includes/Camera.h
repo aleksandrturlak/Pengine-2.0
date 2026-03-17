@@ -1,3 +1,6 @@
+#ifndef CAMERA_H
+#define CAMERA_H
+
 struct Wind
 {
 	float strength;
@@ -8,10 +11,12 @@ struct Wind
 struct Camera
 {
 	mat4 viewProjectionMat4;
+	mat4 previousViewProjectionMat4;
 	mat4 projectionMat4;
 	mat4 viewMat4;
 	mat4 inverseViewMat4;
 	mat4 inverseRotationMat4;
+	vec4 frustumPlanes[6];
 	vec2 viewportSize;
 	float aspectRatio;
 	float tanHalfFOV;
@@ -22,7 +27,20 @@ struct Camera
 	vec3 positionViewSpace;
 	vec3 positionWorldSpace;
 	Wind wind;
+	vec2 jitterXY;
+	vec2 previousJitterXY;
 };
+
+// Computes the view-space ray (x, +y) for a screen pixel with TAA jitter correction.
+// The jittered projection shifts NDC by -jitterXY, so add it back to recover the true fragment NDC.
+// screenPosition = uv * 2.0 - 1.0, computed BEFORE any uv.y flip.
+// Shaders that also flip uv.y for texture sampling should negate the returned .y component.
+vec2 ComputeViewRay(vec2 screenPosition, vec2 jitterXY, float aspectRatio, float tanHalfFOV)
+{
+    vec2 corrected = screenPosition + jitterXY;
+    return vec2(-corrected.x * aspectRatio * tanHalfFOV,
+                 corrected.y * tanHalfFOV);
+}
 
 vec3 CalculatePositionFromDepth(
 	in float depth,
@@ -60,6 +78,8 @@ vec3 OctDecode(vec2 f)
 	return normalize(n);
 }
 
+#ifndef POISSON_DISK_DEFINED
+#define POISSON_DISK_DEFINED
 const vec2 poissonDisk[16] = vec2[](
    vec2(-0.94201624, -0.39906216),
    vec2(0.94558609, -0.76890725),
@@ -78,3 +98,6 @@ const vec2 poissonDisk[16] = vec2[](
    vec2(0.19984126, 0.78641367),
    vec2(0.14383161, -0.14100790)
 );
+#endif
+
+#endif

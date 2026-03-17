@@ -29,8 +29,10 @@ VulkanComputePipeline::VulkanComputePipeline(const CreateComputeInfo& createComp
 
 	m_ShaderModulesByType[ShaderModule::Type::COMPUTE] = shaderModule;
 
+	const ShaderReflection::ReflectShaderModule& reflection = std::static_pointer_cast<VulkanShaderModule>(shaderModule)->GetReflection();
+
 	std::map<uint32_t, std::vector<ShaderReflection::ReflectDescriptorSetBinding>> bindingsByDescriptorSet;
-	for (const auto& [set, bindings] : std::static_pointer_cast<VulkanShaderModule>(shaderModule)->GetReflection().setLayouts)
+	for (const auto& [set, bindings] : reflection.setLayouts)
 	{
 		bindingsByDescriptorSet[set] = bindings;
 	}
@@ -53,12 +55,22 @@ VulkanComputePipeline::VulkanComputePipeline(const CreateComputeInfo& createComp
 		descriptorSetLayouts.emplace_back(std::static_pointer_cast<VulkanUniformLayout>(uniformLayout)->GetDescriptorSetLayout());
 	}
 
+	std::vector<VkPushConstantRange> pushConstantRanges;
+	for (const auto& range : reflection.pushConstantRanges)
+	{
+		VkPushConstantRange vkRange{};
+		vkRange.stageFlags = VK_SHADER_STAGE_COMPUTE_BIT;
+		vkRange.offset = range.offset;
+		vkRange.size = range.size;
+		pushConstantRanges.push_back(vkRange);
+	}
+
 	VkPipelineLayoutCreateInfo pipelineLayoutCreateInfo{};
 	pipelineLayoutCreateInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
-	pipelineLayoutCreateInfo.setLayoutCount = descriptorSetLayouts.size();
-	pipelineLayoutCreateInfo.pushConstantRangeCount = 0;
+	pipelineLayoutCreateInfo.setLayoutCount = static_cast<uint32_t>(descriptorSetLayouts.size());
+	pipelineLayoutCreateInfo.pushConstantRangeCount = static_cast<uint32_t>(pushConstantRanges.size());
 	pipelineLayoutCreateInfo.pSetLayouts = descriptorSetLayouts.data();
-	pipelineLayoutCreateInfo.pPushConstantRanges = nullptr;
+	pipelineLayoutCreateInfo.pPushConstantRanges = pushConstantRanges.data();
 
 	if (vkCreatePipelineLayout(GetVkDevice()->GetDevice(), &pipelineLayoutCreateInfo,
 		nullptr, &m_PipelineLayout) != VK_SUCCESS)
@@ -94,9 +106,4 @@ VulkanComputePipeline::~VulkanComputePipeline()
 		vkDestroyPipelineLayout(GetVkDevice()->GetDevice(), pipelineLayout, nullptr);
 		vkDestroyPipeline(GetVkDevice()->GetDevice(), computePipeline, nullptr);
 	});
-}
-
-void VulkanComputePipeline::Bind(VkCommandBuffer commandBuffer) const
-{
-	vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_COMPUTE, m_ComputePipeline);
 }

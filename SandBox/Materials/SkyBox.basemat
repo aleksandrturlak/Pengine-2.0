@@ -8,12 +8,12 @@ Basemat:
       TopologyMode: TriangleList
       Vertex: Shaders/SkyBox.vert
       Fragment: Shaders/SkyBox.frag
-      DescriptorSets:
+      UniformWriters:
         - Type: Renderer
-          RenderPass: DefaultReflection
+          Name: Camera
           Set: 0
         - Type: Scene
-          RenderPass: SkyBox
+          Name: SkyBox
           Set: 1
       VertexInputBindingDescriptions:
         - Binding: 0

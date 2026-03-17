@@ -1,6 +1,7 @@
 #include "Editor.h"
 
 #include "Core/AsyncAssetLoader.h"
+#include "Core/BindlessUniformWriter.h"
 #include "Core/FileFormatNames.h"
 #include "Core/Input.h"
 #include "Core/KeyCode.h"
@@ -36,6 +37,7 @@
 #include "Components/SpotLight.h"
 #include "Components/Renderer3D.h"
 #include "Components/SkeletalAnimator.h"
+#include "Graphics/Skeleton.h"
 #include "Components/EntityAnimator.h"
 #include "Components/Transform.h"
 #include "Components/Canvas.h"
@@ -1422,12 +1424,19 @@ void Editor::GraphicsSettingsInfo(GraphicsSettings& graphicsSettings)
 			ImGui::PopID();
 		}
 
-		if (ImGui::CollapsingHeader("Post Process"))
+		if (ImGui::CollapsingHeader("HiZ Occlusion Culling"))
 		{
-			ImGui::PushID("Post Process FXAA");
-			isChangedToSerialize += ImGui::Checkbox("FXAA", &graphicsSettings.postProcess.fxaa);
+			ImGui::PushID("HiZ Occlusion Culling Is Enabled");
+			isChangedToSerialize += ImGui::Checkbox("Is Enabled", &graphicsSettings.hiZOcclusionCulling.isEnabled);
 			ImGui::PopID();
 
+			ImGui::PushID("HiZ Occlusion Culling Depth Bias");
+			isChangedToSerialize += ImGui::SliderFloat("Depth Bias", &graphicsSettings.hiZOcclusionCulling.depthBias, 0.0f, 0.5f);
+			ImGui::PopID();
+		}
+
+		if (ImGui::CollapsingHeader("Post Process"))
+		{
 			ImGui::PushID("Post Process Gamma");
 			isChangedToSerialize += ImGui::SliderFloat("Gamma", &graphicsSettings.postProcess.gamma, 0.0f, 3.0f);
 			ImGui::PopID();
@@ -1437,6 +1446,117 @@ void Editor::GraphicsSettingsInfo(GraphicsSettings& graphicsSettings)
 			ImGui::PushID("Post Process Tone Mapper");
 			isChangedToSerialize += ImGui::Combo("Tone Mapper", toneMapperIndex, toneMappers, (int)GraphicsSettings::PostProcess::ToneMapper::COUNT);
 			ImGui::PopID();
+		}
+
+		if (ImGui::CollapsingHeader("Antialiasing"))
+		{
+			Indent indent;
+
+			const char* const aaModes[] = { "None", "FXAA", "TAA" };
+			int* aaModeIndex = (int*)(&graphicsSettings.antialiasing.mode);
+			ImGui::PushID("Antialiasing Mode");
+			isChangedToSerialize += ImGui::Combo("Mode", aaModeIndex, aaModes, (int)GraphicsSettings::Antialiasing::Mode::COUNT);
+			ImGui::PopID();
+
+			if (graphicsSettings.antialiasing.mode == GraphicsSettings::Antialiasing::Mode::TAA)
+			{
+				Indent indent;
+
+				ImGui::PushID("TAA Jitter Scale");
+				isChangedToSerialize += ImGui::SliderFloat("Jitter Scale", &graphicsSettings.antialiasing.taa.jitterScale, 0.0f, 1.0f);
+				ImGui::PopID();
+
+				ImGui::PushID("TAA Variance Gamma");
+				isChangedToSerialize += ImGui::SliderFloat("Variance Gamma", &graphicsSettings.antialiasing.taa.varianceGamma, 0.5f, 4.0f);
+				ImGui::PopID();
+
+				ImGui::PushID("TAA Min Blend Factor");
+				isChangedToSerialize += ImGui::SliderFloat("Min Blend Factor", &graphicsSettings.antialiasing.taa.minBlendFactor, 0.5f, 0.99f);
+				ImGui::PopID();
+
+				ImGui::PushID("TAA Max Blend Factor");
+				isChangedToSerialize += ImGui::SliderFloat("Max Blend Factor", &graphicsSettings.antialiasing.taa.maxBlendFactor, 0.5f, 0.99f);
+				ImGui::PopID();
+			}
+		}
+
+		if (ImGui::CollapsingHeader("Ray Tracing"))
+		{
+			Indent indent;
+			if (ImGui::CollapsingHeader("Shadows##RayTracing"))
+			{
+				Indent indent;
+
+				ImGui::PushID("Ray Tracing Directional Light Shadows");
+				isChangedToSerialize += ImGui::Checkbox("Directional Light Shadows", &graphicsSettings.rayTracing.shadows.directionalLight);
+				ImGui::PopID();
+
+				ImGui::PushID("Ray Tracing Point Light Shadows");
+				isChangedToSerialize += ImGui::Checkbox("Point Light Shadows", &graphicsSettings.rayTracing.shadows.pointLight);
+				ImGui::PopID();
+
+				ImGui::PushID("Ray Tracing Spot Light Shadows");
+				isChangedToSerialize += ImGui::Checkbox("Spot Light Shadows", &graphicsSettings.rayTracing.shadows.spotLight);
+				ImGui::PopID();
+			}
+
+			if (ImGui::CollapsingHeader("Reflections##RayTracing"))
+			{
+				Indent indent;
+
+				ImGui::PushID("Ray Tracing Reflections");
+				isChangedToSerialize += ImGui::Checkbox("Ray Traced Reflections", &graphicsSettings.rayTracing.reflections.isRayTraced);
+				ImGui::PopID();
+			}
+
+			if (ImGui::CollapsingHeader("Global Illumination##RayTracing"))
+			{
+				Indent indent;
+
+				ImGui::PushID("Ray Tracing Global Illumination");
+				isChangedToSerialize += ImGui::Checkbox("DDGI", &graphicsSettings.ddgi.isEnabled);
+				ImGui::PopID();
+
+				if (graphicsSettings.ddgi.isEnabled)
+				{
+					Indent indent;
+
+					ImGui::PushID("DDGI Visualize Probes");
+					isChangedToSerialize += ImGui::Checkbox("Visualize Probes", &graphicsSettings.ddgi.visualizeProbes);
+					ImGui::PopID();
+
+					ImGui::PushID("DDGI Grid X");
+					isChangedToSerialize += ImGui::DragInt("Grid X", &graphicsSettings.ddgi.gridX, 1, 1, 64);
+					ImGui::PopID();
+
+					ImGui::PushID("DDGI Grid Y");
+					isChangedToSerialize += ImGui::DragInt("Grid Y", &graphicsSettings.ddgi.gridY, 1, 1, 32);
+					ImGui::PopID();
+
+					ImGui::PushID("DDGI Grid Z");
+					isChangedToSerialize += ImGui::DragInt("Grid Z", &graphicsSettings.ddgi.gridZ, 1, 1, 64);
+					ImGui::PopID();
+
+					ImGui::PushID("DDGI Probe Spacing");
+					isChangedToSerialize += ImGui::DragFloat("Probe Spacing", &graphicsSettings.ddgi.probeSpacing, 0.05f, 0.1f, 10.0f);
+					ImGui::PopID();
+
+					ImGui::PushID("DDGI Rays Per Probe");
+					isChangedToSerialize += ImGui::DragInt("Rays Per Probe", &graphicsSettings.ddgi.raysPerProbe, 8, 8, 512);
+					ImGui::PopID();
+
+					ImGui::PushID("DDGI Follow Camera");
+					isChangedToSerialize += ImGui::Checkbox("Follow Camera", &graphicsSettings.ddgi.followCamera);
+					ImGui::PopID();
+
+					if (!graphicsSettings.ddgi.followCamera)
+					{
+						ImGui::PushID("DDGI Fixed Origin");
+						isChangedToSerialize += ImGui::DragFloat3("Fixed Origin", &graphicsSettings.ddgi.fixedOrigin.x, 0.5f);
+						ImGui::PopID();
+					}
+				}
+			}
 		}
 
 		if (isChangedToSerialize && std::filesystem::exists(graphicsSettings.GetFilepath()))
@@ -1457,7 +1577,11 @@ void Editor::CameraComponent(const std::shared_ptr<Entity>& entity, Window& wind
 	
 	if (ImGui::Button("X"))
 	{
-		entity->RemoveComponent<Camera>();
+		std::shared_ptr<NextFrameEvent> event = std::make_shared<NextFrameEvent>([entity]()
+		{
+			entity->RemoveComponent<Camera>();
+		}, Event::Type::OnNextFrame, this);
+		EventSystem::GetInstance().SendEvent(event);
 	}
 	ImGui::SameLine();
 	if (ImGui::CollapsingHeader("Camera"))
@@ -2582,7 +2706,11 @@ void Editor::Renderer3DComponent(const std::shared_ptr<Entity>& entity)
 	ImGui::PushID("Renderer3D X");
 	if (ImGui::Button("X"))
 	{
-		entity->RemoveComponent<Renderer3D>();
+		std::shared_ptr<NextFrameEvent> event = std::make_shared<NextFrameEvent>([entity]()
+		{
+			entity->RemoveComponent<Renderer3D>();
+		}, Event::Type::OnNextFrame, this);
+		EventSystem::GetInstance().SendEvent(event);
 	}
 	ImGui::PopID();
 	
@@ -2710,7 +2838,11 @@ void Editor::PointLightComponent(const std::shared_ptr<Entity>& entity)
 	ImGui::PushID("PointLight X");
 	if (ImGui::Button("X"))
 	{
-		entity->RemoveComponent<PointLight>();
+		std::shared_ptr<NextFrameEvent> event = std::make_shared<NextFrameEvent>([entity]()
+		{
+			entity->RemoveComponent<PointLight>();
+		}, Event::Type::OnNextFrame, this);
+		EventSystem::GetInstance().SendEvent(event);
 	}
 	ImGui::PopID();
 
@@ -2742,7 +2874,11 @@ void Editor::SpotLightComponent(const std::shared_ptr<Pengine::Entity>& entity)
 	ImGui::PushID("SpotLight X");
 	if (ImGui::Button("X"))
 	{
-		entity->RemoveComponent<SpotLight>();
+		std::shared_ptr<NextFrameEvent> event = std::make_shared<NextFrameEvent>([entity]()
+		{
+			entity->RemoveComponent<SpotLight>();
+		}, Event::Type::OnNextFrame, this);
+		EventSystem::GetInstance().SendEvent(event);
 	}
 	ImGui::PopID();
 
@@ -2776,7 +2912,11 @@ void Editor::DirectionalLightComponent(const std::shared_ptr<Entity>& entity)
 	ImGui::PushID("DirectionalLight X");
 	if (ImGui::Button("X"))
 	{
-		entity->RemoveComponent<DirectionalLight>();
+		std::shared_ptr<NextFrameEvent> event = std::make_shared<NextFrameEvent>([entity]()
+		{
+			entity->RemoveComponent<DirectionalLight>();
+		}, Event::Type::OnNextFrame, this);
+		EventSystem::GetInstance().SendEvent(event);
 	}
 	ImGui::PopID();
 	
@@ -2804,7 +2944,11 @@ void Editor::SkeletalAnimatorComponent(const std::shared_ptr<Entity>& entity)
 	ImGui::PushID("SkeletalAnimator X");
 	if (ImGui::Button("X"))
 	{
-		entity->RemoveComponent<SkeletalAnimator>();
+		std::shared_ptr<NextFrameEvent> event = std::make_shared<NextFrameEvent>([entity]()
+		{
+			entity->RemoveComponent<SkeletalAnimator>();
+		}, Event::Type::OnNextFrame, this);
+		EventSystem::GetInstance().SendEvent(event);
 	}
 	ImGui::PopID();
 
@@ -2839,46 +2983,117 @@ void Editor::SkeletalAnimatorComponent(const std::shared_ptr<Entity>& entity)
 			ImGui::EndDragDropTarget();
 		}
 
-		ImGui::Text("Animation:");
-		ImGui::SameLine();
-		if (skeletalAnimator.GetSkeletalAnimation())
+		ImGui::Separator();
+
+		if (ImGui::Button("Add Layer"))
 		{
-			ImGui::Button(skeletalAnimator.GetSkeletalAnimation()->GetName().c_str());
-		}
-		else
-		{
-			ImGui::Button(none);
+			skeletalAnimator.AddLayer(SkeletalAnimator::AnimationLayer{});
 		}
 
-		if (ImGui::BeginDragDropTarget())
+		int32_t layerToRemove = -1;
+		for (uint32_t i = 0; i < skeletalAnimator.GetLayerCount(); ++i)
 		{
-			if (const ImGuiPayload* payload = ImGui::AcceptDragDropPayload("ASSETS_BROWSER_ITEM"))
+			SkeletalAnimator::AnimationLayer& layer = skeletalAnimator.GetLayer(i);
+
+			ImGui::PushID(static_cast<int>(i));
+
+			ImGui::PushID(std::format("RemoveLayer{}", i).c_str());
+			if (ImGui::SmallButton("X"))
 			{
-				std::wstring filepath((const wchar_t*)payload->Data);
-				filepath.resize(payload->DataSize / sizeof(wchar_t));
+				layerToRemove = static_cast<int32_t>(i);
+			}
+			ImGui::PopID();
 
-				if (Utils::GetFileFormat(filepath) == FileFormats::Anim())
+			ImGui::SameLine();
+
+			const std::string layerLabel = "Layer " + std::to_string(i) +
+				(layer.animation ? " [" + layer.animation->GetName() + "]" : " [empty]");
+
+			const bool layerOpen = ImGui::CollapsingHeader(layerLabel.c_str());
+
+			if (layerOpen)
+			{
+				Indent indent;
+
+				ImGui::Text("Animation:");
+				ImGui::SameLine();
+				ImGui::Button(layer.animation ? layer.animation->GetName().c_str() : none);
+				if (ImGui::BeginDragDropTarget())
 				{
-					skeletalAnimator.SetSkeletalAnimation(MeshManager::GetInstance().LoadSkeletalAnimation(filepath));
+					if (const ImGuiPayload* payload = ImGui::AcceptDragDropPayload("ASSETS_BROWSER_ITEM"))
+					{
+						std::wstring filepath((const wchar_t*)payload->Data);
+						filepath.resize(payload->DataSize / sizeof(wchar_t));
+						if (Utils::GetFileFormat(filepath) == FileFormats::Anim())
+						{
+							skeletalAnimator.SetLayerAnimation(i, MeshManager::GetInstance().LoadSkeletalAnimation(filepath));
+						}
+					}
+					ImGui::EndDragDropTarget();
+				}
+
+				float weight = layer.weight;
+				if (ImGui::SliderFloat("Weight", &weight, 0.0f, 1.0f))
+				{
+					skeletalAnimator.SetLayerWeight(i, weight);
+				}
+
+				float speed = layer.speed;
+				if (ImGui::SliderFloat("Speed", &speed, 0.0f, 5.0f))
+				{
+					skeletalAnimator.SetLayerSpeed(i, speed);
+				}
+
+				if (layer.animation)
+				{
+					float currentTime = layer.currentTime;
+					if (ImGui::SliderFloat("Current Time", &currentTime, 0.0f, static_cast<float>(layer.animation->GetDuration())))
+					{
+						layer.currentTime = currentTime;
+					}
+				}
+
+				const char* blendModes[] = { "Override", "Additive" };
+				int blendMode = static_cast<int>(layer.blendMode);
+				if (ImGui::Combo("Blend Mode", &blendMode, blendModes, 2))
+				{
+					layer.blendMode = static_cast<SkeletalAnimator::AnimationLayer::BlendMode>(blendMode);
+				}
+
+				ImGui::Checkbox("Play In Place", &layer.playInPlace);
+
+				if (skeletalAnimator.GetSkeleton())
+				{
+					if (ImGui::CollapsingHeader("Bone Mask"))
+					{
+						Indent maskIndent;
+						ImGui::TextDisabled("Empty mask = all bones affected");
+						const auto& bones = skeletalAnimator.GetSkeleton()->GetBones();
+						for (const Skeleton::Bone& bone : bones)
+						{
+							bool inMask = std::find(layer.boneMask.begin(), layer.boneMask.end(), bone.id) != layer.boneMask.end();
+							if (ImGui::Checkbox(bone.name.c_str(), &inMask))
+							{
+								if (inMask)
+								{
+									layer.boneMask.push_back(bone.id);
+								}
+								else
+								{
+									layer.boneMask.erase(std::remove(layer.boneMask.begin(), layer.boneMask.end(), bone.id), layer.boneMask.end());
+								}
+							}
+						}
+					}
 				}
 			}
 
-			ImGui::EndDragDropTarget();
+			ImGui::PopID();
 		}
 
-		float speed = skeletalAnimator.GetSpeed();
-		if (ImGui::SliderFloat("Animation Speed", &speed, 0.0f, 5.0f))
+		if (layerToRemove >= 0)
 		{
-			skeletalAnimator.SetSpeed(speed);
-		}
-
-		if (skeletalAnimator.GetSkeletalAnimation())
-		{
-			float currentTime = skeletalAnimator.GetCurrentTime();
-			if (ImGui::SliderFloat("Animation Current Time", &currentTime, 0.0f, skeletalAnimator.GetSkeletalAnimation()->GetDuration()))
-			{
-				skeletalAnimator.SetCurrentTime(currentTime);
-			}
+			skeletalAnimator.RemoveLayer(static_cast<uint32_t>(layerToRemove));
 		}
 
 		bool applySkeletonTransform = skeletalAnimator.GetApplySkeletonTransform();
@@ -2907,7 +3122,11 @@ void Editor::EntityAnimatorComponent(const std::shared_ptr<Entity>& entity)
 	ImGui::PushID("EntityAnimator X");
 	if (ImGui::Button("X"))
 	{
-		entity->RemoveComponent<EntityAnimator>();
+		std::shared_ptr<NextFrameEvent> event = std::make_shared<NextFrameEvent>([entity]()
+		{
+			entity->RemoveComponent<EntityAnimator>();
+		}, Event::Type::OnNextFrame, this);
+		EventSystem::GetInstance().SendEvent(event);
 	}
 	ImGui::PopID();
 
@@ -2965,7 +3184,11 @@ void Editor::CanvasComponent(const std::shared_ptr<Entity>& entity)
 	ImGui::PushID("Canvas X");
 	if (ImGui::Button("X"))
 	{
-		entity->RemoveComponent<Canvas>();
+		std::shared_ptr<NextFrameEvent> event = std::make_shared<NextFrameEvent>([entity]()
+		{
+			entity->RemoveComponent<Canvas>();
+		}, Event::Type::OnNextFrame, this);
+		EventSystem::GetInstance().SendEvent(event);
 	}
 	ImGui::PopID();
 
@@ -3025,7 +3248,11 @@ void Editor::PhysicsBoxComponent(const std::shared_ptr<Entity>& entity)
 	ImGui::PushID("RigidBody X");
 	if (ImGui::Button("X"))
 	{
-		entity->RemoveComponent<RigidBody>();
+		std::shared_ptr<NextFrameEvent> event = std::make_shared<NextFrameEvent>([entity]()
+		{
+			entity->RemoveComponent<RigidBody>();
+		}, Event::Type::OnNextFrame, this);
+		EventSystem::GetInstance().SendEvent(event);
 	}
 	ImGui::PopID();
 
@@ -3162,7 +3389,11 @@ void Editor::DecalComponent(const std::shared_ptr<Pengine::Entity>& entity)
 	ImGui::PushID("Decal X");
 	if (ImGui::Button("X"))
 	{
-		entity->RemoveComponent<Decal>();
+		std::shared_ptr<NextFrameEvent> event = std::make_shared<NextFrameEvent>([entity]()
+		{
+			entity->RemoveComponent<Decal>();
+		}, Event::Type::OnNextFrame, this);
+		EventSystem::GetInstance().SendEvent(event);
 	}
 	ImGui::PopID();
 
@@ -3361,7 +3592,7 @@ void Editor::MaterialMenu::Update(Editor& editor)
 
 				if (FileFormats::IsTexture(Utils::GetFileFormat(filepath)))
 				{
-					material->GetUniformWriter(passName)->WriteTexture(binding.name, TextureManager::GetInstance().Load(filepath));
+					material->GetUniformWriter(passName)->WriteTextureToAllFrames(binding.name, TextureManager::GetInstance().Load(filepath));
 					
 					isChangedToSerialize = true;
 				}
@@ -3376,7 +3607,7 @@ void Editor::MaterialMenu::Update(Editor& editor)
 		ImGui::PushID(whiteId.c_str());
 		if (ImGui::Button("White"))
 		{
-			material->GetUniformWriter(passName)->WriteTexture(binding.name, TextureManager::GetInstance().GetWhite());
+			material->GetUniformWriter(passName)->WriteTextureToAllFrames(binding.name, TextureManager::GetInstance().GetWhite());
 
 			isChangedToSerialize = true;
 		}
@@ -3388,7 +3619,7 @@ void Editor::MaterialMenu::Update(Editor& editor)
 		ImGui::PushID(blackId.c_str());
 		if (ImGui::Button("Black"))
 		{
-			material->GetUniformWriter(passName)->WriteTexture(binding.name, TextureManager::GetInstance().GetBlack());
+			material->GetUniformWriter(passName)->WriteTextureToAllFrames(binding.name, TextureManager::GetInstance().GetBlack());
 
 			isChangedToSerialize = true;
 		}
@@ -3476,30 +3707,127 @@ void Editor::MaterialMenu::Update(Editor& editor)
 			}
 		}
 
+		std::function<void(
+			const ShaderReflection::ReflectVariable&, bool&, void*, Editor&, const std::shared_ptr<Material>&)> drawVariable = [
+			&drawTextureVariable,
+			&drawVariable
+		](
+			const ShaderReflection::ReflectVariable& variable,
+			bool& isChanged,
+			void* data,
+			Editor& editor,
+			const std::shared_ptr<Material>& material)
+		{
+			// Variables with names that contain any "color" part and types vec3 or vec4 will be considered as a color variable
+			// and will be represented in the editor as color pickers.
+			if (Utils::Contains(Utils::ToLower(variable.name), "color"))
+			{
+				if (variable.type == ShaderReflection::ReflectVariable::Type::VEC3)
+				{
+					isChanged += ImGui::ColorEdit3(variable.name.c_str(), &Utils::GetValue<glm::vec3>(data, variable.offset)[0]);
+				}
+				if (variable.type == ShaderReflection::ReflectVariable::Type::VEC4)
+				{
+					isChanged += ImGui::ColorEdit4(variable.name.c_str(), &Utils::GetValue<glm::vec4>(data, variable.offset)[0]);
+				}
+
+				return;
+			}
+
+			// Variable with names that contain any "use" part and types int will be considered as a bool variable
+			// and will be represented in the editor as check boxes.
+			if (Utils::Contains(Utils::ToLower(variable.name), "use"))
+			{
+				if (variable.type == ShaderReflection::ReflectVariable::Type::INT)
+				{
+					bool used = (bool)Utils::GetValue<int>(data, variable.offset);
+					isChanged += ImGui::Checkbox(variable.name.c_str(), &used);
+					Utils::GetValue<int>(data, variable.offset) = (int)used;
+				}
+				return;
+			}
+
+			if (variable.type == ShaderReflection::ReflectVariable::Type::FLOAT)
+			{
+				isChanged += ImGui::SliderFloat(variable.name.c_str(), &Utils::GetValue<float>(data, variable.offset), 0.0f, 1.0f);
+			}
+			if (variable.type == ShaderReflection::ReflectVariable::Type::INT)
+			{
+				isChanged += ImGui::InputInt(variable.name.c_str(), &Utils::GetValue<int>(data, variable.offset));
+			}
+			if (variable.type == ShaderReflection::ReflectVariable::Type::VEC2)
+			{
+				isChanged += editor.DrawVec2Control(variable.name.c_str(), Utils::GetValue<glm::vec2>(data, variable.offset));
+			}
+			if (variable.type == ShaderReflection::ReflectVariable::Type::VEC3)
+			{
+				isChanged += editor.DrawVec3Control(variable.name.c_str(), Utils::GetValue<glm::vec3>(data, variable.offset));
+			}
+			if (variable.type == ShaderReflection::ReflectVariable::Type::VEC4)
+			{
+				isChanged += editor.DrawVec4Control(variable.name.c_str(), Utils::GetValue<glm::vec4>(data, variable.offset));
+			}
+			if (variable.type == ShaderReflection::ReflectVariable::Type::TEXTURE)
+			{
+				int& bindlessTextureIndex = Utils::GetValue<int>(data, variable.offset);
+				const auto texture = material->GetBindlessTexture(bindlessTextureIndex);
+
+				std::shared_ptr<Texture> newTexture = texture;
+				drawTextureVariable(texture, variable.name, newTexture);
+
+				if (newTexture && newTexture != texture)
+				{
+					// Note: Lets assume that we never unbind manually, it will unbind on delete.
+					//material->UnBindBindlessTexture(texture);
+					bindlessTextureIndex = material->BindBindlessTexture(newTexture);
+					isChanged += 1;
+				}
+			}
+			if (variable.type == ShaderReflection::ReflectVariable::Type::STRUCT)
+			{
+				for (const auto& memberVariable : variable.variables)
+				{
+					drawVariable(memberVariable, isChanged, data, editor, material);
+				}
+			}
+		};
+
 		for (const auto& [passName, pipeline] : material->GetBaseMaterial()->GetPipelinesByPass())
 		{
 			if (ImGui::CollapsingHeader(passName.c_str()))
 			{
-				for (const auto& [set, uniformLayout] : pipeline->GetUniformLayouts())
+				std::vector<std::shared_ptr<UniformLayout>> uniformLayouts;
+
 				{
-					const auto& descriptorSetIndex = pipeline->GetDescriptorSetIndexByType(Pipeline::DescriptorSetIndexType::MATERIAL, passName);
-					if (!descriptorSetIndex || descriptorSetIndex.value() != set)
+					std::optional<uint32_t> descriptorSetIndex = pipeline->GetDescriptorSetIndexByType(Pipeline::DescriptorSetIndexType::MATERIAL, passName);
+					if (descriptorSetIndex)
 					{
-						continue;
+						uniformLayouts.emplace_back(pipeline->GetUniformLayout(*descriptorSetIndex));
 					}
+				}
 
-					const std::shared_ptr<UniformWriter> uniformWriter = material->GetUniformWriter(passName);
+				{
+					std::optional<uint32_t> descriptorSetIndex = pipeline->GetDescriptorSetIndexByType(Pipeline::DescriptorSetIndexType::BUFFER_DEVICE_ADDRESS, passName);
+					if (descriptorSetIndex)
+					{
+						uniformLayouts.emplace_back(pipeline->GetUniformLayout(*descriptorSetIndex));
+					}
+				}
+				
+				const std::shared_ptr<UniformWriter> uniformWriter = material->GetUniformWriter(passName);
 
+				for (const auto& uniformLayout : uniformLayouts)
+				{
 					for (const auto& binding : uniformLayout->GetBindings())
 					{
-						if (binding.type == ShaderReflection::Type::COMBINED_IMAGE_SAMPLER)
+						if (uniformWriter && binding.type == ShaderReflection::Type::COMBINED_IMAGE_SAMPLER)
 						{
-							if (std::shared_ptr<Texture> texture = uniformWriter->GetTexture(binding.name).back())
+							if (std::shared_ptr<Texture> texture = uniformWriter->GetTextureInfo(binding.name).back().texture)
 							{
 								drawTexture(texture, binding, passName, isChangedToSerialize);
 							}
 						}
-						else if (binding.type == ShaderReflection::Type::UNIFORM_BUFFER)
+						else if (binding.type == ShaderReflection::Type::UNIFORM_BUFFER || binding.type == ShaderReflection::Type::STORAGE_BUFFER)
 						{
 							const std::shared_ptr<Buffer> buffer = material->GetBuffer(binding.name);
 							if (!buffer)
@@ -3511,90 +3839,10 @@ void Editor::MaterialMenu::Update(Editor& editor)
 
 							void* data = (char*)buffer->GetData();
 
-							std::function<void(const ShaderReflection::ReflectVariable&, bool&)> drawVariable = [&](
-								const ShaderReflection::ReflectVariable& variable,
-								bool& isChanged)
-							{
-								// Variables with names that contain any "color" part and types vec3 or vec4 will be considered as a color variable
-								// and will be represented in the editor as color pickers.
-								if (Utils::Contains(Utils::ToLower(variable.name), "color"))
-								{
-									if (variable.type == ShaderReflection::ReflectVariable::Type::VEC3)
-									{
-										isChanged += ImGui::ColorEdit3(variable.name.c_str(), &Utils::GetValue<glm::vec3>(data, variable.offset)[0]);
-									}
-									if (variable.type == ShaderReflection::ReflectVariable::Type::VEC4)
-									{
-										isChanged += ImGui::ColorEdit4(variable.name.c_str(), &Utils::GetValue<glm::vec4>(data, variable.offset)[0]);
-									}
-
-									return;
-								}
-
-								// Variable with names that contain any "use" part and types int will be considered as a bool variable
-								// and will be represented in the editor as check boxes.
-								if (Utils::Contains(Utils::ToLower(variable.name), "use"))
-								{
-									if (variable.type == ShaderReflection::ReflectVariable::Type::INT)
-									{
-										bool used = (bool)Utils::GetValue<int>(data, variable.offset);
-										isChanged += ImGui::Checkbox(variable.name.c_str(), &used);
-										Utils::GetValue<int>(data, variable.offset) = (int)used;
-									}
-									return;
-								}
-
-								if (variable.type == ShaderReflection::ReflectVariable::Type::FLOAT)
-								{
-									isChanged += ImGui::SliderFloat(variable.name.c_str(), &Utils::GetValue<float>(data, variable.offset), 0.0f, 1.0f);
-								}
-								if (variable.type == ShaderReflection::ReflectVariable::Type::INT)
-								{
-									isChanged += ImGui::InputInt(variable.name.c_str(), &Utils::GetValue<int>(data, variable.offset));
-								}
-								if (variable.type == ShaderReflection::ReflectVariable::Type::VEC2)
-								{
-									isChanged += editor.DrawVec2Control(variable.name.c_str(), Utils::GetValue<glm::vec2>(data, variable.offset));
-								}
-								if (variable.type == ShaderReflection::ReflectVariable::Type::VEC3)
-								{
-									isChanged += editor.DrawVec3Control(variable.name.c_str(), Utils::GetValue<glm::vec3>(data, variable.offset));
-								}
-								if (variable.type == ShaderReflection::ReflectVariable::Type::VEC4)
-								{
-									isChanged += editor.DrawVec4Control(variable.name.c_str(), Utils::GetValue<glm::vec4>(data, variable.offset));
-								}
-								if (variable.type == ShaderReflection::ReflectVariable::Type::TEXTURE)
-								{
-									int& bindlessTextureIndex = Utils::GetValue<int>(data, variable.offset);
-									const auto texture = material->GetBindlessTexture(bindlessTextureIndex);
-
-									std::shared_ptr<Texture> newTexture = texture;
-									drawTextureVariable(texture, variable.name, newTexture);
-
-									if (newTexture && newTexture != texture)
-									{
-										// Note: Lets assume that we never unbind manually, it will unbind on delete.
-										//material->UnBindBindlessTexture(texture);
-										bindlessTextureIndex = material->BindBindlessTexture(newTexture);
-
-										isChangedToSerialize = true;
-										isChanged += 1;
-									}
-								}
-								if (variable.type == ShaderReflection::ReflectVariable::Type::STRUCT)
-								{
-									for (const auto& memberVariable : variable.variables)
-									{
-										drawVariable(memberVariable, isChanged);
-									}
-								}
-							};
-
 							bool isChanged = false;
 							for (const auto& variable : binding.buffer->variables)
 							{
-								drawVariable(variable, isChanged);
+								drawVariable(variable, isChanged, data, editor, material);
 							}
 
 							if (isChanged)
@@ -4076,13 +4324,13 @@ void Editor::Thumbnails::Initialize()
 	}
 
 	auto& globalDataAccessor = GlobalDataAccessor::GetInstance();
-	uint32_t& swapChainImageCount = globalDataAccessor.GetSwapChainImageCount();
-	uint32_t& swapChainImageIndex = globalDataAccessor.GetSwapChainImageIndex();
+	uint32_t& frameInFlightCount = globalDataAccessor.GetFrameInFlightCount();
+	uint32_t& frameInFlightIndex = globalDataAccessor.GetFrameInFlightIndex();
 
-	const uint32_t previousSwapChainImageIndex = swapChainImageIndex;
+	const uint32_t previousFrameInFlightIndex = frameInFlightIndex;
 
 	// Need to render n times to initialize every render target and etc.
-	for (size_t i = 0; i < swapChainImageCount; i++)
+	for (size_t i = 0; i < frameInFlightCount; i++)
 	{
 		// SetCamera and other functions in Renderer::Update send callbacks to create render target
 		// and other resources on the next frame,
@@ -4108,12 +4356,12 @@ void Editor::Thumbnails::Initialize()
 
 		m_ThumbnailWindow->EndFrame(frame);
 
-		swapChainImageIndex = ++swapChainImageIndex % swapChainImageCount;
+		frameInFlightIndex = ++frameInFlightIndex % frameInFlightCount;
 	}
 
 	Pengine::GlobalDataAccessor::GetInstance().GetDevice()->WaitIdle();
 
-	swapChainImageIndex = previousSwapChainImageIndex;
+	frameInFlightIndex = previousFrameInFlightIndex;
 }
 
 void Editor::Thumbnails::ShutDown()
@@ -4132,6 +4380,11 @@ void Editor::Thumbnails::UpdateThumbnails()
 		ImGui::End();
 	}*/
 
+	if (!std::filesystem::exists("Thumbnails"))
+	{
+		std::filesystem::create_directory("Thumbnails");
+	}
+
 	if (m_ThumbnailToCheck == m_CacheThumbnails.end())
 	{
 		m_ThumbnailToCheck = m_CacheThumbnails.begin();
@@ -4144,11 +4397,6 @@ void Editor::Thumbnails::UpdateThumbnails()
 	if (m_ThumbnailQueue.empty())
 	{
 		return;
-	}
-
-	if (!std::filesystem::exists("Thumbnails"))
-	{
-		std::filesystem::create_directory("Thumbnails");
 	}
 
 	const ThumbnailLoadInfo thumbnailLoadInfo = m_ThumbnailQueue.front();
@@ -4246,14 +4494,10 @@ void Editor::Thumbnails::UpdateMatMeshThumbnail(const ThumbnailLoadInfo& thumbna
 	{
 		if (r3d.mesh && r3d.mesh->GetType() == Mesh::Type::SKINNED)
 		{
-			r3d.material = MaterialManager::GetInstance().LoadMaterial(std::filesystem::path("Materials") / "MeshBaseSkinned.mat");
-
 			entity->AddComponent<SkeletalAnimator>();
 		}
-		else
-		{
-			r3d.material = MaterialManager::GetInstance().LoadMaterial(std::filesystem::path("Materials") / "MeshBaseDoubleSided.mat");
-		}
+		
+		r3d.material = MaterialManager::GetInstance().LoadMaterial(std::filesystem::path("Materials") / "MeshBaseDoubleSided.mat");
 	}
 
 	// Update BVH just in case.
@@ -4366,16 +4610,16 @@ void Editor::Thumbnails::UpdateScenePrefabThumbnail(const ThumbnailLoadInfo& thu
 		cameraComponent.SetZFar(maxDistance * distanceScale * 3.0f);
 	}
 	auto& globalDataAccessor = GlobalDataAccessor::GetInstance();
-	uint32_t& swapChainImageCount = globalDataAccessor.GetSwapChainImageCount();
-	uint32_t& swapChainImageIndex = globalDataAccessor.GetSwapChainImageIndex();
+	uint32_t& frameInFlightCount = globalDataAccessor.GetFrameInFlightCount();
+	uint32_t& frameInFlightIndex = globalDataAccessor.GetFrameInFlightIndex();
 
-	uint32_t previousSwapChainImageIndex = swapChainImageIndex;
+	uint32_t previousFrameInFlightIndex = frameInFlightIndex;
 
 	// Need to render n times to initialize every render target and etc.
 	// Though this is a scene thumbnail generation, which happen only on save scene action
 	// and to this point everything should be already initialized,
 	// but still let's just render a couple more frames.
-	for (size_t i = 0; i < swapChainImageCount + 1; i++)
+	for (size_t i = 0; i < frameInFlightCount + 1; i++)
 	{
 		// SetCamera and other functions in Renderer::Update send callbacks to create render target
 		// and other resources on the next frame,
@@ -4400,12 +4644,12 @@ void Editor::Thumbnails::UpdateScenePrefabThumbnail(const ThumbnailLoadInfo& thu
 
 		m_ThumbnailWindow->EndFrame(frame);
 
-		swapChainImageIndex = ++swapChainImageIndex % swapChainImageCount;
+		frameInFlightIndex = ++frameInFlightIndex % frameInFlightCount;
 	}
 
 	Pengine::GlobalDataAccessor::GetInstance().GetDevice()->WaitIdle();
 
-	swapChainImageIndex = previousSwapChainImageIndex;
+	frameInFlightIndex = previousFrameInFlightIndex;
 
 	cameraComponent.TakeScreenshot(thumbnailLoadInfo.thumbnailFilepath, name, &m_GeneratingThumbnails.at(thumbnailLoadInfo.resourceFilepath));
 

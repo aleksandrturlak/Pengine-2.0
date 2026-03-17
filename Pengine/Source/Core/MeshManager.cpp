@@ -1,5 +1,6 @@
 #include "MeshManager.h"
 
+#include "BindlessUniformWriter.h"
 #include "TextureManager.h"
 #include "MaterialManager.h"
 #include "Logger.h"
@@ -18,20 +19,19 @@ std::shared_ptr<Mesh> MeshManager::CreateMesh(Mesh::CreateInfo& createInfo)
 {
 	PROFILER_SCOPE(__FUNCTION__);
 
-	if (std::shared_ptr<Mesh> mesh = GetMesh(createInfo.filepath))
+	std::shared_ptr<Mesh> mesh;
+	if (mesh = GetMesh(createInfo.filepath))
 	{
 		mesh->Reload(createInfo);
-
-		return mesh;
 	}
 	else
 	{
 		mesh = std::make_shared<Mesh>(createInfo);
 		std::lock_guard<std::mutex> lock(m_MutexMesh);
 		m_MeshesByFilepath[createInfo.filepath] = mesh;
-
-		return mesh;
 	}
+
+	return mesh;
 }
 
 std::shared_ptr<Mesh> MeshManager::LoadMesh(const std::filesystem::path& filepath)

@@ -127,6 +127,7 @@ std::optional<ShaderReflection::ReflectShaderModule> VulkanPipelineUtils::Reflec
 
 	ReflectDescriptorSets(reflectModule, reflectShaderModule);
 	ReflectInputVariables(reflectModule, reflectShaderModule);
+	ReflectPushConstants(reflectModule, reflectShaderModule);
 
 	spvReflectDestroyShaderModule(&reflectModule);
 
@@ -293,6 +294,13 @@ void VulkanPipelineUtils::ReflectDescriptorSets(
 					binding.count *= reflectBinding.array.dims[dimIndex];
 				}
 			}
+			else if (reflectBinding.descriptor_type == SpvReflectDescriptorType::SPV_REFLECT_DESCRIPTOR_TYPE_ACCELERATION_STRUCTURE_KHR)
+			{
+				binding.name = reflectBinding.name;
+				binding.binding = reflectBinding.binding;
+				binding.type = VulkanUniformLayout::ConvertDescriptorType(static_cast<VkDescriptorType>(reflectBinding.descriptor_type));
+				binding.count = 1;
+			}
 		}
 	}
 }
@@ -335,6 +343,32 @@ void VulkanPipelineUtils::ReflectInputVariables(
 		{
 			attributeDescription.count = inputVariable->numeric.matrix.row_count;
 		}
+	}
+}
+
+void VulkanPipelineUtils::ReflectPushConstants(
+	SpvReflectShaderModule& reflectModule,
+	ShaderReflection::ReflectShaderModule& reflectShaderModule)
+{
+	uint32_t count = 0;
+	SpvReflectResult result = spvReflectEnumeratePushConstantBlocks(&reflectModule, &count, nullptr);
+	if (result != SPV_REFLECT_RESULT_SUCCESS || count == 0)
+	{
+		return;
+	}
+
+	std::vector<SpvReflectBlockVariable*> pushConstants(count);
+	result = spvReflectEnumeratePushConstantBlocks(&reflectModule, &count, pushConstants.data());
+	if (result != SPV_REFLECT_RESULT_SUCCESS)
+	{
+		return;
+	}
+
+	for (const auto* block : pushConstants)
+	{
+		ShaderReflection::PushConstantRange& range = reflectShaderModule.pushConstantRanges.emplace_back();
+		range.offset = block->offset;
+		range.size = block->size;
 	}
 }
 

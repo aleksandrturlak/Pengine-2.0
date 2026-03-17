@@ -1,3 +1,6 @@
+#ifndef PARALLAX_OCCLUSION_MAPPING_H
+#define PARALLAX_OCCLUSION_MAPPING_H
+
 vec2 ParallaxOcclusionMapping(
     sampler2D heightTexture,
     in vec2 uv,
@@ -33,3 +36,5 @@ vec2 ParallaxOcclusionMapping(
     
     return finalUV;
 }
+
+#endif

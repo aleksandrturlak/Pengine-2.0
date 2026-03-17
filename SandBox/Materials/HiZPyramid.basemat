@@ -1,0 +1,12 @@
+Basemat:
+  Pipelines:
+    - RenderPass: HiZPyramid
+      Type: Compute
+      Compute: Shaders/HiZReduce.comp
+      UniformWriters:
+        - Type: Renderer
+          Name: HiZPyramid
+          Set: 0
+      Uniforms:
+        - Name: sourceTexture
+          TextureAttachment: "GBuffer[4]"

@@ -82,9 +82,15 @@ namespace Pengine
 		int BindBindlessTexture(const std::shared_ptr<Texture>& texture);
 
 		void UnBindBindlessTexture(const std::shared_ptr<Texture>& texture);
+
+		std::shared_ptr<Buffer> GetMaterialInfoBuffer();
 		
 	private:
 		void CreateResources(const CreateInfo& createInfo);
+
+		void ReloadMaterialInfoBuffer();
+
+		void FlushMaterialInfoBuffer();
 
 		std::shared_ptr<BaseMaterial> m_BaseMaterial;
 		std::unordered_map<std::string, std::shared_ptr<UniformWriter>> m_UniformWriterByPass;
@@ -93,6 +99,22 @@ namespace Pengine
 		std::unordered_map<std::string, bool> m_PipelineStates;
 
 		std::unordered_map<int, std::shared_ptr<class Texture>> m_BindlessTexturesByIndex;
+
+		std::shared_ptr<Buffer> m_MaterialInfoBuffer;
+
+		struct MaterialInfo
+		{
+			uint64_t materialBuffer[MAX_PIPELINE_COUNT_PER_MATERIAL];
+			uint64_t baseMaterialInfoBuffer;
+			uint64_t pipelineFlags;
+		};
+
+		struct MaterialInfoIntermediate
+		{
+			std::shared_ptr<Buffer> materialBuffer[MAX_PIPELINE_COUNT_PER_MATERIAL];
+		} m_MaterialInfoIntermediate{};
+
+		bool m_DirtyOption = false;
 	};
 
 	template<typename T>

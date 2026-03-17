@@ -1,0 +1,18 @@
+Basemat:
+  Pipelines:
+    - RenderPass: BlurReflections
+      Type: Compute
+      Compute: Shaders/BlurReflections.comp
+      UniformWriters:
+        - Type: Renderer
+          Name: BlurReflections
+          Set: 0
+      Uniforms:
+        - Name: sourceTexture
+          TextureAttachment: "Reflections"
+        - Name: normalTexture
+          TextureAttachment: "GBuffer[1]"
+        - Name: shadingTexture
+          TextureAttachment: "GBuffer[2]"
+        - Name: depthTexture
+          TextureAttachment: "GBuffer[4]"

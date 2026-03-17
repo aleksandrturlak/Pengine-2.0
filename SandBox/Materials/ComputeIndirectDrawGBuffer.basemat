@@ -1,0 +1,17 @@
+Basemat:
+  Pipelines:
+    - RenderPass: ComputeIndirectDrawGBuffer
+      Type: Compute
+      Compute: Shaders/ComputeIndirectDrawGBuffer.comp
+      UniformWriters:
+        - Type: Renderer
+          Name: Camera
+          Set: 0
+        - Type: Renderer
+          Name: ComputeIndirectDrawGBuffer
+          Set: 1
+        - Type: Bindless
+          Set: 2
+        - Type: Scene
+          Name: Scene
+          Set: 3

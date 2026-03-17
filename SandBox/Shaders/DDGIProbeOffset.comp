@@ -1,0 +1,92 @@
+#version 460
+
+#extension GL_EXT_ray_query : enable
+
+#include "Shaders/Includes/Common.h"
+#include "Shaders/Includes/DDGI.h"
+
+#include "Shaders/Includes/SetMacros/CameraSet.h"
+CAMERA_SET(0)
+
+layout(set = 1, binding = 0) uniform DDGIOffsetUniform
+{
+    DDGIData ddgi;
+};
+
+layout(set = 1, binding = 1, rgba16f) uniform image2D probeOffsets;
+layout(set = 1, binding = 2) uniform accelerationStructureEXT topLevelAS;
+
+layout(local_size_x = 64, local_size_y = 1, local_size_z = 1) in;
+
+#ifndef PI
+#define PI 3.14159265359f
+#endif
+
+// Fibonacci spiral to generate well-distributed ray directions over the sphere
+vec3 FibonacciSphereDir(uint i, uint n)
+{
+    float goldenRatio = 1.61803398875f;
+    float theta = acos(1.0f - 2.0f * (float(i) + 0.5f) / float(n));
+    float phi = 2.0f * PI * fract(float(i) * goldenRatio);
+    return vec3(sin(theta) * cos(phi), cos(theta), sin(theta) * sin(phi));
+}
+
+void main()
+{
+    if (ddgi.isEnabled == 0) return;
+
+    uint probeLinearIdx = gl_GlobalInvocationID.x;
+    uint totalProbes    = ddgi.probeCountX * ddgi.probeCountY * ddgi.probeCountZ;
+    if (probeLinearIdx >= totalProbes) return;
+
+    ivec2 offsetTexel = DDGIProbeOffsetTexel(probeLinearIdx, ddgi);
+
+    // On first frame (grid moved or fresh start) reset offsets to zero
+    if (ddgi.frameIndex == 0u)
+    {
+        imageStore(probeOffsets, offsetTexel, vec4(0.0f));
+        return;
+    }
+
+    uint pz = probeLinearIdx / (ddgi.probeCountX * ddgi.probeCountY);
+    uint py = (probeLinearIdx % (ddgi.probeCountX * ddgi.probeCountY)) / ddgi.probeCountX;
+    uint px = probeLinearIdx % ddgi.probeCountX;
+
+    vec3 currentOffset = imageLoad(probeOffsets, offsetTexel).xyz;
+    vec3 probePos = DDGIProbeWorldPos(ivec3(px, py, pz), ddgi) + currentOffset;
+
+    const uint numRays = 16u;
+    const float maxOffset = ddgi.probeSpacing * 0.5f;
+
+    vec3 displacement = vec3(0.0f);
+    for (uint ri = 0u; ri < numRays; ri++)
+    {
+        vec3 rayDirection = FibonacciSphereDir(ri, numRays);
+
+        rayQueryEXT rq;
+        rayQueryInitializeEXT(rq, topLevelAS, 0u, 0xFFu, probePos, 0.0f, rayDirection, maxOffset);
+
+        while (rayQueryProceedEXT(rq))
+        {
+            if (rayQueryGetIntersectionTypeEXT(rq, false) == gl_RayQueryCandidateIntersectionTriangleEXT)
+                rayQueryConfirmIntersectionEXT(rq);
+        }
+
+        if (rayQueryGetIntersectionTypeEXT(rq, true) == gl_RayQueryCommittedIntersectionTriangleEXT)
+        {
+            float hitDistance = rayQueryGetIntersectionTEXT(rq, true);
+            float weight = 1.0f - (hitDistance / maxOffset);
+            displacement -= rayDirection * weight;
+        }
+    }
+
+    // Step offset toward the open direction, damped to avoid oscillation
+    vec3 newOffset = currentOffset + displacement * (maxOffset / float(numRays)) * 0.5f;
+
+    // Clamp to a sphere of radius maxOffset
+    float len = length(newOffset);
+    if (len > maxOffset)
+        newOffset *= maxOffset / len;
+
+    imageStore(probeOffsets, offsetTexel, vec4(newOffset, 0.0f));
+}

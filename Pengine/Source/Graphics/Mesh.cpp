@@ -1,5 +1,6 @@
 #include "Mesh.h"
 
+#include "AccelerationStructure.h"
 #include "../Core/Logger.h"
 #include "../Core/Raycast.h"
 
@@ -36,6 +37,11 @@ const std::shared_ptr<Buffer>& Mesh::GetVertexBuffer(const size_t index) const
 	return m_Vertices[index];
 }
 
+const std::shared_ptr<Buffer> &Pengine::Mesh::GetMeshInfoBuffer() const
+{
+    return m_MeshInfoBuffer;
+}
+
 bool Mesh::Raycast(
 	const glm::vec3& start,
 	const glm::vec3& direction,
@@ -62,11 +68,13 @@ void Mesh::Reload(const CreateInfo& createInfo)
 	// TODO: Maybe need to check whether createInfo is valid!
 	m_CreateInfo = createInfo;
 
-	std::shared_ptr<Buffer> indices = Buffer::Create(
-		sizeof(m_CreateInfo.indices[0]),
-		m_CreateInfo.indices.size(),
-		Buffer::Usage::INDEX_BUFFER,
-		MemoryType::GPU);
+	Buffer::CreateInfo createInfoIndexBuffer{};
+	createInfoIndexBuffer.instanceSize = sizeof(m_CreateInfo.indices[0]);
+	createInfoIndexBuffer.instanceCount = m_CreateInfo.indices.size();
+	createInfoIndexBuffer.usages = { Buffer::Usage::INDEX_BUFFER };
+	createInfoIndexBuffer.memoryType = MemoryType::GPU;
+	createInfoIndexBuffer.isMultiBuffered = false;
+	std::shared_ptr<Buffer> indices = Buffer::Create(createInfoIndexBuffer);
 
 	indices->WriteToBuffer(m_CreateInfo.indices.data(), indices->GetSize());
 
@@ -96,11 +104,13 @@ void Mesh::Reload(const CreateInfo& createInfo)
 	std::vector<std::shared_ptr<Buffer>> vertices;
 	for (std::vector<uint8_t>& vertexBuffer : vertexBuffers)
 	{
-		vertices.emplace_back(Buffer::Create(
-			sizeof(vertexBuffer[0]),
-			vertexBuffer.size(),
-			Buffer::Usage::VERTEX_BUFFER,
-			MemoryType::GPU));
+		Buffer::CreateInfo createInfoVertexBuffer{};
+		createInfoVertexBuffer.instanceSize = sizeof(vertexBuffer[0]);
+		createInfoVertexBuffer.instanceCount = vertexBuffer.size();
+		createInfoVertexBuffer.usages = { Buffer::Usage::VERTEX_BUFFER };
+		createInfoVertexBuffer.memoryType = MemoryType::GPU;
+		createInfoVertexBuffer.isMultiBuffered = false;
+		vertices.emplace_back(Buffer::Create(createInfoVertexBuffer));
 
 		vertices.back()->WriteToBuffer(vertexBuffer.data(), vertexBuffer.size());
 	}
@@ -208,4 +218,105 @@ void Mesh::Reload(const CreateInfo& createInfo)
 	}
 
 	m_BVH = std::make_shared<MeshBVH>(m_CreateInfo.vertices, m_CreateInfo.indices, m_CreateInfo.vertexSize);
+
+	struct LodInfo
+	{
+		uint32_t indexOffset;
+		uint32_t indexCount;
+		float distanceThreshold;
+	};
+
+	{
+		struct MeshBufferInfo
+		{
+			size_t vertexBufferPosition;
+			size_t vertexBufferNormal;
+			size_t vertexBufferColor;
+			size_t vertexBufferSkinned;
+			size_t indexBuffer;
+		};
+
+		Buffer::CreateInfo createInfoMeshBufferInfoBuffer{};
+		createInfoMeshBufferInfoBuffer.instanceSize = sizeof(MeshBufferInfo);
+		createInfoMeshBufferInfoBuffer.instanceCount = 1;
+		createInfoMeshBufferInfoBuffer.usages = { Buffer::Usage::STORAGE_BUFFER };
+		createInfoMeshBufferInfoBuffer.memoryType = MemoryType::GPU;
+		createInfoMeshBufferInfoBuffer.isMultiBuffered = false;
+		m_MeshBufferInfoBuffer = Buffer::Create(createInfoMeshBufferInfoBuffer);
+
+		MeshBufferInfo meshBufferInfo{};
+
+		for (size_t i = 0; i < createInfo.vertexLayouts.size(); i++)
+		{
+			const auto& vertexLayout = createInfo.vertexLayouts[i];
+			const size_t deviceAddress = GetVertexBuffer(i)->GetDeviceAddress().Get();
+			if (vertexLayout.tag == "Position")
+			{
+				meshBufferInfo.vertexBufferPosition = deviceAddress;
+			}
+			else if (vertexLayout.tag == "Normal")
+			{
+				meshBufferInfo.vertexBufferNormal = deviceAddress;
+			}
+			else if (vertexLayout.tag == "Color")
+			{
+				meshBufferInfo.vertexBufferColor = deviceAddress;
+			}
+			else if (vertexLayout.tag == "Bones")
+			{
+				meshBufferInfo.vertexBufferSkinned = deviceAddress;
+			}
+
+			if (deviceAddress == 0)
+			{
+				FATAL_ERROR("Bindless mesh is missing required vertex buffer: " + vertexLayout.tag);
+			}
+		}
+
+		meshBufferInfo.indexBuffer = GetIndexBuffer()->GetDeviceAddress().Get();
+
+		m_MeshBufferInfoBuffer->WriteToBuffer((void*)&meshBufferInfo, sizeof(MeshBufferInfo), 0);
+		m_MeshBufferInfoBuffer->Flush();
+	}
+
+	{
+		#define MAX_LODS 6
+		struct MeshInfo
+		{
+			size_t meshBufferInfoBuffer;
+			uint32_t lodCount;
+			uint32_t flags;
+			LodInfo lods[MAX_LODS];
+		};
+
+		Buffer::CreateInfo createInfoMeshInfoBuffer{};
+		createInfoMeshInfoBuffer.instanceSize = sizeof(MeshInfo);
+		createInfoMeshInfoBuffer.instanceCount = 1;
+		createInfoMeshInfoBuffer.usages = { Buffer::Usage::STORAGE_BUFFER };
+		createInfoMeshInfoBuffer.memoryType = MemoryType::GPU;
+		createInfoMeshInfoBuffer.isMultiBuffered = false;
+		m_MeshInfoBuffer = Buffer::Create(createInfoMeshInfoBuffer);
+
+		MeshInfo meshInfo{};
+
+		const auto& lods = GetLods();
+
+		assert(lods.size() <= MAX_LODS);
+
+		meshInfo.lodCount = static_cast<uint32_t>(lods.size());
+
+		for (size_t i = 0; i < std::min<size_t>(lods.size(), MAX_LODS); i++)
+		{
+			meshInfo.lods[i].indexOffset = static_cast<uint32_t>(lods[i].indexOffset);
+			meshInfo.lods[i].indexCount = static_cast<uint32_t>(lods[i].indexCount);
+			meshInfo.lods[i].distanceThreshold = lods[i].distanceThreshold;
+		}
+
+		meshInfo.meshBufferInfoBuffer = m_MeshBufferInfoBuffer->GetDeviceAddress().Get();
+
+		m_MeshInfoBuffer->WriteToBuffer((void*)&meshInfo, sizeof(MeshInfo), 0);
+		m_MeshInfoBuffer->Flush();
+	}
+
+	m_BLAS = AccelerationStructure::CreateBLAS(*this);
 }

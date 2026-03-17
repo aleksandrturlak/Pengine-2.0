@@ -1,22 +1,67 @@
 #version 450 core
 
-layout(location = 0) in vec2 uv;
+#extension GL_EXT_buffer_reference : require
+#extension GL_EXT_scalar_block_layout : require
+#extension GL_ARB_gpu_shader_int64 : enable
 
-layout(set = 2, binding = 0) uniform sampler2D bindlessTextures[10000];
+layout(location = 0) in vec2 uv;
+layout(location = 1) flat in uint instanceIndex;
+
+#include "Shaders/Includes/Common.h"
 
 #include "Shaders/Includes/DefaultMaterial.h"
-layout(set = 1, binding = 0) uniform GBufferMaterial
+layout(buffer_reference, scalar) buffer DefaultMaterialBuffer
 {
 	DefaultMaterial material;
 };
 
+layout(set = 1, binding = 0, scalar) buffer readonly EntityBuffer
+{
+	EntityInfo entities[MAX_ENTITIES];
+};
+
+layout(set = 2, binding = 0, scalar) buffer readonly IndirectDrawCommands
+{
+	DrawIndirectCommand drawCommands[MAX_INDIRECT_DRAW_COMMANDS];
+};
+
+layout(set = 2, binding = 1) buffer readonly IndirectDrawCommandCount
+{
+	uint count[MAX_CASCADE_COUNT * MAX_PIPELINE_COUNT];
+};
+
+layout(set = 2, binding = 2) buffer readonly PipelineInfoBuffer
+{
+	uint pipelineCommandOffset[MAX_CASCADE_COUNT * MAX_PIPELINE_COUNT];
+};
+
+layout(set = 2, binding = 3, scalar) buffer readonly CSMInstanceDataBuffer
+{
+	CSMInstanceData instanceData[MAX_INDIRECT_DRAW_COMMANDS];
+};
+
+layout(set = 3, binding = 0) uniform sampler2D bindlessTextures[MAX_BINDLESS_TEXTURES];
+
 void main()
 {
-	if (material.useAlphaCutoff > 0)
+	CSMInstanceData instData = instanceData[instanceIndex];
+	uint entityIndex = instData.entityIndex;
+	
+	EntityInfo entityInfo = entities[entityIndex];
+	
+	uint64_t materialBufferAddress = entityInfo.materialInfoBuffer.materialBuffers[GBUFFER_PASS];
+	if (materialBufferAddress != 0)
 	{
-		if (texture(bindlessTextures[material.albedoTexture], uv).a < material.alphaCutoff)
+		DefaultMaterialBuffer matBuffer = DefaultMaterialBuffer(materialBufferAddress);
+		DefaultMaterial material = matBuffer.material;
+		
+		if (material.useAlphaCutoff > 0)
 		{
-			discard;
+			float alpha = texture(bindlessTextures[material.albedoTexture], uv).a;
+			if (alpha < material.alphaCutoff)
+			{
+				discard;
+			}
 		}
 	}
 }

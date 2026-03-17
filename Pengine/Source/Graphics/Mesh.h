@@ -5,6 +5,7 @@
 #include "../Core/BoundingBox.h"
 #include "../Core/Visualizer.h"
 
+#include "AccelerationStructure.h"
 #include "Buffer.h"
 #include "Vertex.h"
 #include "MeshBVH.h"
@@ -69,6 +70,8 @@ namespace Pengine
 
 		[[nodiscard]] const std::shared_ptr<Buffer>& GetIndexBuffer() const { return m_Indices; };
 
+		[[nodiscard]] const std::shared_ptr<Buffer>& GetMeshInfoBuffer() const;
+
 		[[nodiscard]] const void* GetRawVertices() const { return m_CreateInfo.vertices; }
 
 		[[nodiscard]] const std::vector<uint32_t>& GetRawIndices() const { return m_CreateInfo.indices; };
@@ -93,6 +96,8 @@ namespace Pengine
 
 		[[nodiscard]] std::shared_ptr<MeshBVH> GetBVH() const { return m_BVH; }
 
+		[[nodiscard]] std::shared_ptr<AccelerationStructure> GetBLAS() const { return m_BLAS; }
+
 		[[nodiscard]] const std::vector<Lod>& GetLods() const { return m_CreateInfo.lods; }
 
 		[[nodiscard]] bool Raycast(
@@ -102,16 +107,27 @@ namespace Pengine
 			Raycast::Hit& hit,
 			Visualizer& visualizer) const;
 
+		[[nodiscard]] bool IsBindless() const { return m_BindlessIndex != -1; }
+
+		[[nodiscard]] int GetBindlessIndex() const { return m_BindlessIndex; }
+
+		void SetBindlessIndex(const int index) { m_BindlessIndex = index; }
+
 		void Reload(const CreateInfo& createInfo);
 
-	protected:
+	private:
+		std::shared_ptr<AccelerationStructure> m_BLAS;
 		std::shared_ptr<MeshBVH> m_BVH;
 		std::vector<std::shared_ptr<Buffer>> m_Vertices;
 		std::vector<NativeHandle> m_VertexLayoutHandles;
 		std::shared_ptr<Buffer> m_Indices;
+		std::shared_ptr<Buffer> m_MeshInfoBuffer;
+		std::shared_ptr<Buffer> m_MeshBufferInfoBuffer;
 		BoundingBox m_BoundingBox{};
 		CreateInfo m_CreateInfo{};
 
+		int m_BindlessIndex = -1;
+		
 		mutable std::mutex m_VertexBufferAccessMutex;
 	};
 

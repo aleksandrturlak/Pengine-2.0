@@ -165,6 +165,8 @@ bool VulkanDescriptorPool::AllocateDescriptorSets(
 
 void VulkanDescriptorPool::FreeDescriptors(const std::vector<VkDescriptorSet>& descriptors) const
 {
+	VulkanDevice::Lock lock;
+	
 	vkFreeDescriptorSets(
 		GetVkDevice()->GetDevice(),
 		m_DescriptorPool,

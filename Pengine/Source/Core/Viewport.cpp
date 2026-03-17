@@ -52,7 +52,7 @@ void Viewport::Update(const std::shared_ptr<Texture>& viewportTexture, std::shar
 
 	ImGui::Begin(m_Name.c_str(), &m_IsOpened);
 
-	ImGui::Image(viewportTexture->GetId(), ImVec2(m_Size.x, m_Size.y));
+	ImGui::Image(viewportTexture->GetId((Vk::frameInFlightIndex + 1) % Vk::frameInFlightCount), ImVec2(m_Size.x, m_Size.y));
 
 	if (ImGui::BeginDragDropTarget())
 	{
@@ -169,14 +169,10 @@ void Viewport::Update(const std::shared_ptr<Texture>& viewportTexture, std::shar
 
 								if (mesh->GetType() == Mesh::Type::SKINNED)
 								{
-									r3d.material = MaterialManager::GetInstance().LoadMaterial(std::filesystem::path("Materials") / "MeshBaseSkinned.mat");
-
 									entity->AddComponent<SkeletalAnimator>();
 								}
-								else
-								{
-									r3d.material = MaterialManager::GetInstance().LoadMaterial(std::filesystem::path("Materials") / "MeshBaseDoubleSided.mat");
-								}
+								
+								r3d.material = MaterialManager::GetInstance().LoadMaterial(std::filesystem::path("Materials") / "MeshBaseDoubleSided.mat");
 							}
 						}
 					}

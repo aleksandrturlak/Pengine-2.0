@@ -6,8 +6,11 @@
 #include "../Core/MaterialManager.h"
 #include "../Core/AsyncAssetLoader.h"
 #include "../Core/BindlessUniformWriter.h"
+#include "../Core/RenderPassManager.h"
 #include "../EventSystem/EventSystem.h"
 #include "../EventSystem/NextFrameEvent.h"
+#include "../Graphics/Pass.h"
+#include "../Graphics/Device.h"
 
 using namespace Pengine;
 
@@ -90,70 +93,86 @@ std::shared_ptr<Material> Material::Clone(
 
 	for (const auto& [passName, pipeline] : material->GetBaseMaterial()->GetPipelinesByPass())
 	{
-		std::optional<uint32_t> descriptorSetIndex = pipeline->GetDescriptorSetIndexByType(Pipeline::DescriptorSetIndexType::MATERIAL, passName);
-		if (!descriptorSetIndex)
+		std::vector<std::shared_ptr<UniformLayout>> uniformLayouts;
+
 		{
-			continue;
-		}
-		for (const auto& binding : pipeline->GetUniformLayout(*descriptorSetIndex)->GetBindings())
-		{
-			if (binding.type == ShaderReflection::Type::COMBINED_IMAGE_SAMPLER)
+			std::optional<uint32_t> descriptorSetIndex = pipeline->GetDescriptorSetIndexByType(Pipeline::DescriptorSetIndexType::MATERIAL, passName);
+			if (descriptorSetIndex)
 			{
-				createInfo.uniformInfos[passName].texturesByName[binding.name] = material->GetUniformWriter(passName)->GetTexture(binding.name).back()->GetFilepath().string();
+				uniformLayouts.emplace_back(pipeline->GetUniformLayout(*descriptorSetIndex));
 			}
-			else if (binding.type == ShaderReflection::Type::UNIFORM_BUFFER)
+		}
+
+		{
+			std::optional<uint32_t> descriptorSetIndex = pipeline->GetDescriptorSetIndexByType(Pipeline::DescriptorSetIndexType::BUFFER_DEVICE_ADDRESS, passName);
+			if (descriptorSetIndex)
 			{
-				const std::shared_ptr<Buffer> buffer = material->GetBuffer(binding.name);
-				void* data = buffer->GetData();
+				uniformLayouts.emplace_back(pipeline->GetUniformLayout(*descriptorSetIndex));
+			}
+		}
 
-				auto& uniformBufferInfo = createInfo.uniformInfos[passName].uniformBuffersByName[binding.name];
-
-				std::function<void(const ShaderReflection::ReflectVariable&, std::string)> copyValue = [
-					data,
-					&material,
-					&copyValue,
-					&uniformBufferInfo]
-				(const ShaderReflection::ReflectVariable& value, std::string parentName)
+		for (const auto& uniformLayout : uniformLayouts)
+		{
+			for (const auto& binding : uniformLayout->GetBindings())
+			{
+				if (binding.type == ShaderReflection::Type::COMBINED_IMAGE_SAMPLER)
 				{
-					parentName += value.name;
+					createInfo.uniformInfos[passName].texturesByName[binding.name] = material->GetUniformWriter(passName)->GetTextureInfo(binding.name).back().texture->GetFilepath().string();
+				}
+				else if (binding.type == ShaderReflection::Type::UNIFORM_BUFFER || binding.type == ShaderReflection::Type::STORAGE_BUFFER)
+				{
+					const std::shared_ptr<Buffer> buffer = material->GetBuffer(binding.name);
+					void* data = buffer->GetData();
 
-					if (value.type == ShaderReflection::ReflectVariable::Type::VEC2)
+					auto& uniformBufferInfo = createInfo.uniformInfos[passName].uniformBuffersByName[binding.name];
+
+					std::function<void(const ShaderReflection::ReflectVariable&, std::string)> copyValue = [
+						data,
+						&material,
+						&copyValue,
+						&uniformBufferInfo]
+					(const ShaderReflection::ReflectVariable& value, std::string parentName)
 					{
-						uniformBufferInfo.vec2ValuesByName.emplace(parentName, Utils::GetValue<glm::vec2>(data, value.offset));
-					}
-					else if (value.type == ShaderReflection::ReflectVariable::Type::VEC3)
-					{
-						uniformBufferInfo.vec3ValuesByName.emplace(parentName, Utils::GetValue<glm::vec3>(data, value.offset));
-					}
-					else if (value.type == ShaderReflection::ReflectVariable::Type::VEC4)
-					{
-						uniformBufferInfo.vec4ValuesByName.emplace(parentName, Utils::GetValue<glm::vec4>(data, value.offset));
-					}
-					else if (value.type == ShaderReflection::ReflectVariable::Type::FLOAT)
-					{
-						uniformBufferInfo.floatValuesByName.emplace(parentName, Utils::GetValue<float>(data, value.offset));
-					}
-					else if (value.type == ShaderReflection::ReflectVariable::Type::INT)
-					{
-						uniformBufferInfo.intValuesByName.emplace(parentName, Utils::GetValue<int>(data, value.offset));
-					}
-					else if (value.type == ShaderReflection::ReflectVariable::Type::STRUCT)
-					{
-						for (const auto& memberValue : value.variables)
+						parentName += value.name;
+
+						if (value.type == ShaderReflection::ReflectVariable::Type::VEC2)
 						{
-							copyValue(memberValue, parentName + ".");
+							uniformBufferInfo.vec2ValuesByName.emplace(parentName, Utils::GetValue<glm::vec2>(data, value.offset));
 						}
-					}
-					else if (value.type == ShaderReflection::ReflectVariable::Type::TEXTURE)
-					{
-						const int index = Utils::GetValue<int>(data, value.offset);
-						uniformBufferInfo.texturesByName.emplace(parentName, material->GetBindlessTexture(index)->GetFilepath());
-					}
-				};
+						else if (value.type == ShaderReflection::ReflectVariable::Type::VEC3)
+						{
+							uniformBufferInfo.vec3ValuesByName.emplace(parentName, Utils::GetValue<glm::vec3>(data, value.offset));
+						}
+						else if (value.type == ShaderReflection::ReflectVariable::Type::VEC4)
+						{
+							uniformBufferInfo.vec4ValuesByName.emplace(parentName, Utils::GetValue<glm::vec4>(data, value.offset));
+						}
+						else if (value.type == ShaderReflection::ReflectVariable::Type::FLOAT)
+						{
+							uniformBufferInfo.floatValuesByName.emplace(parentName, Utils::GetValue<float>(data, value.offset));
+						}
+						else if (value.type == ShaderReflection::ReflectVariable::Type::INT)
+						{
+							uniformBufferInfo.intValuesByName.emplace(parentName, Utils::GetValue<int>(data, value.offset));
+						}
+						else if (value.type == ShaderReflection::ReflectVariable::Type::STRUCT)
+						{
+							for (const auto& memberValue : value.variables)
+							{
+								copyValue(memberValue, parentName + ".");
+							}
+						}
+						else if (value.type == ShaderReflection::ReflectVariable::Type::TEXTURE)
+						{
+							const int index = Utils::GetValue<int>(data, value.offset);
+							uniformBufferInfo.texturesByName.emplace(parentName, material->GetBindlessTexture(index)->GetFilepath());
+						}
+					};
 
-				for (const auto& value : binding.buffer->variables)
-				{
-					copyValue(value, "");
+					for (const auto& value : binding.buffer->variables)
+					{
+						copyValue(value, "");
+					}
 				}
 			}
 		}
@@ -230,9 +249,11 @@ void Material::SetOption(const std::string& name, bool isEnabled)
 	{
 		m_PipelineStates[inactive] = !isEnabled;
 	}
+
+	m_DirtyOption = true;
 }
 
-std::shared_ptr<Texture> Pengine::Material::GetBindlessTexture(const int index) const
+std::shared_ptr<Texture> Material::GetBindlessTexture(const int index) const
 {
 	auto bindlessTextureByIndex = m_BindlessTexturesByIndex.find(index);
 	if (bindlessTextureByIndex != m_BindlessTexturesByIndex.end())
@@ -243,20 +264,27 @@ std::shared_ptr<Texture> Pengine::Material::GetBindlessTexture(const int index) 
 	return nullptr;
 }
 
-int Pengine::Material::BindBindlessTexture(const std::shared_ptr<Texture>& texture)
+int Material::BindBindlessTexture(const std::shared_ptr<Texture>& texture)
 {
     const int index = BindlessUniformWriter::GetInstance().BindTexture(texture);
 	m_BindlessTexturesByIndex[index] = texture;
 	return index;
 }
 
-void Pengine::Material::UnBindBindlessTexture(const std::shared_ptr<Texture>& texture)
+void Material::UnBindBindlessTexture(const std::shared_ptr<Texture>& texture)
 {
 	m_BindlessTexturesByIndex.erase(texture->GetBindlessIndex());
 	BindlessUniformWriter::GetInstance().UnBindTexture(texture);
 }
 
-void Material::CreateResources(const CreateInfo &createInfo)
+std::shared_ptr<Buffer> Material::GetMaterialInfoBuffer()
+{
+    ReloadMaterialInfoBuffer();
+	FlushMaterialInfoBuffer();
+	return m_MaterialInfoBuffer;
+}
+
+void Material::CreateResources(const CreateInfo& createInfo)
 {
 	m_BaseMaterial = AsyncAssetLoader::GetInstance().SyncLoadBaseMaterial(createInfo.baseMaterial);
 	m_OptionsByName = createInfo.optionsByName;
@@ -267,10 +295,9 @@ void Material::CreateResources(const CreateInfo &createInfo)
 
 	for (const auto& [passName, pipeline] : m_BaseMaterial->GetPipelinesByPass())
 	{
-		auto baseMaterialIndex = pipeline->GetDescriptorSetIndexByType(Pipeline::DescriptorSetIndexType::MATERIAL, passName);
-		if (baseMaterialIndex)
+		if (auto materialIndex = pipeline->GetDescriptorSetIndexByType(Pipeline::DescriptorSetIndexType::MATERIAL, passName))
 		{
-			const std::shared_ptr<UniformLayout> uniformLayout = pipeline->GetUniformLayout(*baseMaterialIndex);
+			const std::shared_ptr<UniformLayout> uniformLayout = pipeline->GetUniformLayout(*materialIndex);
 			const std::shared_ptr<UniformWriter> uniformWriter = UniformWriter::Create(uniformLayout);
 			m_UniformWriterByPass[passName] = uniformWriter;
 
@@ -278,14 +305,50 @@ void Material::CreateResources(const CreateInfo &createInfo)
 			{
 				if (binding.buffer)
 				{
-					const std::shared_ptr<Buffer> buffer = Buffer::Create(
-						binding.buffer->size,
-						1,
-						Buffer::Usage::UNIFORM_BUFFER,
-						MemoryType::CPU);
+					Buffer::Usage usage{};
+					if (binding.type == ShaderReflection::Type::UNIFORM_BUFFER)
+					{
+						usage = Buffer::Usage::UNIFORM_BUFFER;
+					}
+					else if (binding.type == ShaderReflection::Type::STORAGE_BUFFER)
+					{
+						usage = Buffer::Usage::STORAGE_BUFFER;
+					}
+					
+					Buffer::CreateInfo createInfo{};
+					createInfo.instanceSize = binding.buffer->size;
+					createInfo.instanceCount = 1;
+					createInfo.usages = { usage };
+					createInfo.memoryType = MemoryType::CPU;
+					createInfo.isMultiBuffered = true;
+					const std::shared_ptr<Buffer> buffer = Buffer::Create(createInfo);
+					
 					m_BuffersByName[binding.buffer->name] = buffer;
-					uniformWriter->WriteBuffer(binding.buffer->name, buffer);
+					uniformWriter->WriteBufferToAllFrames(binding.buffer->name, buffer);
 					uniformWriter->Flush();
+				}
+			}
+		}
+
+		if (auto materialIndex = pipeline->GetDescriptorSetIndexByType(Pipeline::DescriptorSetIndexType::BUFFER_DEVICE_ADDRESS, passName))
+		{
+			std::shared_ptr<Pass> pass = RenderPassManager::GetInstance().GetPass(passName);
+
+			const std::shared_ptr<UniformLayout> uniformLayout = pipeline->GetUniformLayout(*materialIndex);
+			for (const auto& binding : uniformLayout->GetBindings())
+			{
+				if (binding.buffer)
+				{
+					Buffer::CreateInfo createInfo{};
+					createInfo.instanceSize = binding.buffer->size;
+					createInfo.instanceCount = 1;
+					createInfo.usages = { Buffer::Usage::STORAGE_BUFFER };
+					createInfo.memoryType = MemoryType::CPU;
+					createInfo.isMultiBuffered = true;
+					const std::shared_ptr<Buffer> buffer = Buffer::Create(createInfo);
+					m_BuffersByName[binding.buffer->name] = buffer;
+
+					m_MaterialInfoIntermediate.materialBuffer[pass->GetId()] = buffer;
 				}
 			}
 		}
@@ -299,17 +362,15 @@ void Material::CreateResources(const CreateInfo &createInfo)
 		}
 
 		const std::shared_ptr<UniformWriter> uniformWriter = GetUniformWriter(passName);
-		if (!uniformWriter)
+		if (uniformWriter)
 		{
-			continue;
+			for (const auto& [name, filepath] : uniformInfo.texturesByName)
+			{
+				std::shared_ptr<Texture> texture = TextureManager::GetInstance().Load(filepath);
+				uniformWriter->WriteTextureToAllFrames(name, texture);
+			}
+			uniformWriter->Flush();
 		}
-
-		for (const auto& [name, filepath] : uniformInfo.texturesByName)
-		{
-			std::shared_ptr<Texture> texture = TextureManager::GetInstance().Load(filepath);
-			uniformWriter->WriteTexture(name, texture);
-		}
-		uniformWriter->Flush();
 
 		for (const auto& [uniformBufferName, bufferInfo] : uniformInfo.uniformBuffersByName)
 		{
@@ -344,6 +405,77 @@ void Material::CreateResources(const CreateInfo &createInfo)
 				const int index = BindBindlessTexture(texture);
 				WriteToBuffer(uniformBufferName, name, index);
 			}
+
+			device->ForEachFrame([this, uniformBufferName]()
+			{
+				GetBuffer(uniformBufferName)->Flush();
+			});
 		}
+	}
+
+	ReloadMaterialInfoBuffer();
+}
+
+void Material::ReloadMaterialInfoBuffer()
+{
+	if (!m_DirtyOption && m_MaterialInfoBuffer)
+	{
+		return;
+	}
+
+	m_DirtyOption = false;
+
+	if (!m_MaterialInfoBuffer)
+	{
+		Buffer::CreateInfo createInfo{};
+		createInfo.instanceSize = sizeof(MaterialInfo);
+		createInfo.instanceCount = 1;
+		createInfo.usages = { Buffer::Usage::STORAGE_BUFFER };
+		createInfo.memoryType = MemoryType::GPU;
+		createInfo.isMultiBuffered = true;
+		m_MaterialInfoBuffer = Buffer::Create(createInfo);
+	}
+
+	device->ForEachFrame([this]()
+	{
+		MaterialInfo materialInfo{};
+		materialInfo.pipelineFlags = 0;
+		materialInfo.baseMaterialInfoBuffer = m_BaseMaterial->GetBaseMaterialInfoBuffer()->GetDeviceAddress().Get();
+
+		for (const auto& [passName, pipeline] : m_BaseMaterial->GetPipelinesByPass())
+		{
+			std::shared_ptr<Pass> pass = RenderPassManager::GetInstance().GetPass(passName);
+			if (IsPipelineEnabled(passName))
+			{
+				materialInfo.pipelineFlags |= 1 << pass->GetId();
+			}
+		}
+
+		for (size_t i = 0; i < MAX_PIPELINE_COUNT_PER_MATERIAL; i++)
+		{
+			materialInfo.materialBuffer[i] = m_MaterialInfoIntermediate.materialBuffer[i] ?
+				m_MaterialInfoIntermediate.materialBuffer[i]->GetDeviceAddress().Get() : 0;
+		}
+
+		m_MaterialInfoBuffer->WriteToBuffer((void*)&materialInfo, sizeof(MaterialInfo), 0);
+		m_MaterialInfoBuffer->Flush();
+	});
+
+	m_MaterialInfoBuffer->ClearWrites();
+}
+
+void Material::FlushMaterialInfoBuffer()
+{
+	for (size_t i = 0; i < MAX_PIPELINE_COUNT_PER_MATERIAL; i++)
+	{
+		if (m_MaterialInfoIntermediate.materialBuffer[i])
+		{
+			m_MaterialInfoIntermediate.materialBuffer[i]->Flush();
+		}
+	}
+
+	if (m_MaterialInfoBuffer)
+	{
+		m_MaterialInfoBuffer->Flush();
 	}
 }
