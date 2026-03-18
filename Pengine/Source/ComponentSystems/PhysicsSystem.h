@@ -3,11 +3,15 @@
 #include "../Core/Core.h"
 
 #include "ComponentSystem.h"
+#include "../Components/RigidBody.h"
 
 #include <Jolt/Jolt.h>
 #include <Jolt/Physics/PhysicsSystem.h>
+#include <Jolt/Physics/Collision/ContactListener.h>
 #include <Jolt/Core/TempAllocator.h>
 #include <Jolt/Core/JobSystemThreadPool.h>
+
+#include <mutex>
 
 namespace Pengine
 {
@@ -43,6 +47,10 @@ namespace Pengine
 		JPH::TempAllocator* GetTempAllocator() { return m_TempAllocator.get(); }
 
 		[[nodiscard]] entt::entity GetEntity(JPH::BodyID bodyId) const;
+
+		void AddForce(const RigidBody& rb, const glm::vec3& force);
+		void AddImpulse(const RigidBody& rb, const glm::vec3& impulse);
+		void AddTorque(const RigidBody& rb, const glm::vec3& torque);
 
 	private:
 
@@ -132,6 +140,56 @@ namespace Pengine
 		BroadPhaseLayerInterfaceImpl m_BroadPhaseLayerInterfaceImpl;
 		ObjectVsBroadPhaseLayerFilterImpl m_ObjectVsBroadPhaseLayerFilterImpl;
 		ObjectLayerPairFilterImpl m_ObjectLayerPairFilterImpl;
+
+		struct PendingCollision
+		{
+			int type; // 0=Enter, 1=Stay, 2=Exit
+			JPH::BodyID bodyA;
+			JPH::BodyID bodyB;
+		};
+
+		class ContactListenerImpl : public JPH::ContactListener
+		{
+		public:
+			ContactListenerImpl(PhysicsSystem* owner) : m_Owner(owner) {}
+
+			virtual JPH::ValidateResult OnContactValidate(
+				const JPH::Body&, const JPH::Body&,
+				JPH::RVec3Arg, const JPH::CollideShapeResult&) override
+			{
+				return JPH::ValidateResult::AcceptAllContactsForThisBodyPair;
+			}
+
+			virtual void OnContactAdded(
+				const JPH::Body& body1, const JPH::Body& body2,
+				const JPH::ContactManifold&, JPH::ContactSettings&) override
+			{
+				std::lock_guard<std::mutex> lock(m_Owner->m_PendingCollisionMutex);
+				m_Owner->m_PendingCollisions.push_back({ 0, body1.GetID(), body2.GetID() });
+			}
+
+			virtual void OnContactPersisted(
+				const JPH::Body& body1, const JPH::Body& body2,
+				const JPH::ContactManifold&, JPH::ContactSettings&) override
+			{
+				std::lock_guard<std::mutex> lock(m_Owner->m_PendingCollisionMutex);
+				m_Owner->m_PendingCollisions.push_back({ 1, body1.GetID(), body2.GetID() });
+			}
+
+			virtual void OnContactRemoved(const JPH::SubShapeIDPair& pair) override
+			{
+				std::lock_guard<std::mutex> lock(m_Owner->m_PendingCollisionMutex);
+				m_Owner->m_PendingCollisions.push_back({ 2, pair.GetBody1ID(), pair.GetBody2ID() });
+			}
+
+		private:
+			PhysicsSystem* m_Owner;
+		};
+
+		ContactListenerImpl m_ContactListener{ this };
+		std::weak_ptr<class Scene> m_SceneRef;
+		std::mutex m_PendingCollisionMutex;
+		std::vector<PendingCollision> m_PendingCollisions;
 	};
 
 	inline glm::vec3 JoltVec3ToGlmVec3(const JPH::Vec3& value)

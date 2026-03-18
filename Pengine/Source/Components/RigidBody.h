@@ -16,7 +16,8 @@ namespace Pengine
 		{
 			Box,
 			Sphere,
-			Cylinder
+			Cylinder,
+			Capsule
 		};
 
 		struct Box
@@ -35,11 +36,18 @@ namespace Pengine
 			float radius = 0.5f;
 		};
 
+		struct Capsule
+		{
+			float halfHeight = 0.5f;
+			float radius = 0.25f;
+		};
+
 		union Shape
 		{
 			Box box;
 			Sphere sphere;
 			Cylinder cylinder;
+			Capsule capsule;
 		};
 		
 		Shape shape = Shape(Box());
@@ -47,7 +55,12 @@ namespace Pengine
 		JPH::BodyID id;
 
 		float mass = 1.0f;
+		float friction = 0.5f;
+		float restitution = 0.0f;
+		glm::vec3 linearVelocity = {};
+		glm::vec3 angularVelocity = {};
 
+		bool allowSleeping = true;
 		bool isStatic = false;
 		bool isValid = false;
 	};

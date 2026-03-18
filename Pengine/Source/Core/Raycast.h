@@ -8,6 +8,13 @@ namespace Pengine
 	class PENGINE_API Raycast
 	{
 	public:
+		struct PhysicsHit
+		{
+			glm::vec3 point{};
+			float fraction = 1.0f;
+			std::shared_ptr<class Entity> entity;
+		};
+
 		struct Hit
 		{
 			glm::vec3 point{};
@@ -68,6 +75,13 @@ namespace Pengine
 			const float length,
 			Hit& hit);
 
+		static bool RaycastPhysics(
+			std::shared_ptr<class Scene> scene,
+			const glm::vec3& origin,
+			const glm::vec3& direction,
+			float length,
+			PhysicsHit& hit);
+
 		typedef int OutCode;
 
 		/**
@@ -79,7 +93,7 @@ namespace Pengine
 			const glm::vec2& max);
 
 		/**
-		 * Cohen–Sutherland clipping algorithm clips a line from start to end against a rectangle with diagonal from min to max.
+		 * Cohenï¿½Sutherland clipping algorithm clips a line from start to end against a rectangle with diagonal from min to max.
 		 */
 		static bool CohenSutherlandLineClip(
 			glm::vec2 start,

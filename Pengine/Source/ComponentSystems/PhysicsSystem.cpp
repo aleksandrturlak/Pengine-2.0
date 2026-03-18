@@ -6,11 +6,15 @@
 
 #include "../Utils/Utils.h"
 
+#include "../EventSystem/EventSystem.h"
+#include "../EventSystem/CollisionEvent.h"
+
 #include <Jolt/RegisterTypes.h>
 #include <Jolt/Core/Factory.h>
 #include <Jolt/Physics/Collision/Shape/BoxShape.h>
 #include <Jolt/Physics/Collision/Shape/SphereShape.h>
 #include <Jolt/Physics/Collision/Shape/CylinderShape.h>
+#include <Jolt/Physics/Collision/Shape/CapsuleShape.h>
 #include <Jolt/Physics/Body/BodyCreationSettings.h>
 
 using namespace Pengine;
@@ -37,6 +41,7 @@ PhysicsSystem::PhysicsSystem()
 		m_ObjectLayerPairFilterImpl);
 
 	m_PhysicsSystem.SetGravity({ 0.0f, -9.8f, 0.0f });
+	m_PhysicsSystem.SetContactListener(&m_ContactListener);
 
 	auto callback = [this](std::shared_ptr<Entity> entity)
 	{
@@ -61,6 +66,8 @@ PhysicsSystem::~PhysicsSystem()
 
 void PhysicsSystem::OnUpdate(const float deltaTime, std::shared_ptr<Scene> scene)
 {
+	m_SceneRef = scene;
+
 	UpdateBodies(scene);
 
 	m_PhysicsSystem.GetBodyInterface().RemoveBodies(m_DestroyBodies.data(), m_DestroyBodies.size());
@@ -103,7 +110,41 @@ void PhysicsSystem::OnUpdate(const float deltaTime, std::shared_ptr<Scene> scene
 
 			transform.Translate(position);
 			transform.Rotate(rotation);
+
+			// rigidBody.linearVelocity = JoltVec3ToGlmVec3(body.GetLinearVelocity());
+			// rigidBody.angularVelocity = JoltVec3ToGlmVec3(body.GetAngularVelocity());
 		}
+	}
+
+	std::vector<PendingCollision> pendingCopy;
+	{
+		std::lock_guard<std::mutex> lock(m_PendingCollisionMutex);
+		pendingCopy.swap(m_PendingCollisions);
+	}
+
+	for (const auto& pending : pendingCopy)
+	{
+		const entt::entity handleA = GetEntity(pending.bodyA);
+		const entt::entity handleB = GetEntity(pending.bodyB);
+		if (handleA == entt::tombstone || handleB == entt::tombstone)
+		{
+			continue;
+		}
+
+		const std::shared_ptr<Entity> entityA = scene->GetRegistry().get<Transform>(handleA).GetEntity();
+		const std::shared_ptr<Entity> entityB = scene->GetRegistry().get<Transform>(handleB).GetEntity();
+
+		Event::Type eventType;
+		switch (pending.type)
+		{
+		case 0: eventType = Event::Type::OnCollisionEnter;   break;
+		case 1: eventType = Event::Type::OnCollisionStay;    break;
+		case 2: eventType = Event::Type::OnCollisionExit;    break;
+		default: continue;
+		}
+
+		auto event = std::make_shared<CollisionEvent>(entityA, entityB, eventType, this);
+		EventSystem::GetInstance().SendEvent(event);
 	}
 }
 
@@ -158,6 +199,12 @@ void PhysicsSystem::UpdateBodies(std::shared_ptr<Scene> scene)
 				shapeResult = cylinderShapeSettings.Create();
 				break;
 			}
+			case RigidBody::Type::Capsule:
+			{
+				JPH::CapsuleShapeSettings capsuleShapeSettings(rigidBody.shape.capsule.halfHeight, rigidBody.shape.capsule.radius);
+				shapeResult = capsuleShapeSettings.Create();
+				break;
+			}
 			}
 
 			JPH::BodyCreationSettings bodySettings(
@@ -173,6 +220,12 @@ void PhysicsSystem::UpdateBodies(std::shared_ptr<Scene> scene)
 				bodySettings.mOverrideMassProperties = JPH::EOverrideMassProperties::CalculateInertia;
 				bodySettings.mMassPropertiesOverride.mMass = rigidBody.mass;
 			}
+
+			bodySettings.mFriction = rigidBody.friction;
+			bodySettings.mRestitution = rigidBody.restitution;
+			bodySettings.mAllowSleeping = rigidBody.allowSleeping;
+			// bodySettings.mLinearVelocity = GlmVec3ToJoltVec3(rigidBody.linearVelocity);
+			// bodySettings.mAngularVelocity = GlmVec3ToJoltVec3(rigidBody.angularVelocity);
 
 			JPH::Body* body = m_PhysicsSystem.GetBodyInterface().CreateBody(bodySettings);
 			rigidBody.id = body->GetID();
@@ -200,4 +253,31 @@ entt::entity PhysicsSystem::GetEntity(JPH::BodyID bodyId) const
 	}
 
 	return entt::tombstone;
+}
+
+void PhysicsSystem::AddForce(const RigidBody& rb, const glm::vec3& force)
+{
+	if (!rb.isValid || rb.id.IsInvalid())
+	{
+		return;
+	}
+	m_PhysicsSystem.GetBodyInterface().AddForce(rb.id, GlmVec3ToJoltVec3(force), JPH::EActivation::Activate);
+}
+
+void PhysicsSystem::AddImpulse(const RigidBody& rb, const glm::vec3& impulse)
+{
+	if (!rb.isValid || rb.id.IsInvalid())
+	{
+		return;
+	}
+	m_PhysicsSystem.GetBodyInterface().AddImpulse(rb.id, GlmVec3ToJoltVec3(impulse));
+}
+
+void PhysicsSystem::AddTorque(const RigidBody& rb, const glm::vec3& torque)
+{
+	if (!rb.isValid || rb.id.IsInvalid())
+	{
+		return;
+	}
+	m_PhysicsSystem.GetBodyInterface().AddTorque(rb.id, GlmVec3ToJoltVec3(torque), JPH::EActivation::Activate);
 }

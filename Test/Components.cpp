@@ -187,6 +187,11 @@ TEST(RigidBody, Defaults)
 
 		EXPECT_EQ(rb.type, RigidBody::Type::Box);
 		EXPECT_NEAR(rb.mass, 1.0f, 1e-5f);
+		EXPECT_NEAR(rb.friction, 0.5f, 1e-5f);
+		EXPECT_NEAR(rb.restitution, 0.0f, 1e-5f);
+		EXPECT_EQ(rb.linearVelocity, glm::vec3(0.0f));
+		EXPECT_EQ(rb.angularVelocity, glm::vec3(0.0f));
+		EXPECT_TRUE(rb.allowSleeping);
 		EXPECT_FALSE(rb.isStatic);
 		EXPECT_FALSE(rb.isValid);
 
@@ -284,6 +289,80 @@ TEST(RigidBody, StaticBody)
 
 		EXPECT_TRUE(rb.isStatic);
 		EXPECT_NEAR(rb.mass, 0.0f, 1e-5f);
+
+		entity->RemoveComponent<RigidBody>();
+		SceneManager::GetInstance().Delete(scene);
+	}
+	catch (const std::exception& e)
+	{
+		Logger::Error(e.what());
+		FAIL();
+	}
+}
+
+TEST(RigidBody, CapsuleShape)
+{
+	try
+	{
+		std::shared_ptr<Scene> scene = SceneManager::GetInstance().Create("Scene", "Main");
+		std::shared_ptr<Entity> entity = scene->CreateEntity("Physics");
+		RigidBody& rb = entity->AddComponent<RigidBody>();
+
+		rb.type = RigidBody::Type::Capsule;
+		rb.shape.capsule.halfHeight = 1.0f;
+		rb.shape.capsule.radius = 0.3f;
+
+		EXPECT_EQ(rb.type, RigidBody::Type::Capsule);
+		EXPECT_NEAR(rb.shape.capsule.halfHeight, 1.0f, 1e-5f);
+		EXPECT_NEAR(rb.shape.capsule.radius, 0.3f, 1e-5f);
+
+		entity->RemoveComponent<RigidBody>();
+		SceneManager::GetInstance().Delete(scene);
+	}
+	catch (const std::exception& e)
+	{
+		Logger::Error(e.what());
+		FAIL();
+	}
+}
+
+TEST(RigidBody, MaterialProperties)
+{
+	try
+	{
+		std::shared_ptr<Scene> scene = SceneManager::GetInstance().Create("Scene", "Main");
+		std::shared_ptr<Entity> entity = scene->CreateEntity("Physics");
+		RigidBody& rb = entity->AddComponent<RigidBody>();
+
+		rb.friction = 0.8f;
+		rb.restitution = 0.4f;
+
+		EXPECT_NEAR(rb.friction, 0.8f, 1e-5f);
+		EXPECT_NEAR(rb.restitution, 0.4f, 1e-5f);
+
+		entity->RemoveComponent<RigidBody>();
+		SceneManager::GetInstance().Delete(scene);
+	}
+	catch (const std::exception& e)
+	{
+		Logger::Error(e.what());
+		FAIL();
+	}
+}
+
+TEST(RigidBody, VelocityFields)
+{
+	try
+	{
+		std::shared_ptr<Scene> scene = SceneManager::GetInstance().Create("Scene", "Main");
+		std::shared_ptr<Entity> entity = scene->CreateEntity("Physics");
+		RigidBody& rb = entity->AddComponent<RigidBody>();
+
+		rb.linearVelocity = glm::vec3(1.0f, 2.0f, 3.0f);
+		rb.angularVelocity = glm::vec3(0.1f, 0.2f, 0.3f);
+
+		EXPECT_EQ(rb.linearVelocity, glm::vec3(1.0f, 2.0f, 3.0f));
+		EXPECT_EQ(rb.angularVelocity, glm::vec3(0.1f, 0.2f, 0.3f));
 
 		entity->RemoveComponent<RigidBody>();
 		SceneManager::GetInstance().Delete(scene);

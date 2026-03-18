@@ -5080,7 +5080,7 @@ void Serializer::SerializeRigidBody(YAML::Emitter& out, const std::shared_ptr<En
 	out << YAML::Key << "IsStatic" << YAML::Value << rigidBody.isStatic;
 	out << YAML::Key << "Mass" << YAML::Value << rigidBody.mass;
 	out << YAML::Key << "Type" << YAML::Value << (int)rigidBody.type;
-	
+
 	switch (rigidBody.type)
 	{
 	case RigidBody::Type::Box:
@@ -5099,22 +5099,19 @@ void Serializer::SerializeRigidBody(YAML::Emitter& out, const std::shared_ptr<En
 		out << YAML::Key << "Radius" << YAML::Value << rigidBody.shape.cylinder.radius;
 		break;
 	}
-	}
-
-	auto& joltPhysicsSystem = entity->GetScene()->GetPhysicsSystem()->GetInstance();
-
-	out << YAML::Key << "AngularVelocity" << YAML::Value << JoltVec3ToGlmVec3(joltPhysicsSystem.GetBodyInterface().GetAngularVelocity(rigidBody.id));
-	out << YAML::Key << "LinearVelocity" << YAML::Value << JoltVec3ToGlmVec3(joltPhysicsSystem.GetBodyInterface().GetLinearVelocity(rigidBody.id));
-	out << YAML::Key << "Friction" << YAML::Value << joltPhysicsSystem.GetBodyInterface().GetFriction(rigidBody.id);
-	out << YAML::Key << "Restitution" << YAML::Value << joltPhysicsSystem.GetBodyInterface().GetRestitution(rigidBody.id);
-	
-	JPH::BodyLockWrite lock(joltPhysicsSystem.GetBodyLockInterface(), rigidBody.id);
-	if (lock.Succeeded())
+	case RigidBody::Type::Capsule:
 	{
-		JPH::Body& body = lock.GetBody();
-		out << YAML::Key << "AllowSleeping" << YAML::Value << body.GetAllowSleeping();
+		out << YAML::Key << "HalfHeight" << YAML::Value << rigidBody.shape.capsule.halfHeight;
+		out << YAML::Key << "Radius" << YAML::Value << rigidBody.shape.capsule.radius;
+		break;
 	}
-	lock.ReleaseLock();
+	}
+
+	out << YAML::Key << "AngularVelocity" << YAML::Value << rigidBody.angularVelocity;
+	out << YAML::Key << "LinearVelocity" << YAML::Value << rigidBody.linearVelocity;
+	out << YAML::Key << "Friction" << YAML::Value << rigidBody.friction;
+	out << YAML::Key << "Restitution" << YAML::Value << rigidBody.restitution;
+	out << YAML::Key << "AllowSleeping" << YAML::Value << rigidBody.allowSleeping;
 
 	out << YAML::EndMap;
 }
@@ -5176,44 +5173,47 @@ void Serializer::DeserializeRigidBody(const YAML::Node& in, const std::shared_pt
 			}
 			break;
 		}
+		case RigidBody::Type::Capsule:
+		{
+			if (const auto& halfHeightData = rigidBodyData["HalfHeight"])
+			{
+				rigidBody.shape.capsule.halfHeight = halfHeightData.as<float>();
+			}
+
+			if (const auto& radiusData = rigidBodyData["Radius"])
+			{
+				rigidBody.shape.capsule.radius = radiusData.as<float>();
+			}
+			break;
 		}
-
-		const auto physicsSystem = entity->GetScene()->GetPhysicsSystem();
-		auto& joltPhysicsSystem = physicsSystem->GetInstance();
-
-		physicsSystem->UpdateBodies(entity->GetScene());
+		}
 
 		if (const auto& angularVelocityData = rigidBodyData["AngularVelocity"])
 		{
-			joltPhysicsSystem.GetBodyInterface().SetAngularVelocity(rigidBody.id, GlmVec3ToJoltVec3(angularVelocityData.as<glm::vec3>()));
+			rigidBody.angularVelocity = angularVelocityData.as<glm::vec3>();
 		}
 
 		if (const auto& linearVelocityData = rigidBodyData["LinearVelocity"])
 		{
-			joltPhysicsSystem.GetBodyInterface().SetLinearVelocity(rigidBody.id, GlmVec3ToJoltVec3(linearVelocityData.as<glm::vec3>()));
+			rigidBody.linearVelocity = linearVelocityData.as<glm::vec3>();
 		}
 
 		if (const auto& frictionData = rigidBodyData["Friction"])
 		{
-			joltPhysicsSystem.GetBodyInterface().SetFriction(rigidBody.id, frictionData.as<float>());
+			rigidBody.friction = frictionData.as<float>();
 		}
 
 		if (const auto& restitutionData = rigidBodyData["Restitution"])
 		{
-			joltPhysicsSystem.GetBodyInterface().SetRestitution(rigidBody.id, restitutionData.as<float>());
+			rigidBody.restitution = restitutionData.as<float>();
 		}
 
-		JPH::BodyLockWrite lock(joltPhysicsSystem.GetBodyLockInterface(), rigidBody.id);
-		if (lock.Succeeded())
+		if (const auto& allowSleepingData = rigidBodyData["AllowSleeping"])
 		{
-			JPH::Body& body = lock.GetBody();
-
-			if (const auto& allowSleepingData = rigidBodyData["AllowSleeping"])
-			{
-				body.SetAllowSleeping(allowSleepingData.as<bool>());
-			}
+			rigidBody.allowSleeping = allowSleepingData.as<bool>();
 		}
-		lock.ReleaseLock();
+
+		entity->GetScene()->GetPhysicsSystem()->UpdateBodies(entity->GetScene());
 	}
 }
 

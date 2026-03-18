@@ -16,7 +16,10 @@ namespace Pengine
 			OnResize,
 			OnMainThreadProcess,
 			OnNextFrame,
-			OnSetScroll
+			OnSetScroll,
+			OnCollisionEnter,
+			OnCollisionStay,
+			OnCollisionExit
 		};
 
 		[[nodiscard]] Type GetType() const { return m_Type; }

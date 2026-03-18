@@ -2,13 +2,18 @@
 
 #include "SceneManager.h"
 #include "Profiler.h"
+#include "Scene.h"
 
 #include "../Graphics/Mesh.h"
 #include "../Graphics/Vertex.h"
 #include "../Components/Renderer3D.h"
 #include "../Components/Transform.h"
+#include "../ComponentSystems/PhysicsSystem.h"
 
 #include "../Utils/Utils.h"
+
+#include <Jolt/Physics/Collision/RayCast.h>
+#include <Jolt/Physics/Collision/CastResult.h>
 
 using namespace Pengine;
 
@@ -226,6 +231,41 @@ bool Raycast::RaycastEntity(
 	}
 
 	return false;
+}
+
+bool Raycast::RaycastPhysics(
+	std::shared_ptr<Scene> scene,
+	const glm::vec3& origin,
+	const glm::vec3& direction,
+	float length,
+	PhysicsHit& hit)
+{
+	if (!scene)
+	{
+		return false;
+	}
+
+	const JPH::Vec3 joltOrigin = GlmVec3ToJoltVec3(origin);
+	const JPH::Vec3 joltDirection = GlmVec3ToJoltVec3(direction * length);
+
+	JPH::RRayCast ray(joltOrigin, joltDirection);
+	JPH::RayCastResult result;
+
+	if (!scene->GetPhysicsSystem()->GetInstance().GetNarrowPhaseQuery().CastRay(ray, result))
+	{
+		return false;
+	}
+
+	const entt::entity handle = scene->GetPhysicsSystem()->GetEntity(result.mBodyID);
+	if (handle == entt::tombstone)
+	{
+		return false;
+	}
+
+	hit.fraction = result.mFraction;
+	hit.point = origin + direction * (length * result.mFraction);
+	hit.entity = scene->GetRegistry().get<Transform>(handle).GetEntity();
+	return true;
 }
 
 Raycast::OutCode Raycast::ComputeOutCode(

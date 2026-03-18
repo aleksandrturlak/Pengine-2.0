@@ -3268,9 +3268,9 @@ void Editor::PhysicsBoxComponent(const std::shared_ptr<Entity>& entity)
 		auto& physicsSystem = entity->GetScene()->GetPhysicsSystem()->GetInstance();
 
 		int type = (int)rigidBody.type;
-		const char* types[] = { "Box", "Sphere", "Cylinder" };
+		const char* types[] = { "Box", "Sphere", "Cylinder", "Capsule" };
 		ImGui::PushID("PhysicsBodyType");
-		if (ImGui::Combo("Type", &type, types, 3))
+		if (ImGui::Combo("Type", &type, types, 4))
 		{
 			rigidBody.type = (RigidBody::Type)type;
 			switch (rigidBody.type)
@@ -3290,6 +3290,12 @@ void Editor::PhysicsBoxComponent(const std::shared_ptr<Entity>& entity)
 			case RigidBody::Type::Cylinder:
 			{
 				rigidBody.shape.cylinder = RigidBody::Cylinder();
+				rigidBody.isValid = false;
+				break;
+			}
+			case RigidBody::Type::Capsule:
+			{
+				rigidBody.shape.capsule = RigidBody::Capsule();
 				rigidBody.isValid = false;
 				break;
 			}
@@ -3331,6 +3337,20 @@ void Editor::PhysicsBoxComponent(const std::shared_ptr<Entity>& entity)
 			}
 			break;
 		}
+		case RigidBody::Type::Capsule:
+		{
+			if (ImGui::SliderFloat("Radius", &rigidBody.shape.capsule.radius, 0.01f, 10.0f))
+			{
+				rigidBody.shape.capsule.radius = glm::max(rigidBody.shape.capsule.radius, 0.01f);
+				rigidBody.isValid = false;
+			}
+			if (ImGui::SliderFloat("Half Height", &rigidBody.shape.capsule.halfHeight, 0.01f, 10.0f))
+			{
+				rigidBody.shape.capsule.halfHeight = glm::max(rigidBody.shape.capsule.halfHeight, 0.01f);
+				rigidBody.isValid = false;
+			}
+			break;
+		}
 		}
 
 		if (ImGui::SliderFloat("Mass", &rigidBody.mass, 0.0f, 10.0f))
@@ -3338,42 +3358,42 @@ void Editor::PhysicsBoxComponent(const std::shared_ptr<Entity>& entity)
 			rigidBody.isValid = false;
 		}
 
-		JPH::BodyLockWrite lock(physicsSystem.GetBodyLockInterface(), rigidBody.id);
-		if (lock.Succeeded())
+		if (ImGui::SliderFloat("Friction", &rigidBody.friction, 0.0f, 1.0f))
 		{
-			JPH::Body& body = lock.GetBody();
-
-			float friction = body.GetFriction();
-			if (ImGui::SliderFloat("Friction", &friction, 0.0f, 1.0f));
+			if (rigidBody.isValid)
 			{
-				body.SetFriction(friction);
-			}
-
-			float restitution = body.GetRestitution();
-			if (ImGui::SliderFloat("Restitution", &restitution, 0.0f, 1.0f));
-			{
-				body.SetRestitution(restitution);
-			}
-
-			glm::vec3 angularVelocity = JoltVec3ToGlmVec3(body.GetAngularVelocity());
-			if (DrawVec3Control("Angular Velocity", angularVelocity));
-			{
-				body.SetAngularVelocity(GlmVec3ToJoltVec3(angularVelocity));
-			}
-
-			glm::vec3 linearVelocity = JoltVec3ToGlmVec3(body.GetLinearVelocity());
-			if (DrawVec3Control("Linear Velocity", linearVelocity));
-			{
-				body.SetLinearVelocity(GlmVec3ToJoltVec3(linearVelocity));
-			}
-
-			bool allowSleeping = body.GetAllowSleeping();
-			if (ImGui::Checkbox("Allow Sleeping", &allowSleeping))
-			{
-				body.SetAllowSleeping(allowSleeping);
+				physicsSystem.GetBodyInterface().SetFriction(rigidBody.id, rigidBody.friction);
 			}
 		}
-		lock.ReleaseLock();
+
+		if (ImGui::SliderFloat("Restitution", &rigidBody.restitution, 0.0f, 1.0f))
+		{
+			if (rigidBody.isValid)
+			{
+				physicsSystem.GetBodyInterface().SetRestitution(rigidBody.id, rigidBody.restitution);
+			}
+		}
+
+		if (DrawVec3Control("Angular Velocity", rigidBody.angularVelocity))
+		{
+			if (rigidBody.isValid)
+			{
+				physicsSystem.GetBodyInterface().SetAngularVelocity(rigidBody.id, GlmVec3ToJoltVec3(rigidBody.angularVelocity));
+			}
+		}
+
+		if (DrawVec3Control("Linear Velocity", rigidBody.linearVelocity))
+		{
+			if (rigidBody.isValid)
+			{
+				physicsSystem.GetBodyInterface().SetLinearVelocity(rigidBody.id, GlmVec3ToJoltVec3(rigidBody.linearVelocity));
+			}
+		}
+
+		if (ImGui::Checkbox("Allow Sleeping", &rigidBody.allowSleeping))
+		{
+			rigidBody.isValid = false;
+		}
 	}
 }
 
