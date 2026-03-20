@@ -232,17 +232,50 @@ void Transform::Move(Transform&& transform) noexcept
 	transform.m_Entity = nullptr;
 }
 
-void Transform::UpdateVectors()
+void Transform::UpdateVectors() const
 {
-	constexpr glm::vec3 worldForward = glm::vec3(0.0f, 0.0f, -1.0f); // Negative Z is forward
-	constexpr glm::vec3 worldRight = glm::vec3(1.0f, 0.0f, 0.0f);    // Positive X is right
-	constexpr glm::vec3 worldUp = glm::vec3(0.0f, 1.0f, 0.0f);       // Positive Y is up
+	constexpr glm::vec3 worldForward(0.0f, 0.0f, -1.0f);
+	constexpr glm::vec3 worldRight(1.0f, 0.0f, 0.0f);
+	constexpr glm::vec3 worldUp(0.0f, 1.0f, 0.0f);
 
-	const glm::quat rotation = glm::quat(GetRotation());
+	const glm::mat3 rotationMat4 = glm::mat3(GetRotationMat4(System::GLOBAL));
+	m_Forward = glm::normalize(rotationMat4 * worldForward);
+	m_Right   = glm::normalize(rotationMat4 * worldRight);
+	m_Up      = glm::normalize(rotationMat4 * worldUp);
 
-	m_Forward = rotation * worldForward;
-	m_Right = rotation * worldRight;
-	m_Up = rotation * worldUp;
+	SetDirty(IsDirty() & ~DirtyFlagBits::VectorsDirty);
+}
+
+glm::vec3 Transform::GetForward() const
+{
+	if (IsDirty() & DirtyFlagBits::VectorsDirty)
+	{
+		UpdateVectors();
+	}
+	return m_Forward;
+}
+
+glm::vec3 Transform::GetRight() const
+{
+	if (IsDirty() & DirtyFlagBits::VectorsDirty)
+	{
+		UpdateVectors();
+	}
+	return m_Right;
+}
+
+glm::vec3 Transform::GetUp() const
+{
+	if (IsDirty() & DirtyFlagBits::VectorsDirty)
+	{
+		UpdateVectors();
+	}
+	return m_Up;
+}
+
+glm::vec3 Transform::GetBack() const
+{
+	return -GetForward();
 }
 
 void Transform::UpdateTransforms()
@@ -354,10 +387,9 @@ void Transform::Rotate(const glm::vec3& rotation)
 	m_LocalTransformData.m_RotationMat4 = glm::toMat4(glm::quat(m_LocalTransformData.m_Rotation));
 
 	UpdateTransforms();
-	UpdateVectors();
 
 	SetDirty(IsDirty() | DirtyFlagBits::RotationVec3
-		| DirtyFlagBits::RotationMat4 | DirtyFlagBits::TransformMat4);
+		| DirtyFlagBits::RotationMat4 | DirtyFlagBits::TransformMat4 | DirtyFlagBits::VectorsDirty);
 
 	std::function<void(Transform&)> rotationCallbacks = [&rotationCallbacks](const Transform& transform)
 	{
@@ -377,7 +409,7 @@ void Transform::Rotate(const glm::vec3& rotation)
 			{
 				Transform& childTransform = child->GetComponent<Transform>();
 				childTransform.SetDirty(childTransform.IsDirty() | DirtyFlagBits::RotationVec3
-					| DirtyFlagBits::RotationMat4 | DirtyFlagBits::TransformMat4);
+					| DirtyFlagBits::RotationMat4 | DirtyFlagBits::TransformMat4 | DirtyFlagBits::VectorsDirty);
 
 				rotationCallbacks(childTransform);
 			}
@@ -435,7 +467,6 @@ void Transform::SetTransform(const glm::mat4& transformMat4)
 	m_LocalTransformData.m_RotationMat4 = glm::toMat4(glm::quat(m_LocalTransformData.m_Rotation));
 
 	UpdateTransforms();
-	UpdateVectors();
 
 	SetDirty(IsDirty() | DirtyFlagBits::AllTransform);
 

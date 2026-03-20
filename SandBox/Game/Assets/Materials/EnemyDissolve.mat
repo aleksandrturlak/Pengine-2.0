@@ -1,0 +1,90 @@
+Mat:
+  Basemat: 0xa8f3c21e5b7d94e0f2a4b6c8d0e1f253
+  Options:
+    []
+  Pipelines:
+    - RenderPass: SpotLightShadows
+      Uniforms:
+        []
+    - RenderPass: PointLightShadows
+      Uniforms:
+        []
+    - RenderPass: CSM
+      Uniforms:
+        []
+    - RenderPass: GBuffer
+      Uniforms:
+        - Name: MaterialBuffer
+          Values:
+            - Name: material.albedoColor
+              Value: [1, 0, 0, 1]
+              Type: vec4
+            - Name: material.emissiveColor
+              Value: [0, 0, 0, 1]
+              Type: vec4
+            - Name: material.uvTransform
+              Value: [1, 1, 0, 0]
+              Type: vec4
+            - Name: material.metallicFactor
+              Value: 0.3
+              Type: float
+            - Name: material.roughnessFactor
+              Value: 0.200000003
+              Type: float
+            - Name: material.aoFactor
+              Value: 1
+              Type: float
+            - Name: material.emissiveFactor
+              Value: 1
+              Type: float
+            - Name: material.alphaCutoff
+              Value: 0.150000006
+              Type: float
+            - Name: material.maxParallaxLayers
+              Value: 0
+              Type: int
+            - Name: material.minParallaxLayers
+              Value: 0
+              Type: int
+            - Name: material.parallaxHeightScale
+              Value: 0
+              Type: float
+            - Name: material.useNormalMap
+              Value: 0
+              Type: int
+            - Name: material.useAlphaCutoff
+              Value: 0
+              Type: int
+            - Name: material.useParallaxOcclusion
+              Value: 0
+              Type: int
+            - Name: material.albedoTexture
+              Value: White
+              Type: texture
+            - Name: material.normalTexture
+              Value: Black
+              Type: texture
+            - Name: material.metallicRoughnessTexture
+              Value: White
+              Type: texture
+            - Name: material.aoTexture
+              Value: White
+              Type: texture
+            - Name: material.emissiveTexture
+              Value: White
+              Type: texture
+            - Name: material.heightTexture
+              Value: White
+              Type: texture
+            - Name: material.dissolveProgress
+              Value: 0
+              Type: float
+            - Name: material.dissolveEdgeWidth
+              Value: 0.100000001
+              Type: float
+            - Name: material.dissolveNoiseSeed
+              Value: 0
+              Type: float
+            - Name: material.dissolveEdgeColor
+              Value: [1, 0.400000006, 0.100000001, 1]
+              Type: vec4

@@ -219,6 +219,11 @@ void EntryPoint::Run() const
 						if (!cameraComponent.GetPassName().empty())
 						{
 							const std::shared_ptr<RenderView> renderView = cameraComponent.GetRendererTarget(viewportName);
+							if (!renderView)
+							{
+								continue;
+							}
+
 							const std::shared_ptr<FrameBuffer> frameBuffer = renderView->GetFrameBuffer(cameraComponent.GetPassName());
 							if (frameBuffer)
 							{
@@ -253,16 +258,18 @@ void EntryPoint::Run() const
 					{
 						if (const std::shared_ptr<Entity> camera = viewport->GetCamera().lock())
 						{
-							if (camera->HasComponent<Camera>())
+							if (!camera->HasComponent<Camera>() || !camera->GetComponent<Camera>().GetRendererTarget(viewportName))
 							{
-								Renderer::RenderViewportInfo renderViewportInfo{};
-								renderViewportInfo.camera = camera;
-								renderViewportInfo.renderView = camera->GetComponent<Camera>().GetRendererTarget(viewportName);
-								renderViewportInfo.projection = viewport->GetProjectionMat4();
-								renderViewportInfo.size = viewport->GetSize();
-
-								viewportsByScene[camera->GetScene()].emplace_back(renderViewportInfo);
+								continue;
 							}
+
+							Renderer::RenderViewportInfo renderViewportInfo{};
+							renderViewportInfo.camera = camera;
+							renderViewportInfo.renderView = camera->GetComponent<Camera>().GetRendererTarget(viewportName);
+							renderViewportInfo.projection = viewport->GetProjectionMat4();
+							renderViewportInfo.size = viewport->GetSize();
+
+							viewportsByScene[camera->GetScene()].emplace_back(renderViewportInfo);
 						}
 					}
 

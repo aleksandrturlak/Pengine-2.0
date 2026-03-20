@@ -1,0 +1,33 @@
+Name: crate-medium
+IsEnabled: true
+Transform:
+  Position: [0, 0, 0]
+  Rotation: [0, -0, 0]
+  Scale: [1, 1, 1]
+  FollowOwner: true
+Renderer3D:
+  Mesh: 0xd64bba0b049ac1b3389f52a629c90e91
+  Material: 0xa17e62c41bed43d0897f32d93954112f
+  RenderingOrder: 5
+  IsEnabled: true
+  CastShadows: true
+  ObjectVisibilityMask: 255
+  ShadowVisibilityMask: 255
+Childs:
+  - Name: lid
+    IsEnabled: true
+    Transform:
+      Position: [0.25, 0.189999998, -5.41433571e-16]
+      Rotation: [0, -0, 0]
+      Scale: [1, 1, 1]
+      FollowOwner: true
+    Renderer3D:
+      Mesh: 0xf67d55d01eaad96a8436ec7e78eb6c54
+      Material: 0xa17e62c41bed43d0897f32d93954112f
+      RenderingOrder: 5
+      IsEnabled: true
+      CastShadows: true
+      ObjectVisibilityMask: 255
+      ShadowVisibilityMask: 255
+    Childs:
+      []

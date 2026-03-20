@@ -1,0 +1,641 @@
+Settings:
+  DrawBoundingBoxes: false
+  DrawPhysicsShapes: false
+  Wind:
+    Direction: [1, 1, 1]
+    Frequency: 5
+    Strength: 0
+GraphicsSettings: 0x84beaa5529d21a0d243484fff0af8349
+Scene:
+  - UUID: 0xaa000000000000000000000000000001
+    Name: DirectionalLight
+    IsEnabled: true
+    Transform:
+      Position: [0, 0, 0]
+      Rotation: [2.5, -0.699999988, 0]
+      Scale: [1, 1, 1]
+      FollowOwner: true
+    DirectionalLight:
+      Color: [1, 1, 1]
+      Intensity: 7
+      Ambient: 0
+    Childs:
+      []
+  - UUID: 0xaa000000000000000000000000000002
+    Name: Floor
+    IsEnabled: true
+    Transform:
+      Position: [0, 0, 0]
+      Rotation: [0, 0, 0]
+      Scale: [15, 0.5, 15]
+      FollowOwner: true
+    Renderer3D:
+      Mesh: 0x397e453582968927b0368b21ffa62a67
+      Material: 0x64a383ac6554a4086a3857b7c293c832
+      RenderingOrder: 5
+      IsEnabled: true
+      CastShadows: true
+      ObjectVisibilityMask: 255
+      ShadowVisibilityMask: 255
+    RigidBody:
+      MotionType: 0
+      Mass: 1
+      Type: 0
+      HalfExtents: [15, 0.5, 15]
+      AngularVelocity: [0, 0, 0]
+      LinearVelocity: [0, 0, 0]
+      Friction: 0.800000012
+      Restitution: 0
+      AllowSleeping: true
+    Childs:
+      []
+  - UUID: 0xaa000000000000000000000000000003
+    Name: Wall
+    IsEnabled: true
+    Transform:
+      Position: [0, 3, -15.5]
+      Rotation: [0, 0, 0]
+      Scale: [15, 3, 0.5]
+      FollowOwner: true
+    Renderer3D:
+      Mesh: 0x397e453582968927b0368b21ffa62a67
+      Material: 0x07e46f38e3511b4d8e61e74f9b89516a
+      RenderingOrder: 5
+      IsEnabled: true
+      CastShadows: true
+      ObjectVisibilityMask: 255
+      ShadowVisibilityMask: 255
+    RigidBody:
+      MotionType: 0
+      Mass: 1
+      Type: 0
+      HalfExtents: [15, 3, 0.5]
+      AngularVelocity: [0, 0, 0]
+      LinearVelocity: [0, 0, 0]
+      Friction: 0.800000012
+      Restitution: 0
+      AllowSleeping: true
+    Childs:
+      []
+  - UUID: 0xaa000000000000000000000000000004
+    Name: Wall
+    IsEnabled: true
+    Transform:
+      Position: [0, 3, 15.5]
+      Rotation: [0, 0, 0]
+      Scale: [15, 3, 0.5]
+      FollowOwner: true
+    Renderer3D:
+      Mesh: 0x397e453582968927b0368b21ffa62a67
+      Material: 0x07e46f38e3511b4d8e61e74f9b89516a
+      RenderingOrder: 5
+      IsEnabled: true
+      CastShadows: true
+      ObjectVisibilityMask: 255
+      ShadowVisibilityMask: 255
+    RigidBody:
+      MotionType: 0
+      Mass: 1
+      Type: 0
+      HalfExtents: [15, 3, 0.5]
+      AngularVelocity: [0, 0, 0]
+      LinearVelocity: [0, 0, 0]
+      Friction: 0.800000012
+      Restitution: 0
+      AllowSleeping: true
+    Childs:
+      []
+  - UUID: 0xaa000000000000000000000000000005
+    Name: Wall
+    IsEnabled: true
+    Transform:
+      Position: [15.5, 3, 0]
+      Rotation: [0, 0, 0]
+      Scale: [0.5, 3, 15]
+      FollowOwner: true
+    Renderer3D:
+      Mesh: 0x397e453582968927b0368b21ffa62a67
+      Material: 0x07e46f38e3511b4d8e61e74f9b89516a
+      RenderingOrder: 5
+      IsEnabled: true
+      CastShadows: true
+      ObjectVisibilityMask: 255
+      ShadowVisibilityMask: 255
+    RigidBody:
+      MotionType: 0
+      Mass: 1
+      Type: 0
+      HalfExtents: [0.5, 3, 15]
+      AngularVelocity: [0, 0, 0]
+      LinearVelocity: [0, 0, 0]
+      Friction: 0.800000012
+      Restitution: 0
+      AllowSleeping: true
+    Childs:
+      []
+  - UUID: 0xaa000000000000000000000000000006
+    Name: Wall
+    IsEnabled: true
+    Transform:
+      Position: [-15.5, 3, 0]
+      Rotation: [0, 0, 0]
+      Scale: [0.5, 3, 15]
+      FollowOwner: true
+    Renderer3D:
+      Mesh: 0x397e453582968927b0368b21ffa62a67
+      Material: 0x07e46f38e3511b4d8e61e74f9b89516a
+      RenderingOrder: 5
+      IsEnabled: true
+      CastShadows: true
+      ObjectVisibilityMask: 255
+      ShadowVisibilityMask: 255
+    RigidBody:
+      MotionType: 0
+      Mass: 1
+      Type: 0
+      HalfExtents: [0.5, 3, 15]
+      AngularVelocity: [0, 0, 0]
+      LinearVelocity: [0, 0, 0]
+      Friction: 0.800000012
+      Restitution: 0
+      AllowSleeping: true
+    Childs:
+      []
+  - UUID: 0xaa000000000000000000000000000007
+    Name: Pillar
+    IsEnabled: true
+    Transform:
+      Position: [6, 1.5, 6]
+      Rotation: [0, 0, 0]
+      Scale: [1, 1.5, 1]
+      FollowOwner: true
+    Renderer3D:
+      Mesh: 0x397e453582968927b0368b21ffa62a67
+      Material: 0x07e46f38e3511b4d8e61e74f9b89516a
+      RenderingOrder: 5
+      IsEnabled: true
+      CastShadows: true
+      ObjectVisibilityMask: 255
+      ShadowVisibilityMask: 255
+    RigidBody:
+      MotionType: 0
+      Mass: 1
+      Type: 0
+      HalfExtents: [1, 1.5, 1]
+      AngularVelocity: [0, 0, 0]
+      LinearVelocity: [0, 0, 0]
+      Friction: 0.800000012
+      Restitution: 0
+      AllowSleeping: true
+    Childs:
+      []
+  - UUID: 0xaa000000000000000000000000000008
+    Name: Pillar
+    IsEnabled: true
+    Transform:
+      Position: [-6, 1.5, -6]
+      Rotation: [0, 0, 0]
+      Scale: [1, 1.5, 1]
+      FollowOwner: true
+    Renderer3D:
+      Mesh: 0x397e453582968927b0368b21ffa62a67
+      Material: 0x07e46f38e3511b4d8e61e74f9b89516a
+      RenderingOrder: 5
+      IsEnabled: true
+      CastShadows: true
+      ObjectVisibilityMask: 255
+      ShadowVisibilityMask: 255
+    RigidBody:
+      MotionType: 0
+      Mass: 1
+      Type: 0
+      HalfExtents: [1, 1.5, 1]
+      AngularVelocity: [0, 0, 0]
+      LinearVelocity: [0, 0, 0]
+      Friction: 0.800000012
+      Restitution: 0
+      AllowSleeping: true
+    Childs:
+      []
+  - UUID: 0xaa000000000000000000000000000009
+    Name: Pillar
+    IsEnabled: true
+    Transform:
+      Position: [6, 1.5, -6]
+      Rotation: [0, 0, 0]
+      Scale: [1, 1.5, 1]
+      FollowOwner: true
+    Renderer3D:
+      Mesh: 0x397e453582968927b0368b21ffa62a67
+      Material: 0x07e46f38e3511b4d8e61e74f9b89516a
+      RenderingOrder: 5
+      IsEnabled: true
+      CastShadows: true
+      ObjectVisibilityMask: 255
+      ShadowVisibilityMask: 255
+    RigidBody:
+      MotionType: 0
+      Mass: 1
+      Type: 0
+      HalfExtents: [1, 1.5, 1]
+      AngularVelocity: [0, 0, 0]
+      LinearVelocity: [0, 0, 0]
+      Friction: 0.800000012
+      Restitution: 0
+      AllowSleeping: true
+    Childs:
+      []
+  - UUID: 0xaa00000000000000000000000000000a
+    Name: Pillar
+    IsEnabled: true
+    Transform:
+      Position: [-6, 1.5, 6]
+      Rotation: [0, 0, 0]
+      Scale: [1, 1.5, 1]
+      FollowOwner: true
+    Renderer3D:
+      Mesh: 0x397e453582968927b0368b21ffa62a67
+      Material: 0x07e46f38e3511b4d8e61e74f9b89516a
+      RenderingOrder: 5
+      IsEnabled: true
+      CastShadows: true
+      ObjectVisibilityMask: 255
+      ShadowVisibilityMask: 255
+    RigidBody:
+      MotionType: 0
+      Mass: 1
+      Type: 0
+      HalfExtents: [1, 1.5, 1]
+      AngularVelocity: [0, 0, 0]
+      LinearVelocity: [0, 0, 0]
+      Friction: 0.800000012
+      Restitution: 0
+      AllowSleeping: true
+    Childs:
+      []
+  - UUID: 0xaa00000000000000000000000000000b
+    Name: Pillar
+    IsEnabled: true
+    Transform:
+      Position: [10, 1.5, 0]
+      Rotation: [0, 0, 0]
+      Scale: [1, 1.5, 1]
+      FollowOwner: true
+    Renderer3D:
+      Mesh: 0x397e453582968927b0368b21ffa62a67
+      Material: 0x07e46f38e3511b4d8e61e74f9b89516a
+      RenderingOrder: 5
+      IsEnabled: true
+      CastShadows: true
+      ObjectVisibilityMask: 255
+      ShadowVisibilityMask: 255
+    RigidBody:
+      MotionType: 0
+      Mass: 1
+      Type: 0
+      HalfExtents: [1, 1.5, 1]
+      AngularVelocity: [0, 0, 0]
+      LinearVelocity: [0, 0, 0]
+      Friction: 0.800000012
+      Restitution: 0
+      AllowSleeping: true
+    Childs:
+      []
+  - UUID: 0xaa00000000000000000000000000000c
+    Name: Pillar
+    IsEnabled: true
+    Transform:
+      Position: [-12.2330704, 1.5, 0]
+      Rotation: [0, -0, 0]
+      Scale: [1, 1.5, 1]
+      FollowOwner: true
+    Renderer3D:
+      Mesh: 0x397e453582968927b0368b21ffa62a67
+      Material: 0x07e46f38e3511b4d8e61e74f9b89516a
+      RenderingOrder: 5
+      IsEnabled: true
+      CastShadows: true
+      ObjectVisibilityMask: 255
+      ShadowVisibilityMask: 255
+    RigidBody:
+      MotionType: 0
+      Mass: 1
+      Type: 0
+      HalfExtents: [1, 1.5, 1]
+      AngularVelocity: [0, 0, 0]
+      LinearVelocity: [0, 0, 0]
+      Friction: 0.800000012
+      Restitution: 0
+      AllowSleeping: true
+    Childs:
+      []
+  - UUID: 0xaa00000000000000000000000000000d
+    Name: Pillar
+    IsEnabled: true
+    Transform:
+      Position: [0, 1.5, 10]
+      Rotation: [0, 0, 0]
+      Scale: [1, 1.5, 1]
+      FollowOwner: true
+    Renderer3D:
+      Mesh: 0x397e453582968927b0368b21ffa62a67
+      Material: 0x07e46f38e3511b4d8e61e74f9b89516a
+      RenderingOrder: 5
+      IsEnabled: true
+      CastShadows: true
+      ObjectVisibilityMask: 255
+      ShadowVisibilityMask: 255
+    RigidBody:
+      MotionType: 0
+      Mass: 1
+      Type: 0
+      HalfExtents: [1, 1.5, 1]
+      AngularVelocity: [0, 0, 0]
+      LinearVelocity: [0, 0, 0]
+      Friction: 0.800000012
+      Restitution: 0
+      AllowSleeping: true
+    Childs:
+      []
+  - UUID: 0xaa00000000000000000000000000000e
+    Name: Pillar
+    IsEnabled: true
+    Transform:
+      Position: [0, 1.5, -10]
+      Rotation: [0, 0, 0]
+      Scale: [1, 1.5, 1]
+      FollowOwner: true
+    Renderer3D:
+      Mesh: 0x397e453582968927b0368b21ffa62a67
+      Material: 0x07e46f38e3511b4d8e61e74f9b89516a
+      RenderingOrder: 5
+      IsEnabled: true
+      CastShadows: true
+      ObjectVisibilityMask: 255
+      ShadowVisibilityMask: 255
+    RigidBody:
+      MotionType: 0
+      Mass: 1
+      Type: 0
+      HalfExtents: [1, 1.5, 1]
+      AngularVelocity: [0, 0, 0]
+      LinearVelocity: [0, 0, 0]
+      Friction: 0.800000012
+      Restitution: 0
+      AllowSleeping: true
+    Childs:
+      []
+  - UUID: 0xaa00000000000000000000000000000f
+    Name: Platform
+    IsEnabled: true
+    Transform:
+      Position: [0, 3.1679976, 0]
+      Rotation: [0, -0, 0]
+      Scale: [3, 0.5, 3]
+      FollowOwner: true
+    Renderer3D:
+      Mesh: 0x397e453582968927b0368b21ffa62a67
+      Material: 0x07e46f38e3511b4d8e61e74f9b89516a
+      RenderingOrder: 5
+      IsEnabled: true
+      CastShadows: true
+      ObjectVisibilityMask: 255
+      ShadowVisibilityMask: 255
+    RigidBody:
+      MotionType: 0
+      Mass: 1
+      Type: 0
+      HalfExtents: [3, 0.5, 3]
+      AngularVelocity: [0, 0, 0]
+      LinearVelocity: [0, 0, 0]
+      Friction: 0.800000012
+      Restitution: 0
+      AllowSleeping: true
+    Childs:
+      []
+  - UUID: 0xaa000000000000000000000000000012
+    Name: GameManager
+    IsEnabled: true
+    Transform:
+      Position: [0, 0, 0]
+      Rotation: [0, 0, 0]
+      Scale: [1, 1, 1]
+      FollowOwner: true
+    WaveComponent:
+      playerWon:
+        Type: bool
+        Value: false
+      gameOver:
+        Type: bool
+        Value: false
+      waveInProgress:
+        Type: bool
+        Value: false
+      timeBetweenWaves:
+        Type: float
+        Value: 3
+      enemiesPerWave:
+        Type: int
+        Value: 5
+      enemiesAlive:
+        Type: int
+        Value: 0
+      killCount:
+        Type: int
+        Value: 0
+      waveCountdown:
+        Type: float
+        Value: 2
+      maxWaves:
+        Type: int
+        Value: 5
+      currentWave:
+        Type: int
+        Value: 0
+    Childs:
+      - UUID: 0x0c2378001c8eb6588892cbfb950abd5e
+        Name: SpawnPoint
+        IsEnabled: true
+        Transform:
+          Position: [0.0176437199, 0.6552459, 12.4397707]
+          Rotation: [0, -0, 0]
+          Scale: [1, 1, 1]
+          FollowOwner: true
+        Childs:
+          []
+      - UUID: 0x13350dd69e80d372750707247083b3db
+        Name: SpawnPoint
+        IsEnabled: true
+        Transform:
+          Position: [10.0246077, 0.6552459, 12.4397707]
+          Rotation: [0, -0, 0]
+          Scale: [1, 1, 1]
+          FollowOwner: true
+        Childs:
+          []
+      - UUID: 0x12596b28aa977018ed63e73394943611
+        Name: SpawnPoint
+        IsEnabled: true
+        Transform:
+          Position: [13.7465849, 0.655307591, -0.30923295]
+          Rotation: [0, -0, 0]
+          Scale: [1, 1, 1]
+          FollowOwner: true
+        Childs:
+          []
+      - UUID: 0xaca57ff27d8b8be4af4f509ba294caa4
+        Name: SpawnPoint
+        IsEnabled: true
+        Transform:
+          Position: [10.5114479, 0.655251324, -11.3968172]
+          Rotation: [0, -0, 0]
+          Scale: [1, 1, 1]
+          FollowOwner: true
+        Childs:
+          []
+      - UUID: 0x9ebbb660c120a015813af0fe30c04e57
+        Name: SpawnPoint
+        IsEnabled: true
+        Transform:
+          Position: [0.751534224, 0.655314982, -13.2270441]
+          Rotation: [0, -0, 0]
+          Scale: [1, 1, 1]
+          FollowOwner: true
+        Childs:
+          []
+      - UUID: 0x7ffcbdf51c9d143689782e33ad455689
+        Name: SpawnPoint
+        IsEnabled: true
+        Transform:
+          Position: [-7.71910667, 0.655318916, -12.6940556]
+          Rotation: [0, -0, 0]
+          Scale: [1, 1, 1]
+          FollowOwner: true
+        Childs:
+          []
+      - UUID: 0x88befdb951e60681de6ffe9c2601d82b
+        Name: SpawnPoint
+        IsEnabled: true
+        Transform:
+          Position: [-12.9066896, 0.655261219, -5.5659008]
+          Rotation: [0, -0, 0]
+          Scale: [1, 1, 1]
+          FollowOwner: true
+        Childs:
+          []
+      - UUID: 0x7abcc2dc54e01728bbbb4c1e08817458
+        Name: SpawnPoint
+        IsEnabled: true
+        Transform:
+          Position: [-12.8134203, 0.655262947, 5.92516708]
+          Rotation: [0, -0, 0]
+          Scale: [1, 1, 1]
+          FollowOwner: true
+        Childs:
+          []
+      - UUID: 0xdeff1884a64c8b56cf671822aeccef8c
+        Name: SpawnPoint
+        IsEnabled: true
+        Transform:
+          Position: [-6.94478178, 0.65526098, 10.976984]
+          Rotation: [0, -0, 0]
+          Scale: [1, 1, 1]
+          FollowOwner: true
+        Childs:
+          []
+      - UUID: 0x66b4dbc83f67a87681418f755d8d4a03
+        Name: SpawnPoint
+        IsEnabled: true
+        Transform:
+          Position: [-1.04713917, 0.655339062, 0.260422707]
+          Rotation: [0, -0, 0]
+          Scale: [1, 1, 1]
+          FollowOwner: true
+        Childs:
+          []
+      - UUID: 0x482a4c180c93209f31b2ca1e58188515
+        Name: SpawnPoint
+        IsEnabled: true
+        Transform:
+          Position: [-0.224523604, 4.69838905, 0.260424048]
+          Rotation: [0, -0, 0]
+          Scale: [1, 1, 1]
+          FollowOwner: true
+        Childs:
+          []
+  - UUID: 0xaa000000000000000000000000000013
+    Name: Canvas
+    IsEnabled: true
+    Transform:
+      Position: [0, 0, 0]
+      Rotation: [0, 0, 0]
+      Scale: [1, 1, 1]
+      FollowOwner: true
+    Renderer3D:
+      RenderingOrder: 5
+      IsEnabled: true
+      CastShadows: true
+      ObjectVisibilityMask: 255
+      ShadowVisibilityMask: 255
+    Canvas:
+      DrawInMainViewport: true
+      Size: [1032, 628]
+      ScriptNames:
+        - FPS_HUD
+        - FPS_Overlay
+    Childs:
+      []
+  - PrefabFilepath: 0x55ac9ef96792c2c7fb780c1ac5a7c200
+    UUID: 0x1fb2a534c1cec1b7af2dedd65b0384fc
+    Transform:
+      Position: [0, 1.5, 8]
+      Rotation: [0, 0, 0]
+      Scale: [1, 1, 1]
+      FollowOwner: true
+  - UUID: 0xc6455fc781bf04da9bb400b0ac90ac4f
+    Name: Camera
+    IsEnabled: true
+    Transform:
+      Position: [-2.26746798, 5.34147739, 7.89035892]
+      Rotation: [-0.436654449, 0.0125883119, 0]
+      Scale: [1, 1, 1]
+      FollowOwner: true
+    Camera:
+      Fov: 1.57079637
+      Type: 1
+      ZNear: 0.100000001
+      ZFar: 1000
+      PassName: AntiAliasingAndCompose
+      RenderTargetIndex: 0
+      ObjectVisibilityMask: 255
+      ShadowVisibilityMask: 255
+    Childs:
+      []
+  - UUID: 0x53d67f0ff9c7c82460073761237c4828
+    Name: Cube
+    IsEnabled: true
+    Transform:
+      Position: [-5.54387569, 2.07760286, 0]
+      Rotation: [0, -0, 0.52359879]
+      Scale: [3, 0.100000039, 2.00000525]
+      FollowOwner: true
+    Renderer3D:
+      Mesh: 0x397e453582968927b0368b21ffa62a67
+      Material: 0x07e46f38e3511b4d8e61e74f9b89516a
+      RenderingOrder: 5
+      IsEnabled: true
+      CastShadows: true
+      ObjectVisibilityMask: 255
+      ShadowVisibilityMask: 255
+    RigidBody:
+      MotionType: 0
+      Mass: 1
+      Type: 0
+      HalfExtents: [3, 0.100000001, 2]
+      AngularVelocity: [0, 0, 0]
+      LinearVelocity: [0, 0, 0]
+      Friction: 0.5
+      Restitution: 0
+      AllowSleeping: true
+    Childs:
+      []

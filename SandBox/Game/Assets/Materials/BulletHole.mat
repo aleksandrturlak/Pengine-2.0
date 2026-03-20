@@ -1,0 +1,69 @@
+Mat:
+  Basemat: 0x40c218f9907c07f12717f60a345b8102
+  Options:
+    []
+  Pipelines:
+    - RenderPass: Decals
+      Uniforms:
+        - Name: MaterialBuffer
+          Values:
+            - Name: material.albedoColor
+              Value: [0.337254912, 0.337254912, 0.337254912, 1]
+              Type: vec4
+            - Name: material.emissiveColor
+              Value: [1, 1, 1, 1]
+              Type: vec4
+            - Name: material.uvTransform
+              Value: [1, 1, 0, 0]
+              Type: vec4
+            - Name: material.metallicFactor
+              Value: 0
+              Type: float
+            - Name: material.roughnessFactor
+              Value: 1
+              Type: float
+            - Name: material.aoFactor
+              Value: 1
+              Type: float
+            - Name: material.emissiveFactor
+              Value: 0
+              Type: float
+            - Name: material.alphaCutoff
+              Value: 0.150000006
+              Type: float
+            - Name: material.maxParallaxLayers
+              Value: 0
+              Type: int
+            - Name: material.minParallaxLayers
+              Value: 0
+              Type: int
+            - Name: material.parallaxHeightScale
+              Value: 0
+              Type: float
+            - Name: material.useNormalMap
+              Value: 0
+              Type: int
+            - Name: material.useAlphaCutoff
+              Value: 1
+              Type: int
+            - Name: material.useParallaxOcclusion
+              Value: 0
+              Type: int
+            - Name: material.albedoTexture
+              Value: 0x71276792fe0dcb3c2269278960191855
+              Type: texture
+            - Name: material.normalTexture
+              Value: Black
+              Type: texture
+            - Name: material.metallicRoughnessTexture
+              Value: White
+              Type: texture
+            - Name: material.aoTexture
+              Value: White
+              Type: texture
+            - Name: material.emissiveTexture
+              Value: White
+              Type: texture
+            - Name: material.heightTexture
+              Value: White
+              Type: texture

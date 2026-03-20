@@ -1,0 +1,350 @@
+Settings:
+  DrawBoundingBoxes: false
+  DrawPhysicsShapes: true
+  Wind:
+    Direction: [1, 1, 1]
+    Frequency: 5
+    Strength: 0
+GraphicsSettings: 0x84beaa5529d21a0d243484fff0af8349
+Scene:
+  - UUID: 0xbb010000000000000000000000000001
+    Name: DirectionalLight
+    IsEnabled: true
+    Transform:
+      Position: [0, 0, 0]
+      Rotation: [2.5, -0.699999988, 0]
+      Scale: [1, 1, 1]
+      FollowOwner: true
+    DirectionalLight:
+      Color: [1, 1, 1]
+      Intensity: 5
+      Ambient: 0.100000001
+    Childs:
+      []
+  - UUID: 0xbb010000000000000000000000000002
+    Name: Floor
+    IsEnabled: true
+    Transform:
+      Position: [0, -0.150000006, 0]
+      Rotation: [0, 0, 0]
+      Scale: [24, 0.300000012, 24]
+      FollowOwner: true
+    Renderer3D:
+      Mesh: 0x397e453582968927b0368b21ffa62a67
+      Material: 0x07e46f38e3511b4d8e61e74f9b89516a
+      RenderingOrder: 5
+      IsEnabled: true
+      CastShadows: false
+      ObjectVisibilityMask: 255
+      ShadowVisibilityMask: 255
+    RigidBody:
+      MotionType: 0
+      Mass: 1
+      Type: 0
+      HalfExtents: [24, 0.300000012, 24]
+      AngularVelocity: [0, 0, 0]
+      LinearVelocity: [0, 0, 0]
+      Friction: 0.800000012
+      Restitution: 0
+      AllowSleeping: true
+    Childs:
+      []
+  - UUID: 0xbb010000000000000000000000000003
+    Name: WallNorth
+    IsEnabled: true
+    Transform:
+      Position: [0, 3, -12]
+      Rotation: [0, 0, 0]
+      Scale: [24, 6, 0.400000006]
+      FollowOwner: true
+    Renderer3D:
+      Mesh: 0x397e453582968927b0368b21ffa62a67
+      Material: 0x07e46f38e3511b4d8e61e74f9b89516a
+      RenderingOrder: 5
+      IsEnabled: true
+      CastShadows: true
+      ObjectVisibilityMask: 255
+      ShadowVisibilityMask: 255
+    RigidBody:
+      MotionType: 0
+      Mass: 1
+      Type: 0
+      HalfExtents: [24, 6, 0.400000006]
+      AngularVelocity: [0, 0, 0]
+      LinearVelocity: [0, 0, 0]
+      Friction: 0.800000012
+      Restitution: 0
+      AllowSleeping: true
+    Childs:
+      []
+  - UUID: 0xbb010000000000000000000000000004
+    Name: WallSouth
+    IsEnabled: true
+    Transform:
+      Position: [0, 3, 12]
+      Rotation: [0, 0, 0]
+      Scale: [24, 6, 0.400000006]
+      FollowOwner: true
+    Renderer3D:
+      Mesh: 0x397e453582968927b0368b21ffa62a67
+      Material: 0x07e46f38e3511b4d8e61e74f9b89516a
+      RenderingOrder: 5
+      IsEnabled: true
+      CastShadows: true
+      ObjectVisibilityMask: 255
+      ShadowVisibilityMask: 255
+    RigidBody:
+      MotionType: 0
+      Mass: 1
+      Type: 0
+      HalfExtents: [24, 6, 0.400000006]
+      AngularVelocity: [0, 0, 0]
+      LinearVelocity: [0, 0, 0]
+      Friction: 0.800000012
+      Restitution: 0
+      AllowSleeping: true
+    Childs:
+      []
+  - UUID: 0xbb010000000000000000000000000005
+    Name: WallEast
+    IsEnabled: true
+    Transform:
+      Position: [12, 3, 0]
+      Rotation: [0, 0, 0]
+      Scale: [0.400000006, 6, 24]
+      FollowOwner: true
+    Renderer3D:
+      Mesh: 0x397e453582968927b0368b21ffa62a67
+      Material: 0x07e46f38e3511b4d8e61e74f9b89516a
+      RenderingOrder: 5
+      IsEnabled: true
+      CastShadows: true
+      ObjectVisibilityMask: 255
+      ShadowVisibilityMask: 255
+    RigidBody:
+      MotionType: 0
+      Mass: 1
+      Type: 0
+      HalfExtents: [0.400000006, 6, 24]
+      AngularVelocity: [0, 0, 0]
+      LinearVelocity: [0, 0, 0]
+      Friction: 0.800000012
+      Restitution: 0
+      AllowSleeping: true
+    Childs:
+      []
+  - UUID: 0xbb010000000000000000000000000006
+    Name: WallWest
+    IsEnabled: true
+    Transform:
+      Position: [-12, 3, 0]
+      Rotation: [0, 0, 0]
+      Scale: [0.400000006, 6, 24]
+      FollowOwner: true
+    Renderer3D:
+      Mesh: 0x397e453582968927b0368b21ffa62a67
+      Material: 0x07e46f38e3511b4d8e61e74f9b89516a
+      RenderingOrder: 5
+      IsEnabled: true
+      CastShadows: true
+      ObjectVisibilityMask: 255
+      ShadowVisibilityMask: 255
+    RigidBody:
+      MotionType: 0
+      Mass: 1
+      Type: 0
+      HalfExtents: [0.400000006, 6, 24]
+      AngularVelocity: [0, 0, 0]
+      LinearVelocity: [0, 0, 0]
+      Friction: 0.800000012
+      Restitution: 0
+      AllowSleeping: true
+    Childs:
+      []
+  - UUID: 0xbb010000000000000000000000000007
+    Name: Trader
+    IsEnabled: true
+    Transform:
+      Position: [-5.99999571, 0.184709966, -8.00003624]
+      Rotation: [0, 0.643529236, 0]
+      Scale: [0.999997258, 1.00000072, 0.999996305]
+      FollowOwner: true
+    SkeletalAnimator:
+      Skeleton: 0xe6492b2b08d7297d7ff12bf8683aef2c
+      ApplySkeletonTransform: false
+      DrawDebugSkeleton: false
+      Layers:
+        - Animation: 0x7fa18741958f9dcb44a4e5b9e1d09587
+          Weight: 1
+          Speed: 1
+          CurrentTime: 0.326894999
+          BlendMode: 0
+          PlayInPlace: false
+          BoneMask:
+            []
+    InteractableComponent:
+      isOpen:
+        Type: bool
+        Value: false
+      label:
+        Type: std::__cxx11::basic_string<char>
+        Value: "[E] Shop"
+      isLooted:
+        Type: bool
+        Value: false
+      radius:
+        Type: float
+        Value: 2.5
+      interactTypeInt:
+        Type: int
+        Value: 0
+    ShopComponent:
+      shopName:
+        Type: std::__cxx11::basic_string<char>
+        Value: Trader
+      isOpen:
+        Type: bool
+        Value: false
+    Childs:
+      - UUID: 0xadeae8411f58970046cac13349b81dbb
+        Name: Mannequin
+        IsEnabled: true
+        Transform:
+          Position: [0, 0, 0]
+          Rotation: [3.07190149e-08, -0, 0]
+          Scale: [1, 1, 1]
+          FollowOwner: true
+        Renderer3D:
+          SkeletalAnimatorEntity: Trader
+          Mesh: 0xa436fec2b30f332cea4306d4ebf5c06c
+          Material: 0xe5537feb65c4315f52f6f2a2ee1afac9
+          RenderingOrder: 5
+          IsEnabled: true
+          CastShadows: true
+          ObjectVisibilityMask: 255
+          ShadowVisibilityMask: 255
+        Childs:
+          - UUID: 0x3faae3d947deba2345d0e9266e6858dc
+            Name: Mannequin
+            IsEnabled: true
+            Transform:
+              Position: [0, 0, 0]
+              Rotation: [0, -0, 0]
+              Scale: [1, 1, 1]
+              FollowOwner: true
+            Renderer3D:
+              SkeletalAnimatorEntity: Trader
+              Mesh: 0xe7980284c44e534ed84cbeced08853dc
+              Material: 0x0815e1e2533cfe2464c9629bdd653d9a
+              RenderingOrder: 5
+              IsEnabled: true
+              CastShadows: true
+              ObjectVisibilityMask: 255
+              ShadowVisibilityMask: 255
+            Childs:
+              []
+  - UUID: 0xbb010000000000000000000000000009
+    Name: RaidPortal
+    IsEnabled: true
+    Transform:
+      Position: [0, 0.100000001, 9]
+      Rotation: [0, 0, 0]
+      Scale: [3.5, 0.200000003, 3.5]
+      FollowOwner: true
+    Renderer3D:
+      Mesh: 0x397e453582968927b0368b21ffa62a67
+      Material: 0xd3854e6f7d23c74493113d48bd857f6e
+      RenderingOrder: 5
+      IsEnabled: true
+      CastShadows: false
+      ObjectVisibilityMask: 255
+      ShadowVisibilityMask: 255
+    InteractableComponent:
+      isOpen:
+        Type: bool
+        Value: false
+      label:
+        Type: std::__cxx11::basic_string<char>
+        Value: "[E] Go on Raid"
+      isLooted:
+        Type: bool
+        Value: false
+      radius:
+        Type: float
+        Value: 3
+      interactTypeInt:
+        Type: int
+        Value: 4
+    Childs:
+      []
+  - UUID: 0xbb01000000000000000000000000000a
+    Name: GameState
+    IsEnabled: true
+    Transform:
+      Position: [0, 0, 0]
+      Rotation: [0, 0, 0]
+      Scale: [1, 1, 1]
+      FollowOwner: true
+    GameStateComponent:
+      inventoryInjected:
+        Type: bool
+        Value: false
+      transitionTimer:
+        Type: float
+        Value: 0
+      extractionReady:
+        Type: bool
+        Value: false
+      playerDied:
+        Type: bool
+        Value: false
+      enemiesRemaining:
+        Type: int
+        Value: 0
+      raidDepth:
+        Type: int
+        Value: 0
+      phaseInt:
+        Type: int
+        Value: 0
+    Childs:
+      []
+  - UUID: 0xbb01000000000000000000000000000b
+    Name: Canvas
+    IsEnabled: true
+    Transform:
+      Position: [0, 0, 0]
+      Rotation: [0, 0, 0]
+      Scale: [1, 1, 1]
+      FollowOwner: true
+    Renderer3D:
+      RenderingOrder: 5
+      IsEnabled: true
+      CastShadows: true
+      ObjectVisibilityMask: 255
+      ShadowVisibilityMask: 255
+    Canvas:
+      DrawInMainViewport: true
+      Size: [1689, 903]
+      ScriptNames:
+        - HomeBaseHUD
+        - Inventory
+        - Shop
+        - Stash
+        - GameOver
+    Childs:
+      []
+  - PrefabFilepath: 0x55ac9ef96792c2c7fb780c1ac5a7c200
+    UUID: 0xbb01000000000000000000000000000c
+    Transform:
+      Position: [0, 1.5, 0]
+      Rotation: [0, 0, 0]
+      Scale: [1, 1, 1]
+      FollowOwner: true
+  - PrefabFilepath: 0x3335146f4ef68ea32a1a66efd8491b3c
+    UUID: 0x713bd8dfa2dafb964b35f5b9dbe944b8
+    Transform:
+      Position: [2.74784493, 0.150074586, -8.02173615]
+      Rotation: [0, 1.15105009, 0]
+      Scale: [2, 2, 2]
+      FollowOwner: true

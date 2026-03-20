@@ -91,6 +91,8 @@ namespace Pengine
 
 		bool IsEnabled() const;
 
+		bool IsEnabledLocally() const { return m_IsEnabled; }
+
 		void SetEnabled(const bool isEnabled);
 
 		void SetPrefabFilepathUUID(const UUID& prefabFilepathUUID) { m_PrefabFilepathUUID = prefabFilepathUUID; }

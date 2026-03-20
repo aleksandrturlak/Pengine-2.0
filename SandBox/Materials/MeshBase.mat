@@ -34,7 +34,7 @@ Mat:
               Value: [1, 1, 0, 0]
               Type: vec4
             - Name: material.metallicFactor
-              Value: 1
+              Value: 0
               Type: float
             - Name: material.roughnessFactor
               Value: 1

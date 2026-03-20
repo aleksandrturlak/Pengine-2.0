@@ -76,7 +76,7 @@ RayTracedReflections:
   IsRayTraced: false
 DDGI:
   IsEnabled: false
-  VisualizeProbes: true
+  VisualizeProbes: false
   GridX: 32
   GridY: 10
   GridZ: 32

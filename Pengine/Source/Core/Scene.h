@@ -79,7 +79,7 @@ namespace Pengine
 
 		void SetRenderView(std::shared_ptr<RenderView> renderView) { m_RenderView = renderView; }
 
-		void SetComponentSystem(const std::string& name, std::function<std::shared_ptr<ComponentSystem>()> componentSystem) { m_ComponentSystemsByName[name] = componentSystem(); }
+		void SetComponentSystem(const std::string& name, std::function<std::shared_ptr<ComponentSystem>()> componentSystem) { m_ComponentSystemsByName.emplace_back(name, componentSystem()); }
 
 		void ProcessComponentRemove(const std::string& componentName, std::shared_ptr<Entity> entity) const;
 
@@ -125,7 +125,7 @@ namespace Pengine
 			std::set<std::shared_ptr<class Material>> materials;
 		};
 
-		std::unordered_map<std::string, std::shared_ptr<ComponentSystem>> m_ComponentSystemsByName;
+		std::vector<std::pair<std::string, std::shared_ptr<ComponentSystem>>> m_ComponentSystemsByName;
 
 		std::unordered_map<UUID, std::shared_ptr<Entity>, uuid_hash> m_EntitiesByUUID;
 

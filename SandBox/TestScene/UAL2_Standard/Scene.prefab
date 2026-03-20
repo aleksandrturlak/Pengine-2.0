@@ -1,9 +1,9 @@
 Name: Armature
 IsEnabled: true
 Transform:
-  Position: [0.30488196, -0.167553246, -2.25338626]
-  Rotation: [0.0293915663, -0, 0]
-  Scale: [1, 0.999995351, 0.999995351]
+  Position: [-3.0699327, 0, -0.428590924]
+  Rotation: [0, -0, 0]
+  Scale: [1, 1, 1]
   FollowOwner: true
 SkeletalAnimator:
   Skeleton: 0xe6492b2b08d7297d7ff12bf8683aef2c
@@ -13,16 +13,17 @@ SkeletalAnimator:
     - Animation: 0x7fa18741958f9dcb44a4e5b9e1d09587
       Weight: 1
       Speed: 1
-      CurrentTime: 1.25889921
+      CurrentTime: 0.713460445
       BlendMode: 0
+      PlayInPlace: false
       BoneMask:
         []
 Childs:
   - Name: Mannequin
     IsEnabled: true
     Transform:
-      Position: [0, 0, 0]
-      Rotation: [0, -0, 0]
+      Position: [-4.29153442e-06, -5.66244239e-07, 1.31130219e-05]
+      Rotation: [1.36528975e-08, -0, 0]
       Scale: [1, 1, 1]
       FollowOwner: true
     Renderer3D:
@@ -64,483 +65,483 @@ Childs:
       - Name: pelvis
         IsEnabled: true
         Transform:
-          Position: [-0.0024488999, 0.0865181461, 0.877159834]
-          Rotation: [1.730281, 2.23517418e-08, -0.232552603]
-          Scale: [1, 0.99999994, 1]
+          Position: [0.00110426918, 0.088218078, 0.869073391]
+          Rotation: [1.75594711, -7.4505806e-09, -0.232552633]
+          Scale: [1, 1, 1]
           FollowOwner: true
         Childs:
           - Name: spine_01
             IsEnabled: true
             Transform:
-              Position: [1.36536249e-09, 0.138176292, 6.34321839e-09]
-              Rotation: [-0.129495889, -5.38555023e-09, 2.82768586e-09]
-              Scale: [1, 1, 1]
+              Position: [2.54938382e-09, 0.138176382, -1.07745688e-08]
+              Rotation: [-0.129495844, -7.74748443e-09, -6.74630685e-10]
+              Scale: [1, 0.99999994, 1]
               FollowOwner: true
             Childs:
               - Name: spine_02
                 IsEnabled: true
                 Transform:
-                  Position: [-4.26756963e-10, 0.124034777, 1.00523767e-08]
-                  Rotation: [0.0285125934, 0.000240528869, 0.000501583912]
+                  Position: [1.73808301e-10, 0.124034807, 1.2999668e-09]
+                  Rotation: [0.0385655127, 0.000240552312, 0.000497357571]
                   Scale: [1, 1, 1]
                   FollowOwner: true
                 Childs:
                   - Name: spine_03
                     IsEnabled: true
                     Transform:
-                      Position: [-8.65750804e-10, 0.14127171, 2.97661207e-09]
-                      Rotation: [0.182689369, 0.000573701574, 0.000570640783]
-                      Scale: [1, 1, 1]
+                      Position: [3.54864604e-09, 0.141271621, -2.39099029e-09]
+                      Rotation: [0.192742422, 0.000579554006, 0.000569082098]
+                      Scale: [1, 0.999999881, 1]
                       FollowOwner: true
                     Childs:
                       - Name: neck_01
                         IsEnabled: true
                         Transform:
-                          Position: [4.58080684e-09, 0.172890946, 6.91791868e-08]
-                          Rotation: [0.416349232, 0.0424570069, 0.0453368835]
-                          Scale: [1.00000012, 1.00000012, 1]
+                          Position: [1.20329524e-09, 0.172890782, 2.39123779e-08]
+                          Rotation: [0.406296492, 0.0429078266, 0.0449099801]
+                          Scale: [0.999999881, 0.999999881, 0.99999994]
                           FollowOwner: true
                         Childs:
                           - Name: Head
                             IsEnabled: true
                             Transform:
-                              Position: [-8.36458458e-10, 0.0825868994, -5.91830585e-08]
-                              Rotation: [-0.0941121429, 0.16063422, -0.201551214]
-                              Scale: [0.99999994, 0.99999994, 1.00000012]
+                              Position: [1.51335957e-08, 0.0825867429, 2.96340961e-08]
+                              Rotation: [-0.101302512, 0.141597435, -0.194420263]
+                              Scale: [1, 0.999999881, 1]
                               FollowOwner: true
                             Childs:
                               []
                       - Name: clavicle_l
                         IsEnabled: true
                         Transform:
-                          Position: [0.0187999848, 0.140553668, 0.0808950514]
-                          Rotation: [-1.56541204, -1.14772248, -0.0384756103]
-                          Scale: [1, 0.999999881, 1]
+                          Position: [0.0187999904, 0.140553653, 0.080895029]
+                          Rotation: [-1.61200547, -1.14772284, -0.0384755321]
+                          Scale: [0.999999881, 0.999999881, 1]
                           FollowOwner: true
                         Childs:
                           - Name: upperarm_l
                             IsEnabled: true
                             Transform:
-                              Position: [-0.0300723221, 0.218581766, -0.0169686042]
-                              Rotation: [-1.64686954, 0.3527762, -2.01002288]
-                              Scale: [1, 1, 1]
+                              Position: [-0.0300723668, 0.218581736, -0.0169684626]
+                              Rotation: [-1.58813155, 0.372310817, -2.06881762]
+                              Scale: [0.99999994, 1, 1]
                               FollowOwner: true
                             Childs:
                               - Name: lowerarm_l
                                 IsEnabled: true
                                 Transform:
-                                  Position: [4.92419172e-09, 0.274440259, 8.78470701e-08]
-                                  Rotation: [0.570292532, 0.0849136934, 0.0147154508]
-                                  Scale: [1.00000012, 1, 1.00000012]
+                                  Position: [-5.01602493e-09, 0.274440259, 1.28857174e-08]
+                                  Rotation: [0.517396867, -0.00327881752, 0.0146598769]
+                                  Scale: [1.00000012, 0.99999994, 1]
                                   FollowOwner: true
                                 Childs:
                                   - Name: hand_l
                                     IsEnabled: true
                                     Transform:
-                                      Position: [-7.76667051e-08, 0.272640496, -1.82856699e-08]
-                                      Rotation: [0.212040663, 0.0181194805, -0.049718108]
-                                      Scale: [0.999999881, 1, 1.00000012]
+                                      Position: [6.80377568e-08, 0.272640437, 1.49890589e-08]
+                                      Rotation: [0.212040782, 0.0181194898, -0.0497181639]
+                                      Scale: [0.999999881, 1, 1]
                                       FollowOwner: true
                                     Childs:
                                       - Name: index_01_l
                                         IsEnabled: true
                                         Transform:
-                                          Position: [0.00200003851, 0.119899943, 0.0308999941]
-                                          Rotation: [-1.85396075, 1.57079637, 3.06254983]
-                                          Scale: [0.99999994, 0.999999762, 1.00000024]
+                                          Position: [0.00199998077, 0.119899951, 0.0308999978]
+                                          Rotation: [-1.81392133, 1.57079637, 3.11124134]
+                                          Scale: [1.00000012, 0.999999881, 1.00000024]
                                           FollowOwner: true
                                         Childs:
                                           - Name: index_02_l
                                             IsEnabled: true
                                             Transform:
-                                              Position: [-1.61728941e-08, 0.0406999737, -1.30891671e-08]
-                                              Rotation: [1.34601676, -2.73704359e-07, -5.23432334e-07]
-                                              Scale: [0.999999881, 0.999999881, 0.999999881]
+                                              Position: [7.24176346e-08, 0.0407000519, 4.99050117e-08]
+                                              Rotation: [1.34601784, -2.55799932e-07, -1.25744236e-07]
+                                              Scale: [0.99999994, 1, 1]
                                               FollowOwner: true
                                             Childs:
                                               - Name: index_03_l
                                                 IsEnabled: true
                                                 Transform:
-                                                  Position: [1.81155126e-08, 0.0347999781, -3.82074816e-09]
-                                                  Rotation: [1.34601796, 6.79071093e-08, 1.29994035e-07]
-                                                  Scale: [1.00000012, 0.999999821, 1.00000012]
+                                                  Position: [-9.48697476e-09, 0.0347999744, -8.27499314e-09]
+                                                  Rotation: [1.34601736, -1.20669156e-07, 1.05966421e-07]
+                                                  Scale: [1, 1, 1.00000012]
                                                   FollowOwner: true
                                                 Childs:
                                                   - Name: index_04_leaf_l
                                                     IsEnabled: true
                                                     Transform:
-                                                      Position: [-3.23024238e-08, 0.0301000364, 1.49245736e-08]
-                                                      Rotation: [3.14159274, 7.28640998e-06, 3.14159274]
-                                                      Scale: [1, 1.00000012, 1]
+                                                      Position: [2.55555022e-10, 0.0301000029, 1.73564842e-08]
+                                                      Rotation: [3.14159274, 7.2962448e-06, -3.14159274]
+                                                      Scale: [0.99999994, 1, 1]
                                                       FollowOwner: true
                                                     Childs:
                                                       []
                                       - Name: middle_01_l
                                         IsEnabled: true
                                         Transform:
-                                          Position: [-0.00040000031, 0.121599913, 0.00520001538]
-                                          Rotation: [-0.208888441, 1.52355337, -1.57095778]
-                                          Scale: [0.999999881, 0.999999881, 1.00000012]
+                                          Position: [-0.000400082237, 0.12160001, 0.00520000467]
+                                          Rotation: [-0.208894089, 1.52354956, -1.57096291]
+                                          Scale: [1.00000012, 0.999999881, 1]
                                           FollowOwner: true
                                         Childs:
                                           - Name: middle_02_l
                                             IsEnabled: true
                                             Transform:
-                                              Position: [-7.03862835e-09, 0.0423472747, 4.3043805e-08]
-                                              Rotation: [1.3460176, -4.91389073e-07, 0.00302695995]
-                                              Scale: [1.00000012, 1, 1]
+                                              Position: [-1.04211493e-08, 0.0423472151, -2.00754258e-08]
+                                              Rotation: [1.3460176, -1.82306394e-07, 0.00302696927]
+                                              Scale: [0.999999881, 0.999999881, 0.99999994]
                                               FollowOwner: true
                                             Childs:
                                               - Name: middle_03_l
                                                 IsEnabled: true
                                                 Transform:
-                                                  Position: [2.70084755e-08, 0.0339331031, -9.84434507e-08]
-                                                  Rotation: [1.34601736, -3.87663022e-07, -0.0022594172]
-                                                  Scale: [0.99999994, 1, 0.99999994]
+                                                  Position: [3.69473896e-09, 0.0339330994, -4.03823215e-08]
+                                                  Rotation: [1.34601831, -8.02101567e-08, -0.00225929613]
+                                                  Scale: [1.00000012, 1, 1.00000012]
                                                   FollowOwner: true
                                                 Childs:
                                                   - Name: middle_04_leaf_l
                                                     IsEnabled: true
                                                     Transform:
-                                                      Position: [5.32718669e-09, 0.0344371423, -6.59463062e-09]
-                                                      Rotation: [-3.14159274, 7.30282773e-06, -3.14159274]
-                                                      Scale: [1, 0.999999821, 1]
+                                                      Position: [2.78776753e-08, 0.034437146, 2.06214938e-08]
+                                                      Rotation: [3.14159274, 7.28879331e-06, 3.1415925]
+                                                      Scale: [1.00000012, 0.999999881, 1.00000024]
                                                       FollowOwner: true
                                                     Childs:
                                                       []
                                       - Name: pinky_01_l
                                         IsEnabled: true
                                         Transform:
-                                          Position: [0.00159996562, 0.107699953, -0.0408000275]
-                                          Rotation: [1.86959767, 1.46359873, 0.414407402]
-                                          Scale: [0.999999881, 0.99999994, 0.999999881]
+                                          Position: [0.00159985526, 0.107699938, -0.0408000201]
+                                          Rotation: [1.86959994, 1.46359873, 0.414408803]
+                                          Scale: [1, 1, 0.999999881]
                                           FollowOwner: true
                                         Childs:
                                           - Name: pinky_02_l
                                             IsEnabled: true
                                             Transform:
-                                              Position: [1.19098003e-08, 0.0402905494, 2.16602292e-09]
-                                              Rotation: [1.34610093, -0.0499863289, -0.00167051086]
-                                              Scale: [1.00000012, 1.00000012, 1]
+                                              Position: [-1.61240568e-08, 0.0402905419, -1.59591753e-08]
+                                              Rotation: [1.34610069, -0.0499863736, -0.00167094136]
+                                              Scale: [1, 1, 1.00000012]
                                               FollowOwner: true
                                             Childs:
                                               - Name: pinky_03_l
                                                 IsEnabled: true
                                                 Transform:
-                                                  Position: [-2.75553322e-08, 0.0276652686, -2.96470386e-08]
-                                                  Rotation: [1.34601915, 2.66183633e-07, 0.00121892069]
-                                                  Scale: [0.999999821, 0.999999881, 0.99999994]
+                                                  Position: [-1.55770543e-08, 0.0276653282, 3.05524228e-09]
+                                                  Rotation: [1.34601867, 1.84460077e-07, 0.00121916109]
+                                                  Scale: [0.99999994, 1, 1]
                                                   FollowOwner: true
                                                 Childs:
                                                   - Name: pinky_04_leaf_l
                                                     IsEnabled: true
                                                     Transform:
-                                                      Position: [-1.37728442e-08, 0.0281641576, 4.16976818e-08]
-                                                      Rotation: [3.1415925, 7.28764053e-06, 3.1415925]
-                                                      Scale: [1, 1, 1]
+                                                      Position: [-1.51520787e-08, 0.028164167, -2.78924848e-08]
+                                                      Rotation: [3.14159274, 7.33335582e-06, 3.14159274]
+                                                      Scale: [1.00000012, 1, 1]
                                                       FollowOwner: true
                                                     Childs:
                                                       []
                                       - Name: ring_01_l
                                         IsEnabled: true
                                         Transform:
-                                          Position: [-9.99523327e-05, 0.119099982, -0.0171000175]
-                                          Rotation: [-0.208943501, 1.53518677, -1.57101309]
-                                          Scale: [0.999999881, 0.999999762, 1.00000012]
+                                          Position: [-0.000100025609, 0.11909999, -0.0171000194]
+                                          Rotation: [-0.208949476, 1.53519177, -1.57101774]
+                                          Scale: [1, 0.999999881, 1.00000024]
                                           FollowOwner: true
                                         Childs:
                                           - Name: ring_02_l
                                             IsEnabled: true
                                             Transform:
-                                              Position: [3.55694674e-09, 0.0393249989, 1.52440158e-08]
-                                              Rotation: [1.34601736, -2.70787496e-07, 2.42576134e-05]
-                                              Scale: [1, 1, 1]
+                                              Position: [-3.28783045e-09, 0.0393249728, 5.72255061e-08]
+                                              Rotation: [1.34601784, -3.76518074e-07, 2.4351486e-05]
+                                              Scale: [0.999999881, 1, 1]
                                               FollowOwner: true
                                             Childs:
                                               - Name: ring_03_l
                                                 IsEnabled: true
                                                 Transform:
-                                                  Position: [7.8138509e-09, 0.0309196189, -6.58410499e-08]
-                                                  Rotation: [1.34601712, -3.71597707e-07, -0.00213408447]
-                                                  Scale: [1.00000012, 0.999999881, 1]
+                                                  Position: [6.3388681e-09, 0.0309195779, -2.93693674e-08]
+                                                  Rotation: [1.3460176, 1.6996637e-08, -0.00213432405]
+                                                  Scale: [1.00000012, 1, 1.00000012]
                                                   FollowOwner: true
                                                 Childs:
                                                   - Name: ring_04_leaf_l
                                                     IsEnabled: true
                                                     Transform:
-                                                      Position: [6.73564138e-09, 0.0318226032, 9.6789714e-09]
-                                                      Rotation: [3.14159274, 7.29212434e-06, 3.14159274]
-                                                      Scale: [1, 1.00000012, 1.00000012]
+                                                      Position: [-2.85988477e-08, 0.0318225771, -3.33976153e-08]
+                                                      Rotation: [3.14159274, 7.30957072e-06, -3.14159274]
+                                                      Scale: [1, 1, 1]
                                                       FollowOwner: true
                                                     Childs:
                                                       []
                                       - Name: thumb_01_l
                                         IsEnabled: true
                                         Transform:
-                                          Position: [0.0228000283, 0.0272999853, 0.0335999951]
-                                          Rotation: [2.90946388, -0.0263561308, 2.55028772]
-                                          Scale: [0.999999881, 0.999999821, 0.999999762]
+                                          Position: [0.0228000134, 0.0273000132, 0.0336000063]
+                                          Rotation: [2.90946364, -0.0263560638, 2.55028796]
+                                          Scale: [0.99999994, 0.999999881, 0.999999881]
                                           FollowOwner: true
                                         Childs:
                                           - Name: thumb_02_l
                                             IsEnabled: true
                                             Transform:
-                                              Position: [-1.09283249e-09, 0.0430298224, 1.10404788e-08]
-                                              Rotation: [0.442514509, 0.0487779118, 9.59220124e-05]
+                                              Position: [-2.69339164e-08, 0.0430298671, -7.03049707e-08]
+                                              Rotation: [0.442515373, 0.0487780385, 9.59928875e-05]
                                               Scale: [1, 1, 1]
                                               FollowOwner: true
                                             Childs:
                                               - Name: thumb_03_l
                                                 IsEnabled: true
                                                 Transform:
-                                                  Position: [-7.63488384e-10, 0.0490780473, -6.46999654e-09]
-                                                  Rotation: [1.5157733, 0.000162327226, -0.0010708198]
-                                                  Scale: [1, 0.999999821, 1]
+                                                  Position: [-1.35574929e-09, 0.0490779579, -2.04142712e-08]
+                                                  Rotation: [1.51577294, 0.000161922857, -0.00107058731]
+                                                  Scale: [1, 1, 0.99999994]
                                                   FollowOwner: true
                                                 Childs:
                                                   - Name: thumb_04_leaf_l
                                                     IsEnabled: true
                                                     Transform:
-                                                      Position: [-5.46359846e-09, 0.0408623517, -4.73289248e-08]
-                                                      Rotation: [6.03977298e-07, 1.06149411, 9.81281801e-07]
-                                                      Scale: [1, 1, 1]
+                                                      Position: [7.02706293e-09, 0.0408623368, 9.03732467e-09]
+                                                      Rotation: [6.51992139e-07, 1.06149435, 1.0620048e-06]
+                                                      Scale: [1, 0.99999994, 1]
                                                       FollowOwner: true
                                                     Childs:
                                                       []
                       - Name: clavicle_r
                         IsEnabled: true
                         Transform:
-                          Position: [-0.0187999867, 0.140553802, 0.0808950737]
-                          Rotation: [-1.57227397, 0.939503908, 0.0295907296]
-                          Scale: [0.99999994, 1, 1.00000012]
+                          Position: [-0.018799983, 0.140553698, 0.0808950067]
+                          Rotation: [-1.61673725, 0.939503789, 0.0295906793]
+                          Scale: [0.999999881, 0.999999881, 0.999999881]
                           FollowOwner: true
                         Childs:
                           - Name: upperarm_r
                             IsEnabled: true
                             Transform:
-                              Position: [0.0300722793, 0.218581751, -0.016968552]
-                              Rotation: [-1.68022096, -0.387394577, 1.97665656]
-                              Scale: [1.00000012, 0.99999994, 1]
+                              Position: [0.0300723352, 0.218581736, -0.0169683956]
+                              Rotation: [-1.64374447, -0.359398872, 2.01315355]
+                              Scale: [1, 1, 1.00000012]
                               FollowOwner: true
                             Childs:
                               - Name: lowerarm_r
                                 IsEnabled: true
                                 Transform:
-                                  Position: [-1.1771446e-08, 0.274440438, -2.41093687e-08]
-                                  Rotation: [0.76319623, -0.334864259, -1.26220172e-07]
-                                  Scale: [1.00000012, 0.999999881, 0.999999881]
+                                  Position: [-2.70547389e-08, 0.274440289, -1.16479564e-08]
+                                  Rotation: [0.763196647, -0.286834836, -1.55358904e-07]
+                                  Scale: [1.00000012, 1.00000024, 1.00000012]
                                   FollowOwner: true
                                 Childs:
                                   - Name: hand_r
                                     IsEnabled: true
                                     Transform:
-                                      Position: [2.89344158e-08, 0.272640556, -1.36207641e-08]
-                                      Rotation: [0.233978972, -0.00466460409, 0.089656271]
-                                      Scale: [1, 1.00000012, 1]
+                                      Position: [4.73254325e-09, 0.272640496, -3.22107496e-08]
+                                      Rotation: [0.233978897, -0.00466453237, 0.0896561965]
+                                      Scale: [0.99999994, 0.99999994, 1]
                                       FollowOwner: true
                                     Childs:
                                       - Name: index_01_r
                                         IsEnabled: true
                                         Transform:
-                                          Position: [-0.00200000033, 0.119900092, 0.0308999792]
-                                          Rotation: [-1.82922924, -1.57079637, -3.08994865]
-                                          Scale: [1, 0.99999994, 1.00000012]
+                                          Position: [-0.00199995097, 0.119899988, 0.0308999605]
+                                          Rotation: [-1.83738816, -1.57079637, -3.08738232]
+                                          Scale: [0.999999881, 0.99999994, 1.00000024]
                                           FollowOwner: true
                                         Childs:
                                           - Name: index_02_r
                                             IsEnabled: true
                                             Transform:
-                                              Position: [-3.47408537e-08, 0.0407001264, -7.88067123e-09]
-                                              Rotation: [1.34601712, 4.93554296e-07, 3.1369683e-07]
+                                              Position: [-3.3117356e-08, 0.040700011, -3.34846533e-08]
+                                              Rotation: [1.34601736, 5.68325845e-07, 3.77543472e-07]
                                               Scale: [1, 1, 1]
                                               FollowOwner: true
                                             Childs:
                                               - Name: index_03_r
                                                 IsEnabled: true
                                                 Transform:
-                                                  Position: [2.65516142e-08, 0.0348000452, 1.95094412e-08]
-                                                  Rotation: [1.34601855, -2.55709608e-07, 1.54930959e-07]
-                                                  Scale: [0.999999881, 0.99999994, 1]
+                                                  Position: [-4.10375591e-08, 0.0348000154, -1.05106581e-08]
+                                                  Rotation: [1.34601843, -1.51574255e-08, 1.61518855e-07]
+                                                  Scale: [1, 0.99999994, 1]
                                                   FollowOwner: true
                                                 Childs:
                                                   - Name: index_04_leaf_r
                                                     IsEnabled: true
                                                     Transform:
-                                                      Position: [-1.12792327e-08, 0.0300999433, -2.1552149e-09]
-                                                      Rotation: [3.14159274, -7.29653675e-06, -3.14159274]
-                                                      Scale: [1, 1, 1]
+                                                      Position: [-2.59005919e-08, 0.030099947, 3.8276621e-08]
+                                                      Rotation: [3.14159274, -7.32038825e-06, 3.14159274]
+                                                      Scale: [1, 0.99999994, 1]
                                                       FollowOwner: true
                                                     Childs:
                                                       []
                                       - Name: middle_01_r
                                         IsEnabled: true
                                         Transform:
-                                          Position: [0.000400073652, 0.121600002, 0.00520002516]
-                                          Rotation: [-0.208895609, -1.52355087, 1.5709641]
-                                          Scale: [0.99999994, 0.999999881, 1]
+                                          Position: [0.000400103716, 0.121599898, 0.00519996881]
+                                          Rotation: [-0.208893105, -1.52355218, 1.57096159]
+                                          Scale: [0.99999994, 0.999999881, 1.00000012]
                                           FollowOwner: true
                                         Childs:
                                           - Name: middle_02_r
                                             IsEnabled: true
                                             Transform:
-                                              Position: [1.87679348e-08, 0.0423473231, -4.2364686e-08]
-                                              Rotation: [1.34601831, 4.24799509e-07, -0.00302735437]
-                                              Scale: [1.00000012, 0.999999881, 0.99999994]
+                                              Position: [3.20009708e-09, 0.0423473157, -6.85744013e-08]
+                                              Rotation: [1.3460176, -9.56933945e-08, -0.00302709523]
+                                              Scale: [0.99999994, 1, 0.999999881]
                                               FollowOwner: true
                                             Childs:
                                               - Name: middle_03_r
                                                 IsEnabled: true
                                                 Transform:
-                                                  Position: [9.95325067e-09, 0.0339331105, -4.87413416e-08]
-                                                  Rotation: [1.34601831, -1.35391019e-07, 0.00225989637]
-                                                  Scale: [0.99999994, 0.99999994, 1.00000012]
+                                                  Position: [-3.29944534e-08, 0.0339330547, -1.52597934e-11]
+                                                  Rotation: [1.34601831, 2.08499841e-07, 0.00225911546]
+                                                  Scale: [1, 0.99999994, 1.00000012]
                                                   FollowOwner: true
                                                 Childs:
                                                   - Name: middle_04_leaf_r
                                                     IsEnabled: true
                                                     Transform:
-                                                      Position: [1.53062167e-08, 0.0344371907, 6.26589625e-08]
-                                                      Rotation: [-3.14159274, -7.2882176e-06, -3.14159274]
-                                                      Scale: [1, 1, 1]
+                                                      Position: [-1.09879359e-08, 0.0344371796, 2.7101887e-08]
+                                                      Rotation: [3.14159274, -7.31141517e-06, -3.14159274]
+                                                      Scale: [1.00000012, 1.00000012, 1]
                                                       FollowOwner: true
                                                     Childs:
                                                       []
                                       - Name: pinky_01_r
                                         IsEnabled: true
                                         Transform:
-                                          Position: [-0.00159985234, 0.107699953, -0.0407999828]
-                                          Rotation: [1.86959481, -1.46359873, -0.414404422]
-                                          Scale: [1, 1, 0.999999881]
+                                          Position: [-0.0015998676, 0.107700005, -0.0408000648]
+                                          Rotation: [1.8695966, -1.4635998, -0.414405584]
+                                          Scale: [0.999999881, 1.00000012, 0.99999994]
                                           FollowOwner: true
                                         Childs:
                                           - Name: pinky_02_r
                                             IsEnabled: true
                                             Transform:
-                                              Position: [3.67109365e-09, 0.0402905494, 1.29375053e-08]
-                                              Rotation: [1.3461014, 0.0499858931, 0.0016705218]
-                                              Scale: [0.999999881, 0.999999702, 1]
+                                              Position: [1.77901285e-08, 0.0402905345, -5.24713393e-08]
+                                              Rotation: [1.34610116, 0.0499857925, 0.00167043065]
+                                              Scale: [0.99999994, 0.999999821, 1]
                                               FollowOwner: true
                                             Childs:
                                               - Name: pinky_03_r
                                                 IsEnabled: true
                                                 Transform:
-                                                  Position: [5.33198907e-09, 0.0276652426, -3.03423633e-08]
-                                                  Rotation: [1.34601927, -1.96276233e-07, -0.00121917238]
-                                                  Scale: [1.00000012, 0.99999994, 1]
+                                                  Position: [2.51902605e-08, 0.0276653692, -5.64193954e-08]
+                                                  Rotation: [1.34601879, -2.18045898e-07, -0.00121930044]
+                                                  Scale: [1, 1, 1]
                                                   FollowOwner: true
                                                 Childs:
                                                   - Name: pinky_04_leaf_r
                                                     IsEnabled: true
                                                     Transform:
-                                                      Position: [-2.52862087e-09, 0.028164167, -2.24691519e-08]
-                                                      Rotation: [3.14159274, -7.28539317e-06, -3.1415925]
-                                                      Scale: [1.00000012, 1.00000012, 1.00000012]
+                                                      Position: [9.45880707e-09, 0.0281642266, 2.54248302e-08]
+                                                      Rotation: [-3.14159274, -7.27994939e-06, -3.14159274]
+                                                      Scale: [1.00000012, 1.00000012, 1]
                                                       FollowOwner: true
                                                     Childs:
                                                       []
                                       - Name: ring_01_r
                                         IsEnabled: true
                                         Transform:
-                                          Position: [0.0001000103, 0.119099975, -0.0171000082]
-                                          Rotation: [-0.208956286, -1.53519177, 1.57102478]
-                                          Scale: [0.99999994, 0.999999762, 1.00000012]
+                                          Position: [0.000100072328, 0.11909996, -0.0171000436]
+                                          Rotation: [-0.208952338, -1.53519177, 1.5710206]
+                                          Scale: [0.99999994, 0.999999881, 1.00000024]
                                           FollowOwner: true
                                         Childs:
                                           - Name: ring_02_r
                                             IsEnabled: true
                                             Transform:
-                                              Position: [-1.31396405e-09, 0.0393249318, 5.95860961e-09]
-                                              Rotation: [1.34601867, -4.83832991e-08, -2.45515985e-05]
-                                              Scale: [1.00000012, 1.00000012, 1]
+                                              Position: [-5.28150856e-11, 0.0393249691, 2.57952504e-08]
+                                              Rotation: [1.3460182, 1.2725377e-07, -2.43629311e-05]
+                                              Scale: [0.99999994, 1, 0.999999881]
                                               FollowOwner: true
                                             Childs:
                                               - Name: ring_03_r
                                                 IsEnabled: true
                                                 Transform:
-                                                  Position: [-2.57059902e-08, 0.0309195686, -2.41607623e-08]
-                                                  Rotation: [1.34601653, 4.03262675e-07, 0.00213422277]
-                                                  Scale: [0.99999994, 0.99999994, 1]
+                                                  Position: [-2.45285525e-09, 0.0309195835, 1.35370639e-08]
+                                                  Rotation: [1.34601772, -1.67172402e-07, 0.00213431241]
+                                                  Scale: [1.00000012, 0.99999994, 1]
                                                   FollowOwner: true
                                                 Childs:
                                                   - Name: ring_04_leaf_r
                                                     IsEnabled: true
                                                     Transform:
-                                                      Position: [-1.52893409e-09, 0.0318226144, 1.22207187e-08]
-                                                      Rotation: [3.14159274, -7.30293732e-06, 3.14159274]
-                                                      Scale: [1, 0.999999821, 1]
+                                                      Position: [6.65890543e-09, 0.0318226516, 2.26001227e-08]
+                                                      Rotation: [-3.14159274, -7.31616183e-06, 3.14159274]
+                                                      Scale: [1, 0.999999881, 1]
                                                       FollowOwner: true
                                                     Childs:
                                                       []
                                       - Name: thumb_01_r
                                         IsEnabled: true
                                         Transform:
-                                          Position: [-0.022800006, 0.0273000002, 0.0335999914]
-                                          Rotation: [2.90946388, 0.0263560489, -2.55028796]
-                                          Scale: [0.999999881, 0.999999881, 0.999999881]
+                                          Position: [-0.0227999613, 0.027299989, 0.0335999355]
+                                          Rotation: [2.90946412, 0.0263561681, -2.55028772]
+                                          Scale: [1, 0.99999994, 0.999999881]
                                           FollowOwner: true
                                         Childs:
                                           - Name: thumb_02_r
                                             IsEnabled: true
                                             Transform:
-                                              Position: [3.48474583e-11, 0.043029882, 3.47710483e-08]
-                                              Rotation: [0.442515105, -0.0487781428, -9.58828678e-05]
-                                              Scale: [1, 0.99999994, 1]
+                                              Position: [1.03415649e-08, 0.043029841, -1.93673877e-08]
+                                              Rotation: [0.442514598, -0.0487778634, -9.61038604e-05]
+                                              Scale: [1.00000012, 1, 1]
                                               FollowOwner: true
                                             Childs:
                                               - Name: thumb_03_r
                                                 IsEnabled: true
                                                 Transform:
-                                                  Position: [-1.78312067e-08, 0.0490780212, 2.78625545e-09]
-                                                  Rotation: [1.51577365, -0.000161674398, 0.00107038859]
-                                                  Scale: [1, 1.00000012, 1.00000012]
+                                                  Position: [1.63958802e-08, 0.0490779653, -2.38191049e-08]
+                                                  Rotation: [1.5157733, -0.000162221579, 0.00107085751]
+                                                  Scale: [1, 0.99999994, 1]
                                                   FollowOwner: true
                                                 Childs:
                                                   - Name: thumb_04_leaf_r
                                                     IsEnabled: true
                                                     Transform:
-                                                      Position: [1.01362252e-08, 0.0408622921, 1.33971456e-09]
-                                                      Rotation: [7.03596868e-07, -1.06149411, -1.08715938e-06]
-                                                      Scale: [1, 1, 0.99999994]
+                                                      Position: [8.653263e-09, 0.0408622995, 6.68338451e-09]
+                                                      Rotation: [6.83063263e-07, -1.06149411, -1.10477038e-06]
+                                                      Scale: [1.00000012, 1.00000012, 1]
                                                       FollowOwner: true
                                                     Childs:
                                                       []
           - Name: thigh_l
             IsEnabled: true
             Transform:
-              Position: [0.0890000165, 0.0277708694, 0.0460238159]
-              Rotation: [2.66768861, 0.0813674331, 0.21569325]
-              Scale: [1.00000012, 1, 0.999999881]
+              Position: [0.0890000015, 0.0277707949, 0.0460238159]
+              Rotation: [2.58345246, 0.094476901, 0.221628159]
+              Scale: [1, 1, 0.999999881]
               FollowOwner: true
             Childs:
               - Name: calf_l
                 IsEnabled: true
                 Transform:
-                  Position: [-1.11868592e-09, 0.400309861, -3.13126369e-09]
-                  Rotation: [0.359821141, -0.228233293, -1.97916179e-05]
-                  Scale: [0.99999994, 0.999999881, 1]
+                  Position: [3.50727802e-09, 0.400309861, 1.18852483e-08]
+                  Rotation: [0.470065057, -0.224316999, -1.98081743e-05]
+                  Scale: [1, 0.999999881, 1]
                   FollowOwner: true
                 Childs:
                   - Name: foot_l
                     IsEnabled: true
                     Transform:
-                      Position: [-3.603152e-09, 0.429479867, 5.61936897e-09]
-                      Rotation: [-1.02533472, 0.130452245, 0.149218559]
-                      Scale: [0.99999994, 1, 1.00000012]
+                      Position: [5.44628609e-09, 0.429479897, 2.90831914e-09]
+                      Rotation: [-1.07515562, 0.13521567, 0.140500098]
+                      Scale: [0.999999881, 1.00000012, 1]
                       FollowOwner: true
                     Childs:
                       - Name: ball_l
                         IsEnabled: true
                         Transform:
-                          Position: [-4.54774218e-09, 0.173301086, -2.09764845e-08]
-                          Rotation: [-2.60562634, -0.00103583455, -3.1415925]
-                          Scale: [0.99999994, 0.999999881, 0.99999994]
+                          Position: [-6.1811356e-10, 0.173301086, -8.82331186e-09]
+                          Rotation: [-2.60562634, -0.00103585329, -3.1415925]
+                          Scale: [0.99999994, 0.999999881, 0.999999881]
                           FollowOwner: true
                         Childs:
                           - Name: ball_leaf_l
                             IsEnabled: true
                             Transform:
-                              Position: [-5.49442003e-09, 0.0789000243, -1.32263323e-09]
-                              Rotation: [-2.98023224e-08, -4.08617815e-08, 0]
+                              Position: [-1.49341872e-08, 0.0789000243, -9.46547729e-10]
+                              Rotation: [-2.98023224e-08, -4.08617851e-08, 0]
                               Scale: [1, 1, 1]
                               FollowOwner: true
                             Childs:
@@ -548,40 +549,40 @@ Childs:
           - Name: thigh_r
             IsEnabled: true
             Transform:
-              Position: [-0.0890000015, 0.027770821, 0.0460238233]
-              Rotation: [3.11902094, -0.0303511061, -0.224277124]
-              Scale: [1, 1, 0.999999881]
+              Position: [-0.0890000015, 0.0277707949, 0.0460238159]
+              Rotation: [3.04413223, -0.0478365757, -0.274654269]
+              Scale: [1.00000012, 1, 0.999999821]
               FollowOwner: true
             Childs:
               - Name: calf_r
                 IsEnabled: true
                 Transform:
-                  Position: [3.99818951e-08, 0.400309741, 4.82521534e-09]
-                  Rotation: [0.258856237, 0.738515854, -2.57431293e-05]
-                  Scale: [1, 1.00000012, 0.999999881]
+                  Position: [-1.63073075e-08, 0.400309801, 3.07697228e-08]
+                  Rotation: [0.393712461, 0.728756487, -2.50881822e-05]
+                  Scale: [1, 0.999999881, 1]
                   FollowOwner: true
                 Childs:
                   - Name: foot_r
                     IsEnabled: true
                     Transform:
-                      Position: [1.95534717e-08, 0.429479867, -1.72204917e-08]
-                      Rotation: [-1.23837006, -0.27293852, -0.205013558]
-                      Scale: [1, 1, 0.999999881]
+                      Position: [-2.85140196e-08, 0.429479897, -2.31001041e-09]
+                      Rotation: [-1.30117297, -0.284650952, -0.191809773]
+                      Scale: [1, 1, 1]
                       FollowOwner: true
                     Childs:
                       - Name: ball_r
                         IsEnabled: true
                         Transform:
-                          Position: [-3.24407807e-08, 0.173301071, 1.70742158e-08]
-                          Rotation: [-2.60562634, -0.00103576249, 3.1415925]
-                          Scale: [0.999999881, 0.999999881, 0.999999881]
+                          Position: [6.39968034e-09, 0.173301116, 5.33414868e-09]
+                          Rotation: [-2.60562634, -0.00103573129, 3.1415925]
+                          Scale: [1, 1, 1]
                           FollowOwner: true
                         Childs:
                           - Name: ball_leaf_r
                             IsEnabled: true
                             Transform:
-                              Position: [-5.72520431e-09, 0.0789000392, -3.06833031e-10]
-                              Rotation: [-2.98023224e-08, -4.08617815e-08, -5.29395592e-23]
+                              Position: [-2.9813279e-08, 0.0789000317, 4.07409662e-10]
+                              Rotation: [-2.98023224e-08, -4.08617851e-08, 0]
                               Scale: [1, 1, 1]
                               FollowOwner: true
                             Childs:

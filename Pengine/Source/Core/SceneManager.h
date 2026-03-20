@@ -39,7 +39,7 @@ namespace Pengine
 			{
 				return std::make_shared<T>();
 			};
-			m_ComponentSystemsByName.emplace(name, callback);
+			m_ComponentSystemsByName.emplace_back(name, callback);
 		}
 
 		void SetIsComponentSystemsUpdating(bool isComponentSystemsUpdating) { m_IsComponentSystemsUpdating = isComponentSystemsUpdating; }
@@ -54,7 +54,7 @@ namespace Pengine
 		SceneManager();
 		~SceneManager() = default;
 
-		std::unordered_map<std::string, std::function<std::shared_ptr<ComponentSystem>()>> m_ComponentSystemsByName;
+		std::vector<std::pair<std::string, std::function<std::shared_ptr<ComponentSystem>()>>> m_ComponentSystemsByName;
 
 		std::unordered_map<std::string, std::shared_ptr<Scene>> m_ScenesByName;
 		std::unordered_map<std::string, std::shared_ptr<Scene>> m_ScenesByTag;

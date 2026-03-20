@@ -21,8 +21,12 @@ void FontManager::Initialize()
 	std::filesystem::path filepath;
 	filepath = filepath / "Editor" / "Fonts" / "Calibri.ttf";
 	LoadFont(filepath, 12);
+	LoadFont(filepath, 14);
+	LoadFont(filepath, 16);
 	LoadFont(filepath, 18);
+	LoadFont(filepath, 20);
 	LoadFont(filepath, 24);
+	LoadFont(filepath, 28);
 	LoadFont(filepath, 36);
 	LoadFont(filepath, 48);
 	LoadFont(filepath, 60);

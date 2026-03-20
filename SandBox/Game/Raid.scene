@@ -1,0 +1,55 @@
+Settings:
+  DrawBoundingBoxes: false
+  DrawPhysicsShapes: false
+  Wind:
+    Direction: [1, 1, 1]
+    Frequency: 5
+    Strength: 0
+GraphicsSettings: 0x84beaa5529d21a0d243484fff0af8349
+Scene:
+  # ── Lighting ─────────────────────────────────────────────────────────────
+  - UUID: 0xbb020000000000000000000000000001
+    Name: DirectionalLight
+    IsEnabled: true
+    Transform:
+      Position: [0, 0, 0]
+      Rotation: [2.2, -1.1, 0]
+      Scale: [1, 1, 1]
+      FollowOwner: true
+    Childs:
+      []
+
+  # ── Canvas (UI) ───────────────────────────────────────────────────────────
+  - UUID: 0xbb020000000000000000000000000002
+    Name: Canvas
+    IsEnabled: true
+    Transform:
+      Position: [0, 0, 0]
+      Rotation: [0, 0, 0]
+      Scale: [1, 1, 1]
+      FollowOwner: true
+    Canvas:
+      DrawInMainViewport: true
+      Size: [1920, 1080]
+      ScriptNames:
+        - Crosshair
+        - RaidHUD
+        - Inventory
+        - Loot
+        - GameOver
+    Childs:
+      []
+
+  # ── Player (prefab reference) ─────────────────────────────────────────────
+  # Position will be overridden by ProceduralMapSystem::GenerateMap()
+  - PrefabFilepath: 0x55ac9ef96792c2c7fb780c1ac5a7c200
+    UUID: 0xbb020000000000000000000000000003
+    Transform:
+      Position: [0, 1.5, 0]
+      Rotation: [0, 0, 0]
+      Scale: [1, 1, 1]
+      FollowOwner: true
+
+  # Note: GameState entity is added programmatically by GameStateSystem.
+  # All map geometry, enemies, loot, and extraction points are
+  # spawned at runtime by ProceduralMapSystem::GenerateMap().

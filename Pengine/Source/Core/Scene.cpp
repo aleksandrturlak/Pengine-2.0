@@ -190,12 +190,14 @@ void Scene::ProcessComponentRemove(
 
 std::shared_ptr<ComponentSystem> Scene::GetComponentSystem(const std::string& name)
 {
-	auto componentSystem = m_ComponentSystemsByName.find(name);
-	if (componentSystem != m_ComponentSystemsByName.end())
+	for (const auto& [systemName, system] : m_ComponentSystemsByName)
 	{
-		return componentSystem->second;
+		if (name == systemName)
+		{
+			return system;
+		}
 	}
-
+	
 	return nullptr;
 }
 

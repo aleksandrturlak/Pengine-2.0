@@ -4107,7 +4107,7 @@ void Serializer::SerializeEntity(YAML::Emitter& out, const std::shared_ptr<Entit
 	}
 
 	out << YAML::Key << "Name" << YAML::Value << entity->GetName();
-	out << YAML::Key << "IsEnabled" << YAML::Value << entity->IsEnabled();
+	out << YAML::Key << "IsEnabled" << YAML::Value << entity->IsEnabledLocally();
 
 	SerializeTransform(out, entity);
 	SerializeCamera(out, entity);

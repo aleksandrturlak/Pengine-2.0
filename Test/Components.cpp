@@ -192,7 +192,7 @@ TEST(RigidBody, Defaults)
 		EXPECT_EQ(rb.linearVelocity, glm::vec3(0.0f));
 		EXPECT_EQ(rb.angularVelocity, glm::vec3(0.0f));
 		EXPECT_TRUE(rb.allowSleeping);
-		EXPECT_FALSE(rb.isStatic);
+		EXPECT_EQ(rb.motionType, RigidBody::MotionType::Dynamic);
 		EXPECT_FALSE(rb.isValid);
 
 		entity->RemoveComponent<RigidBody>();
@@ -284,10 +284,10 @@ TEST(RigidBody, StaticBody)
 		std::shared_ptr<Entity> entity = scene->CreateEntity("Physics");
 		RigidBody& rb = entity->AddComponent<RigidBody>();
 
-		rb.isStatic = true;
+		rb.motionType = RigidBody::MotionType::Static;
 		rb.mass = 0.0f;
 
-		EXPECT_TRUE(rb.isStatic);
+		EXPECT_EQ(rb.motionType, RigidBody::MotionType::Static);
 		EXPECT_NEAR(rb.mass, 0.0f, 1e-5f);
 
 		entity->RemoveComponent<RigidBody>();

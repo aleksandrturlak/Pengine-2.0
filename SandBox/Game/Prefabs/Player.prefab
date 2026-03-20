@@ -1,0 +1,110 @@
+Name: Player
+IsEnabled: true
+Transform:
+  Position: [0, 1.5, 0]
+  Rotation: [0, 0, 0]
+  Scale: [1, 1, 1]
+  FollowOwner: true
+RigidBody:
+  MotionType: 2
+  Mass: 80
+  Type: 3
+  HalfHeight: 0.5
+  Radius: 0.5
+  AngularVelocity: [0, 0, 0]
+  LinearVelocity: [0, 0, 0]
+  Friction: 0.100000001
+  Restitution: 0
+  AllowSleeping: false
+PlayerComponent:
+  muzzleFlashDuration:
+    Type: float
+    Value: 0.0599999987
+  muzzleFlashTimer:
+    Type: float
+    Value: 0
+  recoilRecovery:
+    Type: float
+    Value: 6
+  recoilPitch:
+    Type: float
+    Value: 0
+  recoilDuration:
+    Type: float
+    Value: 0.180000007
+  recoilTimer:
+    Type: float
+    Value: 0
+  hitFlashTimer:
+    Type: float
+    Value: 0
+  health:
+    Type: float
+    Value: 100
+  gameOverHandled:
+    Type: bool
+    Value: false
+  jumpSpeed:
+    Type: float
+    Value: 7
+  mouseSensitivity:
+    Type: float
+    Value: 1
+  shootCooldown:
+    Type: float
+    Value: 0
+  maxHealth:
+    Type: float
+    Value: 100
+  moveSpeed:
+    Type: float
+    Value: 6
+  pitchAngle:
+    Type: float
+    Value: 0
+  activeWeaponSlot:
+    Type: int
+    Value: 0
+  recoilYaw:
+    Type: float
+    Value: 0
+  weaponsInitialized:
+    Type: bool
+    Value: false
+  isAlive:
+    Type: bool
+    Value: true
+  yawAngle:
+    Type: float
+    Value: 0
+  cursorDisabled:
+    Type: bool
+    Value: false
+Childs:
+  - Name: PlayerCamera
+    IsEnabled: true
+    Transform:
+      Position: [0, 0.600000024, 0]
+      Rotation: [0, 0, 0]
+      Scale: [1, 1, 1]
+      FollowOwner: true
+    Camera:
+      Fov: 1.57079637
+      Type: 1
+      ZNear: 0.0500000007
+      ZFar: 500
+      PassName: AntiAliasingAndCompose
+      RenderTargetIndex: 0
+      ObjectVisibilityMask: 255
+      ShadowVisibilityMask: 255
+      Viewport: Main
+    PointLight:
+      Color: [1, 1, 1]
+      Intensity: 1
+      Radius: 3
+      Bias: 0.00999999978
+      DrawBoundingSphere: false
+      CastShadows: false
+      CastSSS: false
+    Childs:
+      []

@@ -22,7 +22,8 @@ namespace Pengine
 			RotationVec3 = 1 << 2,
 			ScaleMat4 = 1 << 3,
 			TransformMat4 = 1 << 4,
-			AllTransform = TranslateMat4 | RotationMat4 | RotationVec3 | ScaleMat4 | TransformMat4
+			VectorsDirty = 1 << 5,
+			AllTransform = TranslateMat4 | RotationMat4 | RotationVec3 | ScaleMat4 | TransformMat4 | VectorsDirty
 		};
 
 		using DirtyFlags = uint32_t;
@@ -41,9 +42,9 @@ namespace Pengine
 		mutable TransformData m_LocalTransformData{};
 		mutable TransformData m_GlobalTransformData{};
 
-		glm::vec3 m_Forward{};
-		glm::vec3 m_Up{};
-		glm::vec3 m_Right{};
+		mutable glm::vec3 m_Forward{};
+		mutable glm::vec3 m_Up{};
+		mutable glm::vec3 m_Right{};
 
 		std::unordered_map<std::string, std::function<void()>> m_OnRotationCallbacks;
 		std::unordered_map<std::string, std::function<void()>> m_OnTranslationCallbacks;
@@ -56,7 +57,7 @@ namespace Pengine
 		mutable DirtyFlags m_IsDirty = DirtyFlagBits::AllTransform;
 
 		void Move(Transform&& transform) noexcept;
-		void UpdateVectors();
+		void UpdateVectors() const;
 		void UpdateTransforms();
 
 	public:
@@ -91,13 +92,13 @@ namespace Pengine
 		
 		[[nodiscard]] glm::vec3 GetScale(System system = System::GLOBAL) const;
 		
-		[[nodiscard]] glm::vec3 GetBack() const { return glm::normalize(-m_Forward); }
-		
-		[[nodiscard]] glm::vec3 GetUp() const { return m_Up; }
-		
-		[[nodiscard]] glm::vec3 GetForward() const { return m_Forward; }
-		
-		[[nodiscard]] glm::vec3 GetRight() const { return m_Right; }
+		[[nodiscard]] glm::vec3 GetBack() const;
+
+		[[nodiscard]] glm::vec3 GetUp() const;
+
+		[[nodiscard]] glm::vec3 GetForward() const;
+
+		[[nodiscard]] glm::vec3 GetRight() const;
 		
 		[[nodiscard]] const glm::mat4& GetTransform(System system = System::GLOBAL) const;
 

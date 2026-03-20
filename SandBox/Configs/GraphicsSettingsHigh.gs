@@ -1,5 +1,5 @@
 HiZOcclusionCulling:
-  IsEnabled: true
+  IsEnabled: false
   DepthBias: 0.0199999996
 SSAO:
   IsEnabled: true
@@ -71,18 +71,18 @@ Antialiasing:
   TAAMinBlendFactor: 0.850000024
   TAAMaxBlendFactor: 0.970000029
 RayTracedShadows:
-  DirectionalLight: true
-  PointLight: true
-  SpotLight: true
+  DirectionalLight: false
+  PointLight: false
+  SpotLight: false
 RayTracedReflections:
   IsRayTraced: true
 DDGI:
   IsEnabled: false
   VisualizeProbes: false
-  GridX: 14
-  GridY: 6
+  GridX: 10
+  GridY: 2
   GridZ: 10
-  ProbeSpacing: 1.95000005
+  ProbeSpacing: 3
   RaysPerProbe: 96
   FollowCamera: false
-  FixedOrigin: [0, 5.5, 0]
+  FixedOrigin: [0, 3, 0]
