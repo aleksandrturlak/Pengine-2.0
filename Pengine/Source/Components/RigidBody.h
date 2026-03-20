@@ -12,6 +12,13 @@ namespace Pengine
 	{
 	public:
 
+		enum class MotionType
+		{
+			Static,    // Immovable, zero cost in simulation
+			Kinematic, // Moved by code (transform drives physics)
+			Dynamic    // Fully simulated (physics drives transform)
+		};
+
 		enum class Type
 		{
 			Box,
@@ -60,8 +67,9 @@ namespace Pengine
 		glm::vec3 linearVelocity = {};
 		glm::vec3 angularVelocity = {};
 
+		MotionType motionType = MotionType::Dynamic;
+
 		bool allowSleeping = true;
-		bool isStatic = false;
 		bool isValid = false;
 	};
 

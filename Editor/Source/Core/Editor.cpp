@@ -3262,7 +3262,15 @@ void Editor::PhysicsBoxComponent(const std::shared_ptr<Entity>& entity)
 	{
 		Indent indent;
 
-		ImGui::Checkbox("Is Static", &rigidBody.isStatic);
+		const char* motionTypes[] = { "Static", "Kinematic", "Dynamic" };
+		int motionType = (int)rigidBody.motionType;
+		ImGui::PushID("MotionType");
+		if (ImGui::Combo("Motion Type", &motionType, motionTypes, 3))
+		{
+			rigidBody.motionType = (RigidBody::MotionType)motionType;
+			rigidBody.isValid = false;
+		}
+		ImGui::PopID();
 		ImGui::Checkbox("Is Valid", &rigidBody.isValid);
 
 		auto& physicsSystem = entity->GetScene()->GetPhysicsSystem()->GetInstance();

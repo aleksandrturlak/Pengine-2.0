@@ -52,6 +52,12 @@ namespace Pengine
 		void AddImpulse(const RigidBody& rb, const glm::vec3& impulse);
 		void AddTorque(const RigidBody& rb, const glm::vec3& torque);
 
+		void SetLinearVelocity(const RigidBody& rb, const glm::vec3& velocity);
+		void SetAngularVelocity(const RigidBody& rb, const glm::vec3& velocity);
+
+		// Teleport a Dynamic body to a new position/rotation. Transform syncs back next frame.
+		void Teleport(const RigidBody& rb, const glm::vec3& position, const glm::quat& rotation);
+
 	private:
 
 		JPH::PhysicsSystem m_PhysicsSystem;
@@ -141,11 +147,15 @@ namespace Pengine
 		ObjectVsBroadPhaseLayerFilterImpl m_ObjectVsBroadPhaseLayerFilterImpl;
 		ObjectLayerPairFilterImpl m_ObjectLayerPairFilterImpl;
 
+		enum class CollisionType { Enter, Stay, Exit };
+
 		struct PendingCollision
 		{
-			int type; // 0=Enter, 1=Stay, 2=Exit
+			CollisionType type;
 			JPH::BodyID bodyA;
 			JPH::BodyID bodyB;
+			glm::vec3 contactPoint{};
+			glm::vec3 contactNormal{};
 		};
 
 		class ContactListenerImpl : public JPH::ContactListener
@@ -162,24 +172,42 @@ namespace Pengine
 
 			virtual void OnContactAdded(
 				const JPH::Body& body1, const JPH::Body& body2,
-				const JPH::ContactManifold&, JPH::ContactSettings&) override
+				const JPH::ContactManifold& manifold, JPH::ContactSettings&) override
 			{
+				glm::vec3 contactPoint{};
+				glm::vec3 contactNormal{};
+				if (manifold.mRelativeContactPointsOn1.size() > 0)
+				{
+					const JPH::Vec3 pt = manifold.mBaseOffset + manifold.mRelativeContactPointsOn1[0];
+					contactPoint = { pt.GetX(), pt.GetY(), pt.GetZ() };
+					const JPH::Vec3 n = manifold.mWorldSpaceNormal;
+					contactNormal = { n.GetX(), n.GetY(), n.GetZ() };
+				}
 				std::lock_guard<std::mutex> lock(m_Owner->m_PendingCollisionMutex);
-				m_Owner->m_PendingCollisions.push_back({ 0, body1.GetID(), body2.GetID() });
+				m_Owner->m_PendingCollisions.push_back({ CollisionType::Enter, body1.GetID(), body2.GetID(), contactPoint, contactNormal });
 			}
 
 			virtual void OnContactPersisted(
 				const JPH::Body& body1, const JPH::Body& body2,
-				const JPH::ContactManifold&, JPH::ContactSettings&) override
+				const JPH::ContactManifold& manifold, JPH::ContactSettings&) override
 			{
+				glm::vec3 contactPoint{};
+				glm::vec3 contactNormal{};
+				if (manifold.mRelativeContactPointsOn1.size() > 0)
+				{
+					const JPH::Vec3 pt = manifold.mBaseOffset + manifold.mRelativeContactPointsOn1[0];
+					contactPoint = { pt.GetX(), pt.GetY(), pt.GetZ() };
+					const JPH::Vec3 n = manifold.mWorldSpaceNormal;
+					contactNormal = { n.GetX(), n.GetY(), n.GetZ() };
+				}
 				std::lock_guard<std::mutex> lock(m_Owner->m_PendingCollisionMutex);
-				m_Owner->m_PendingCollisions.push_back({ 1, body1.GetID(), body2.GetID() });
+				m_Owner->m_PendingCollisions.push_back({ CollisionType::Stay, body1.GetID(), body2.GetID(), contactPoint, contactNormal });
 			}
 
 			virtual void OnContactRemoved(const JPH::SubShapeIDPair& pair) override
 			{
 				std::lock_guard<std::mutex> lock(m_Owner->m_PendingCollisionMutex);
-				m_Owner->m_PendingCollisions.push_back({ 2, pair.GetBody1ID(), pair.GetBody2ID() });
+				m_Owner->m_PendingCollisions.push_back({ CollisionType::Exit, pair.GetBody1ID(), pair.GetBody2ID() });
 			}
 
 		private:

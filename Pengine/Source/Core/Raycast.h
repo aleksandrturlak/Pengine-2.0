@@ -11,6 +11,7 @@ namespace Pengine
 		struct PhysicsHit
 		{
 			glm::vec3 point{};
+			glm::vec3 normal{};
 			float fraction = 1.0f;
 			std::shared_ptr<class Entity> entity;
 		};
@@ -79,6 +80,16 @@ namespace Pengine
 			std::shared_ptr<class Scene> scene,
 			const glm::vec3& origin,
 			const glm::vec3& direction,
+			float length,
+			PhysicsHit& hit,
+			std::shared_ptr<class Entity> ignoredEntity = nullptr);
+
+		// Sweeps a sphere along a ray and returns the first physics body hit.
+		static bool ShapecastSpherePhysics(
+			std::shared_ptr<class Scene> scene,
+			const glm::vec3& origin,
+			const glm::vec3& direction,
+			float radius,
 			float length,
 			PhysicsHit& hit);
 

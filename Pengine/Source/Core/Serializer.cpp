@@ -5077,7 +5077,7 @@ void Serializer::SerializeRigidBody(YAML::Emitter& out, const std::shared_ptr<En
 
 	out << YAML::BeginMap;
 
-	out << YAML::Key << "IsStatic" << YAML::Value << rigidBody.isStatic;
+	out << YAML::Key << "MotionType" << YAML::Value << (int)rigidBody.motionType;
 	out << YAML::Key << "Mass" << YAML::Value << rigidBody.mass;
 	out << YAML::Key << "Type" << YAML::Value << (int)rigidBody.type;
 
@@ -5127,9 +5127,15 @@ void Serializer::DeserializeRigidBody(const YAML::Node& in, const std::shared_pt
 
 		auto& rigidBody = entity->GetComponent<RigidBody>();
 		
-		if (const auto& isStaticData = rigidBodyData["IsStatic"])
+		if (const auto& motionTypeData = rigidBodyData["MotionType"])
 		{
-			rigidBody.isStatic = isStaticData.as<bool>();
+			rigidBody.motionType = (RigidBody::MotionType)motionTypeData.as<int>();
+		}
+		else if (const auto& isStaticData = rigidBodyData["IsStatic"]) // backward compat
+		{
+			rigidBody.motionType = isStaticData.as<bool>()
+				? RigidBody::MotionType::Static
+				: RigidBody::MotionType::Dynamic;
 		}
 
 		if (const auto& massData = rigidBodyData["Mass"])

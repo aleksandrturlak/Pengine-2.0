@@ -14,6 +14,14 @@
 
 #include <Jolt/Physics/Collision/RayCast.h>
 #include <Jolt/Physics/Collision/CastResult.h>
+#include <Jolt/Physics/Collision/ShapeCast.h>
+#include <Jolt/Physics/Collision/CollisionCollectorImpl.h>
+#include <Jolt/Physics/Collision/Shape/SphereShape.h>
+#include <Jolt/Physics/Body/BodyFilter.h>
+#include <Jolt/Physics/Body/Body.h>
+#include <Jolt/Physics/Body/BodyLock.h>
+
+#include "../Components/RigidBody.h"
 
 using namespace Pengine;
 
@@ -238,7 +246,8 @@ bool Raycast::RaycastPhysics(
 	const glm::vec3& origin,
 	const glm::vec3& direction,
 	float length,
-	PhysicsHit& hit)
+	PhysicsHit& hit,
+	std::shared_ptr<Entity> ignoredEntity)
 {
 	if (!scene)
 	{
@@ -251,7 +260,33 @@ bool Raycast::RaycastPhysics(
 	JPH::RRayCast ray(joltOrigin, joltDirection);
 	JPH::RayCastResult result;
 
-	if (!scene->GetPhysicsSystem()->GetInstance().GetNarrowPhaseQuery().CastRay(ray, result))
+	struct IgnoreBodyFilter : public JPH::BodyFilter
+	{
+		JPH::BodyID m_ignored;
+		explicit IgnoreBodyFilter(JPH::BodyID id) : m_ignored(id) {}
+		bool ShouldCollide(const JPH::BodyID& id) const override { return id != m_ignored; }
+	};
+
+	bool didHit;
+	if (ignoredEntity && ignoredEntity->HasComponent<RigidBody>())
+	{
+		const RigidBody& rb = ignoredEntity->GetComponent<RigidBody>();
+		if (rb.isValid)
+		{
+			IgnoreBodyFilter filter(rb.id);
+			didHit = scene->GetPhysicsSystem()->GetInstance().GetNarrowPhaseQuery().CastRay(ray, result, {}, {}, filter);
+		}
+		else
+		{
+			didHit = scene->GetPhysicsSystem()->GetInstance().GetNarrowPhaseQuery().CastRay(ray, result);
+		}
+	}
+	else
+	{
+		didHit = scene->GetPhysicsSystem()->GetInstance().GetNarrowPhaseQuery().CastRay(ray, result);
+	}
+
+	if (!didHit)
 	{
 		return false;
 	}
@@ -263,7 +298,63 @@ bool Raycast::RaycastPhysics(
 	}
 
 	hit.fraction = result.mFraction;
-	hit.point = origin + direction * (length * result.mFraction);
+	hit.point    = origin + direction * (length * result.mFraction);
+	hit.entity   = scene->GetRegistry().get<Transform>(handle).GetEntity();
+
+	// Fetch the surface normal from Jolt
+	{
+		JPH::BodyLockRead lock(scene->GetPhysicsSystem()->GetInstance().GetBodyLockInterface(), result.mBodyID);
+		if (lock.Succeeded())
+		{
+			const JPH::Vec3 joltHitPoint = GlmVec3ToJoltVec3(hit.point);
+			const JPH::Vec3 joltNormal   = lock.GetBody().GetWorldSpaceSurfaceNormal(result.mSubShapeID2, joltHitPoint);
+			hit.normal = JoltVec3ToGlmVec3(joltNormal);
+		}
+	}
+
+	return true;
+}
+
+bool Raycast::ShapecastSpherePhysics(
+	std::shared_ptr<Scene> scene,
+	const glm::vec3& origin,
+	const glm::vec3& direction,
+	float radius,
+	float length,
+	PhysicsHit& hit)
+{
+	if (!scene)
+	{
+		return false;
+	}
+
+	const JPH::SphereShape sphere(radius);
+	const JPH::RVec3 joltOrigin = GlmVec3ToJoltVec3(origin);
+	const JPH::Vec3 joltDirection = GlmVec3ToJoltVec3(direction * length);
+	const JPH::RShapeCast shapeCast = JPH::RShapeCast::sFromWorldTransform(
+		&sphere,
+		JPH::Vec3::sReplicate(1.0f),
+		JPH::RMat44::sTranslation(joltOrigin),
+		joltDirection);
+
+	JPH::ShapeCastSettings settings;
+	JPH::ClosestHitCollisionCollector<JPH::CastShapeCollector> collector;
+	scene->GetPhysicsSystem()->GetInstance().GetNarrowPhaseQuery().CastShape(
+		shapeCast, settings, JPH::RVec3::sZero(), collector);
+
+	if (!collector.HadHit())
+	{
+		return false;
+	}
+
+	const entt::entity handle = scene->GetPhysicsSystem()->GetEntity(collector.mHit.mBodyID2);
+	if (handle == entt::tombstone)
+	{
+		return false;
+	}
+
+	hit.fraction = collector.mHit.mFraction;
+	hit.point = origin + direction * (length * collector.mHit.mFraction);
 	hit.entity = scene->GetRegistry().get<Transform>(handle).GetEntity();
 	return true;
 }

@@ -54,7 +54,7 @@ PhysicsSystem::PhysicsSystem()
 		m_DestroyBodies.emplace_back(rigidBody.id);
 		m_EntitiesByBodyId.erase(rigidBody.id);
 	};
-	m_RemoveCallbacks[GetTypeName<RigidBody>()] = callback;
+	m_RemoveCallbacks[std::string(GetTypeName<RigidBody>())] = callback;
 }
 
 PhysicsSystem::~PhysicsSystem()
@@ -83,7 +83,7 @@ void PhysicsSystem::OnUpdate(const float deltaTime, std::shared_ptr<Scene> scene
 		Transform& transform = scene->GetRegistry().get<Transform>(handle);
 		RigidBody& rigidBody = scene->GetRegistry().get<RigidBody>(handle);
 
-		if (rigidBody.isStatic)
+		if (rigidBody.motionType != RigidBody::MotionType::Dynamic)
 		{
 			continue;
 		}
@@ -111,8 +111,8 @@ void PhysicsSystem::OnUpdate(const float deltaTime, std::shared_ptr<Scene> scene
 			transform.Translate(position);
 			transform.Rotate(rotation);
 
-			// rigidBody.linearVelocity = JoltVec3ToGlmVec3(body.GetLinearVelocity());
-			// rigidBody.angularVelocity = JoltVec3ToGlmVec3(body.GetAngularVelocity());
+			rigidBody.linearVelocity = JoltVec3ToGlmVec3(body.GetLinearVelocity());
+			rigidBody.angularVelocity = JoltVec3ToGlmVec3(body.GetAngularVelocity());
 		}
 	}
 
@@ -137,13 +137,13 @@ void PhysicsSystem::OnUpdate(const float deltaTime, std::shared_ptr<Scene> scene
 		Event::Type eventType;
 		switch (pending.type)
 		{
-		case 0: eventType = Event::Type::OnCollisionEnter;   break;
-		case 1: eventType = Event::Type::OnCollisionStay;    break;
-		case 2: eventType = Event::Type::OnCollisionExit;    break;
+		case CollisionType::Enter: eventType = Event::Type::OnCollisionEnter; break;
+		case CollisionType::Stay:  eventType = Event::Type::OnCollisionStay;  break;
+		case CollisionType::Exit:  eventType = Event::Type::OnCollisionExit;  break;
 		default: continue;
 		}
 
-		auto event = std::make_shared<CollisionEvent>(entityA, entityB, eventType, this);
+		auto event = std::make_shared<CollisionEvent>(entityA, entityB, eventType, pending.contactPoint, pending.contactNormal, this);
 		EventSystem::GetInstance().SendEvent(event);
 	}
 }
@@ -164,11 +164,16 @@ void PhysicsSystem::UpdateBodies(std::shared_ptr<Scene> scene)
 
 		if (rigidBody.isValid)
 		{
-			m_PhysicsSystem.GetBodyInterface().SetPositionAndRotationWhenChanged(
-				rigidBody.id,
-				GlmVec3ToJoltVec3(position),
-				GlmQuatToJoltQuat(rotation),
-				JPH::EActivation::Activate);
+			// Dynamic bodies are driven by Jolt; only Static/Kinematic bodies
+			// need their transform pushed into the physics world each frame.
+			if (rigidBody.motionType != RigidBody::MotionType::Dynamic)
+			{
+				m_PhysicsSystem.GetBodyInterface().SetPositionAndRotationWhenChanged(
+					rigidBody.id,
+					GlmVec3ToJoltVec3(position),
+					GlmQuatToJoltQuat(rotation),
+					JPH::EActivation::DontActivate);
+			}
 		}
 		else
 		{
@@ -207,25 +212,43 @@ void PhysicsSystem::UpdateBodies(std::shared_ptr<Scene> scene)
 			}
 			}
 
+			JPH::EMotionType joltMotionType;
+			JPH::ObjectLayer objectLayer;
+			switch (rigidBody.motionType)
+			{
+			case RigidBody::MotionType::Static:
+				joltMotionType = JPH::EMotionType::Static;
+				objectLayer = ObjectLayers::STATIC;
+				break;
+			case RigidBody::MotionType::Kinematic:
+				joltMotionType = JPH::EMotionType::Kinematic;
+				objectLayer = ObjectLayers::STATIC;
+				break;
+			default:
+				joltMotionType = JPH::EMotionType::Dynamic;
+				objectLayer = ObjectLayers::DYNAMIC;
+				break;
+			}
+
 			JPH::BodyCreationSettings bodySettings(
 				shapeResult.Get(),
 				GlmVec3ToJoltVec3(position),
 				GlmQuatToJoltQuat(rotation),
-				rigidBody.isStatic ? JPH::EMotionType::Kinematic : JPH::EMotionType::Dynamic,
-				rigidBody.isStatic ? ObjectLayers::STATIC : ObjectLayers::DYNAMIC
+				joltMotionType,
+				objectLayer
 			);
 
-			if (!rigidBody.isStatic)
+			if (rigidBody.motionType == RigidBody::MotionType::Dynamic)
 			{
 				bodySettings.mOverrideMassProperties = JPH::EOverrideMassProperties::CalculateInertia;
 				bodySettings.mMassPropertiesOverride.mMass = rigidBody.mass;
+				bodySettings.mLinearVelocity = GlmVec3ToJoltVec3(rigidBody.linearVelocity);
+				bodySettings.mAngularVelocity = GlmVec3ToJoltVec3(rigidBody.angularVelocity);
 			}
 
 			bodySettings.mFriction = rigidBody.friction;
 			bodySettings.mRestitution = rigidBody.restitution;
 			bodySettings.mAllowSleeping = rigidBody.allowSleeping;
-			// bodySettings.mLinearVelocity = GlmVec3ToJoltVec3(rigidBody.linearVelocity);
-			// bodySettings.mAngularVelocity = GlmVec3ToJoltVec3(rigidBody.angularVelocity);
 
 			JPH::Body* body = m_PhysicsSystem.GetBodyInterface().CreateBody(bodySettings);
 			rigidBody.id = body->GetID();
@@ -280,4 +303,35 @@ void PhysicsSystem::AddTorque(const RigidBody& rb, const glm::vec3& torque)
 		return;
 	}
 	m_PhysicsSystem.GetBodyInterface().AddTorque(rb.id, GlmVec3ToJoltVec3(torque), JPH::EActivation::Activate);
+}
+
+void PhysicsSystem::SetLinearVelocity(const RigidBody& rb, const glm::vec3& velocity)
+{
+	if (!rb.isValid || rb.id.IsInvalid())
+	{
+		return;
+	}
+	m_PhysicsSystem.GetBodyInterface().SetLinearVelocity(rb.id, GlmVec3ToJoltVec3(velocity));
+}
+
+void PhysicsSystem::SetAngularVelocity(const RigidBody& rb, const glm::vec3& velocity)
+{
+	if (!rb.isValid || rb.id.IsInvalid())
+	{
+		return;
+	}
+	m_PhysicsSystem.GetBodyInterface().SetAngularVelocity(rb.id, GlmVec3ToJoltVec3(velocity));
+}
+
+void PhysicsSystem::Teleport(const RigidBody& rb, const glm::vec3& position, const glm::quat& rotation)
+{
+	if (!rb.isValid || rb.id.IsInvalid())
+	{
+		return;
+	}
+	m_PhysicsSystem.GetBodyInterface().SetPositionAndRotation(
+		rb.id,
+		GlmVec3ToJoltVec3(position),
+		GlmQuatToJoltQuat(rotation),
+		JPH::EActivation::Activate);
 }
