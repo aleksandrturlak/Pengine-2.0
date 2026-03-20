@@ -39,7 +39,7 @@ void RenderPassManager::CreateToneMappingPass()
 	glm::vec4 clearColor = { 1.0f, 1.0f, 1.0f, 1.0f };
 
 	RenderPass::AttachmentDescription color{};
-	color.textureCreateInfo.format = Format::R8G8B8A8_SRGB;
+	color.textureCreateInfo.format = Format::B10G11R11_UFLOAT_PACK32;
 	color.textureCreateInfo.aspectMask = Texture::AspectMask::COLOR;
 	color.textureCreateInfo.instanceSize = sizeof(uint8_t) * 4;
 	color.textureCreateInfo.isMultiBuffered = true;
@@ -140,7 +140,7 @@ void RenderPassManager::CreateAntiAliasingAndComposePass()
 	glm::vec4 clearColor = { 1.0f, 1.0f, 1.0f, 1.0f };
 
 	RenderPass::AttachmentDescription color{};
-	color.textureCreateInfo.format = Format::R8G8B8A8_SRGB;
+	color.textureCreateInfo.format = Format::B10G11R11_UFLOAT_PACK32;
 	color.textureCreateInfo.aspectMask = Texture::AspectMask::COLOR;
 	color.textureCreateInfo.instanceSize = sizeof(uint8_t) * 4;
 	color.textureCreateInfo.isMultiBuffered = true;

@@ -53,7 +53,7 @@ namespace Pengine
 		template<typename T>
 		void RemoveComponent()
 		{
-			NotifySceneAboutComponentRemove(GetTypeName<T>());
+			NotifySceneAboutComponentRemove(std::string(GetTypeName<T>()));
 			m_Registry->remove<T>(m_Handle);
 		}
 

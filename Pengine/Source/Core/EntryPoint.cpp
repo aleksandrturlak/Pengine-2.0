@@ -149,7 +149,7 @@ void EntryPoint::Run() const
 	FontManager::GetInstance().Initialize();
 
 	std::shared_ptr<Window> mainWindow = WindowManager::GetInstance().Create("Pengine", "Main",
-		{ 800, 800 });
+		{ 1920, 1080 });
 
 	mainWindow->GetViewportManager().Create("Main", { 800, 800 });
 

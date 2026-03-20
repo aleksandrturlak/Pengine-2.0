@@ -54,6 +54,7 @@ void RenderPassManager::CreateSSS()
 
 		const GraphicsSettings::Shadows::SSS& sssSettings = renderInfo.scene->GetGraphicsSettings().shadows.sss;
 		const GraphicsSettings::Shadows::CSM& csmSettings = renderInfo.scene->GetGraphicsSettings().shadows.csm;
+		const GraphicsSettings::RayTracing& rayTracingSettings = renderInfo.scene->GetGraphicsSettings().rayTracing;
 		constexpr float resolutionScales[] = { 0.25f, 0.5f, 0.75f, 1.0f };
 		const glm::ivec2 currentViewportSize = glm::vec2(renderInfo.viewportSize) * glm::vec2(resolutionScales[sssSettings.resolutionScale]);
 
@@ -69,7 +70,7 @@ void RenderPassManager::CreateSSS()
 
 		std::shared_ptr<Texture> sssTexture = renderInfo.renderView->GetStorageImage(passName);
 
-		if (!sssSettings.isEnabled || !csmSettings.isEnabled)
+		if (!sssSettings.isEnabled || !csmSettings.isEnabled || rayTracingSettings.shadows.directionalLight)
 		{
 			renderInfo.renderView->DeleteUniformWriter(passName);
 			renderInfo.renderView->DeleteStorageImage(passName);
@@ -144,6 +145,7 @@ void RenderPassManager::CreateSSSBlur()
 
 		const GraphicsSettings::Shadows::SSS& sssSettings = renderInfo.scene->GetGraphicsSettings().shadows.sss;
 		const GraphicsSettings::Shadows::CSM& csmSettings = renderInfo.scene->GetGraphicsSettings().shadows.csm;
+		const GraphicsSettings::RayTracing& rayTracingSettings = renderInfo.scene->GetGraphicsSettings().rayTracing;
 		constexpr float resolutionScales[] = { 0.25f, 0.5f, 0.75f, 1.0f };
 		const glm::ivec2 currentViewportSize = glm::vec2(renderInfo.viewportSize) * glm::vec2(resolutionScales[sssSettings.resolutionBlurScale]);
 
@@ -158,7 +160,7 @@ void RenderPassManager::CreateSSSBlur()
 		createInfo.isMultiBuffered = true;
 
 		std::shared_ptr<Texture> sssBlurTexture = renderInfo.renderView->GetStorageImage(passName);
-		if (!sssSettings.isEnabled || !csmSettings.isEnabled)
+		if (!sssSettings.isEnabled || !csmSettings.isEnabled || rayTracingSettings.shadows.directionalLight)
 		{
 			renderInfo.renderView->DeleteUniformWriter(passName);
 			renderInfo.renderView->DeleteStorageImage(passName);
