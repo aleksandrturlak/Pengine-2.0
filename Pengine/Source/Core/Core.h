@@ -89,9 +89,9 @@ struct path_hash
 };
 
 template<typename T>
-inline constexpr const char* GetTypeName()
+inline constexpr std::string_view GetTypeName()
 {
-	return entt::type_name<std::remove_cv_t<std::remove_reference_t<T>>>().value().data();
+	return entt::type_name<std::remove_cv_t<std::remove_reference_t<T>>>().value();
 }
 
 template<typename T>

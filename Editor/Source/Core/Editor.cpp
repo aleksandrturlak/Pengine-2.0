@@ -2590,7 +2590,8 @@ void Editor::ComponentsPopUpMenu(const std::shared_ptr<Entity>& entity)
 		ReflectionSystem& reflectionSystem = ReflectionSystem::GetInstance();
 		for (auto& [id, registeredClass] : reflectionSystem.m_ClassesByType)
 		{
-			if (ImGui::MenuItem(registeredClass.m_TypeInfo.name().data()))
+			const std::string_view typeName = registeredClass.m_TypeInfo.name();
+			if (ImGui::MenuItem(std::string(typeName.data(), typeName.size()).c_str()))
 			{
 				registeredClass.m_CreateCallback(entity->GetRegistry(), entity->GetHandle());
 			}
@@ -3571,7 +3572,8 @@ if (prop.IsValue<_type>()) \
 
 			ImGui::SameLine();
 
-			if (ImGui::CollapsingHeader(registeredClass.m_TypeInfo.name().data()))
+			const std::string_view typeName = registeredClass.m_TypeInfo.name();
+			if (ImGui::CollapsingHeader(std::string(typeName.data(), typeName.size()).c_str()))
 			{
 				Indent indent;
 

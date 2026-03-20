@@ -5360,7 +5360,8 @@ if (prop.IsValue<_type>()) \
 			const auto& registeredClass = classByType->second;
 			void* component = storage.value(entity->GetHandle());
 
-			out << YAML::Key << registeredClass.m_TypeInfo.name().data();
+			const auto typeName = registeredClass.m_TypeInfo.name();
+			out << YAML::Key << std::string(typeName.data(), typeName.size());
 
 			out << YAML::BeginMap;
 
@@ -5424,7 +5425,8 @@ if (GetTypeName<_type>() == type)               \
 	ReflectionSystem& reflectionSystem = ReflectionSystem::GetInstance();
 	for (auto& [id, registeredClass] : reflectionSystem.m_ClassesByType)
 	{
-		if (const auto& userComponentData = in[registeredClass.m_TypeInfo.name().data()])
+		const auto typeName = registeredClass.m_TypeInfo.name();
+		if (const auto& userComponentData = in[std::string(typeName.data(), typeName.size())])
 		{
 			void* component = registeredClass.m_CreateCallback(entity->GetRegistry(), entity->GetHandle());
 			deserialize(userComponentData, component, registeredClass, 0);
