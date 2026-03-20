@@ -13,14 +13,10 @@ namespace Pengine
 
 		struct Script
 		{
-			/**
-			 * A function that contains clay functions for ui.
-			 * CANVAS_BEGIN macro has to be called firstly inside of this function.
-			 */
-			std::function<Clay_RenderCommandArray(Canvas*, std::shared_ptr<class Entity>)> callback;
 			std::string name;
 
 			Clay_Context* context{};
+		void* arenaMemory{};
 		};
 
 		std::vector<Script> scripts;

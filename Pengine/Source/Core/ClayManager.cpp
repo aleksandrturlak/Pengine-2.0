@@ -14,6 +14,10 @@ void ClayManager::Init(Canvas* canvas, Clay_Context* context)
 {
 	Clay_SetCurrentContext(context);
 	Clay_SetMeasureTextFunction(canvas->measureText, nullptr);
+	if (canvas->queryScrollOffset)
+	{
+		Clay_SetQueryScrollOffsetFunction(canvas->queryScrollOffset, nullptr);
+	}
 	Clay_SetLayoutDimensions({ (float)canvas->size.x, (float)canvas->size.y });
 }
 

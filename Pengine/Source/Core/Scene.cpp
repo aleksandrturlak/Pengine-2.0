@@ -282,7 +282,7 @@ std::shared_ptr<Entity> Scene::CreateCanvas()
 	auto& r3d = entity->AddComponent<Renderer3D>();
 	r3d.mesh = MeshManager::GetInstance().LoadMesh(std::filesystem::path("Meshes") / "Plane.mesh");
 
-	const std::shared_ptr<Material> defaultMaterial = MaterialManager::GetInstance().LoadMaterial(std::filesystem::path("Materials") / "UIBase.mat");
+	const std::shared_ptr<Material> defaultMaterial = MaterialManager::GetInstance().LoadMaterial(std::filesystem::path("Materials") / "MeshBase.mat");
 	const std::string name = std::to_string(UUID::Generate());
 	std::filesystem::path filepath = defaultMaterial->GetFilepath().parent_path() / name;
 	filepath.replace_extension(FileFormats::Mat());

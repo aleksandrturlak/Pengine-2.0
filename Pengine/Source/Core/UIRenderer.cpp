@@ -28,7 +28,7 @@ UIRenderer::UIRenderer()
 	m_WhiteTexture = TextureManager::GetInstance().GetWhite().get();
 }
 
-UIRenderer ::~UIRenderer()
+UIRenderer::~UIRenderer()
 {
 	m_Batches.clear();
 }
@@ -136,7 +136,7 @@ void UIRenderer::Render(
 
 		if (canvas.commands.empty())
 		{
-			break;
+			continue;
 		}
 
 		if (canvas.drawInMainViewport)
@@ -306,6 +306,7 @@ void UIRenderer::RenderBatch(
 	m_QuadIndices.clear();
 	m_QuadInstances.clear();
 	m_CurrentTextureId = nullptr;
+	m_Scissors = std::nullopt;
 	batch.drawCommands.clear();
 }
 
@@ -464,7 +465,7 @@ UIRenderer::Batch& UIRenderer::GetOrCreateBatch(const uint32_t batchIndex, std::
 		Batch batch;
 
 		Buffer::CreateInfo createInfoVertexBuffer;
-		createInfoVertexBuffer.instanceSize = sizeof(QuadVertex) * MAX_BATCH_QUAD_VERTEX_COUNT;
+		createInfoVertexBuffer.instanceSize = sizeof(QuadVertex) * QUAD_VERTEX_COUNT;
 		createInfoVertexBuffer.instanceCount = MAX_BATCH_QUAD_COUNT;
 		createInfoVertexBuffer.usages = { Buffer::Usage::VERTEX_BUFFER };
 		createInfoVertexBuffer.memoryType = MemoryType::CPU;
@@ -472,7 +473,7 @@ UIRenderer::Batch& UIRenderer::GetOrCreateBatch(const uint32_t batchIndex, std::
 		batch.vertexBuffer = Buffer::Create(createInfoVertexBuffer);
 
 		Buffer::CreateInfo createInfoIndexBuffer;
-		createInfoIndexBuffer.instanceSize = sizeof(uint32_t) * MAX_BATCH_QUAD_INDEX_COUNT;
+		createInfoIndexBuffer.instanceSize = sizeof(uint32_t) * QUAD_INDEX_COUNT;
 		createInfoIndexBuffer.instanceCount = MAX_BATCH_QUAD_COUNT;
 		createInfoIndexBuffer.usages = { Buffer::Usage::INDEX_BUFFER };
 		createInfoIndexBuffer.memoryType = MemoryType::CPU;

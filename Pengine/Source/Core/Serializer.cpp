@@ -14,7 +14,6 @@
 #include "Viewport.h"
 #include "WindowManager.h"
 #include "Profiler.h"
-#include "ClayManager.h"
 #include "ReflectionSystem.h"
 
 #include "../EventSystem/EventSystem.h"
@@ -5032,7 +5031,7 @@ void Serializer::DeserializeCanvas(const YAML::Node& in, const std::shared_ptr<E
 		}
 
 		auto& r3d = entity->GetComponent<Renderer3D>();
-		const std::shared_ptr<Material> defaultMaterial = MaterialManager::GetInstance().LoadMaterial(std::filesystem::path("Materials") / "UIBase.mat");
+		const std::shared_ptr<Material> defaultMaterial = MaterialManager::GetInstance().LoadMaterial(std::filesystem::path("Materials") / "MeshBase.mat");
 		const std::string name = std::to_string(UUID::Generate());
 		std::filesystem::path filepath = defaultMaterial->GetFilepath().parent_path() / name;
 		filepath.replace_extension(FileFormats::Mat());
@@ -5054,12 +5053,8 @@ void Serializer::DeserializeCanvas(const YAML::Node& in, const std::shared_ptr<E
 		for (const auto& scriptNamesData : canvasData["ScriptNames"])
 		{
 			const std::string scriptName = scriptNamesData.as<std::string>();
-			if (ClayManager::GetInstance().scriptsByName.contains(scriptName))
-			{
-				Canvas::Script& script = canvas.scripts.emplace_back();
-				script.name = scriptName;
-				script.callback = ClayManager::GetInstance().scriptsByName.at(script.name);
-			}
+			Canvas::Script& script = canvas.scripts.emplace_back();
+			script.name = scriptName;
 		}
 	}
 }

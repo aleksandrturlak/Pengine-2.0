@@ -17,7 +17,6 @@
 #include "Core/WindowManager.h"
 #include "Core/RenderPassManager.h"
 #include "Core/RenderPassOrder.h"
-#include "Core/ClayManager.h"
 #include "Core/Profiler.h"
 #include "Core/ReflectionSystem.h"
 
@@ -3202,19 +3201,13 @@ void Editor::CanvasComponent(const std::shared_ptr<Entity>& entity)
 		ImGui::Checkbox("Draw In Main Viewport", &canvas.drawInMainViewport);
 		DrawIVec2Control("Size", canvas.size, 0.0f, { 0, 1024 });
 
-		if (ImGui::BeginMenu("Scripts"))
+		static char scriptNameBuffer[256];
+		ImGui::InputText("Script Name", scriptNameBuffer, sizeof(scriptNameBuffer));
+		ImGui::SameLine();
+		if (ImGui::Button("Add"))
 		{
-			for (const auto& [name, callback] : ClayManager::GetInstance().scriptsByName)
-			{
-				if (ImGui::MenuItem(name.c_str()))
-				{
-					Canvas::Script& script = canvas.scripts.emplace_back();
-					script.callback = callback;
-					script.name = name;
-				}
-			}
-
-			ImGui::EndMenu();
+			Canvas::Script& script = canvas.scripts.emplace_back();
+			script.name = scriptNameBuffer;
 		}
 
 		for (size_t i = 0; i < canvas.scripts.size(); i++)
