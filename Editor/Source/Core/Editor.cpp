@@ -4396,6 +4396,7 @@ void Editor::Thumbnails::ShutDown()
 
 void Editor::Thumbnails::UpdateThumbnails()
 {
+	return;
 	/*if (m_ThumbnailAtlas.GetAtlas(0))
 	{
 		ImGui::Begin("Thumbnail Atlas");

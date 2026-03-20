@@ -5,6 +5,12 @@
 namespace Pengine
 {
 
+	template <typename T>
+	inline constexpr bool IsVectorType = false;
+
+	template <typename T, typename A>
+	inline constexpr bool IsVectorType<std::vector<T, A>> = true;
+
 	class PENGINE_API ReflectionSystem
 	{
 	private:
@@ -17,29 +23,22 @@ namespace Pengine
 		}
 
 	public:
-		class ReflectionWrapper
-		{
-		public:
-			ReflectionWrapper(const std::function<void()>& callback)
-			{
-				callback();
-			}
-		};
-
 		class Property
 		{
 		public:
 			std::string m_Type;
+			entt::id_type m_TypeId = 0;
+			bool m_IsVector = false;
 			size_t m_Offset = 0;
 
 			template <typename T> bool IsValue() const
 			{
-				return m_Type == GetTypeName<T>();
+				return m_TypeId == GetTypeHash<T>();
 			}
 
 			bool IsVector() const
 			{
-				return m_Type.find("vector") != std::string::npos;
+				return m_IsVector;
 			}
 
 			template <typename T> T& GetValue(void* owner, const size_t baseOffset)
@@ -109,39 +108,39 @@ namespace Pengine
 
 		static ReflectionSystem& GetInstance();
 
-		template <typename T>
-		static bool SetValueImpl(const T& value, void* instance, const entt::id_type& classId,
-								 const std::string& propertyName, size_t offset)
+		static std::pair<Property*, size_t> FindPropertyHelper(const entt::id_type& classId,
+			const std::string& propertyName, size_t offset)
 		{
 			if (const auto classByType = GetInstance().m_ClassesByType.find(classId);
 				classByType != GetInstance().m_ClassesByType.end())
 			{
-				for (auto& [name, property] : classByType->second.m_PropertiesByName)
+				if (const auto it = classByType->second.m_PropertiesByName.find(propertyName);
+					it != classByType->second.m_PropertiesByName.end())
 				{
-					if (propertyName != name)
-					{
-						continue;
-					}
-
-					if (property.IsValue<T>())
-					{
-						property.SetValue(instance, value, offset);
-
-						return true;
-					}
+					return { &it->second, offset };
 				}
 
-				for (const auto& [parentName, parentOffset] : classByType->second.m_Parents)
+				for (const auto& [parentId, parentOffset] : classByType->second.m_Parents)
 				{
-					if (SetValueImpl(value, instance, parentName, propertyName, offset + parentOffset))
-					{
-						return true;
-					}
+					auto result = FindPropertyHelper(parentId, propertyName, offset + parentOffset);
+					if (result.first)
+						return result;
 				}
-
-				return false;
 			}
 
+			return { nullptr, 0 };
+		}
+
+		template <typename T>
+		static bool SetValueImpl(const T& value, void* instance, const entt::id_type& classId,
+								 const std::string& propertyName, size_t offset)
+		{
+			auto [prop, foundOffset] = FindPropertyHelper(classId, propertyName, offset);
+			if (prop && prop->IsValue<T>())
+			{
+				prop->SetValue(instance, value, foundOffset);
+				return true;
+			}
 			return false;
 		}
 
@@ -156,30 +155,9 @@ namespace Pengine
 		static T GetValueImpl(void* instance, const entt::id_type& classId, const std::string& propertyName,
 							  size_t offset)
 		{
-			if (const auto classByType = GetInstance().m_ClassesByType.find(classId);
-				classByType != GetInstance().m_ClassesByType.end())
-			{
-				for (auto& [name, property] : classByType->second.m_PropertiesByName)
-				{
-					if (propertyName != name)
-					{
-						continue;
-					}
-
-					if (property.IsValue<T>())
-					{
-						return property.GetValue<T>(instance, offset);
-					}
-				}
-
-				for (const auto& [parentName, parentOffset] : classByType->second.m_Parents)
-				{
-					return GetValueImpl<T>(instance, parentName, propertyName, offset + parentOffset);
-				}
-
-				return T{};
-			}
-
+			auto [prop, foundOffset] = FindPropertyHelper(classId, propertyName, offset);
+			if (prop && prop->IsValue<T>())
+				return prop->GetValue<T>(instance, foundOffset);
 			return T{};
 		}
 
@@ -209,58 +187,53 @@ namespace Pengine
 	}
 
 #define SERIALIZE_CALLBACK(_callback)                                                                                  \
-private:                                                                                                               \
-	Pengine::ReflectionSystem::ReflectionWrapper ___ReflectionWrapper_SerializeCallback = Pengine::ReflectionSystem::ReflectionWrapper(\
-		[baseClass = this]                                                                                             \
+	std::function<void(void*, void*, void*)> serializeCallback = [baseClass = this]                                    \
 		{                                                                                                              \
 			auto classByType =                                                                                         \
 				Pengine::ReflectionSystem::GetInstance().m_ClassesByType.find(GetTypeHash<decltype(*baseClass)>());    \
 			if (classByType != Pengine::ReflectionSystem::GetInstance().m_ClassesByType.end())                         \
 			{                                                                                                          \
-				if (classByType->second.m_SerializeCallback)                                                           \
-					return;                                                                                            \
 				classByType->second.m_SerializeCallback = &_callback;                                                  \
 			}                                                                                                          \
-		});
+			return &_callback;                                                                                         \
+		}();
 
 #define DESERIALIZE_CALLBACK(_callback)                                                                                \
 private:                                                                                                               \
-	Pengine::ReflectionSystem::ReflectionWrapper ___ReflectionWrapper_DeserializeCallback = Pengine::ReflectionSystem::ReflectionWrapper(\
-		[baseClass = this]                                                                                             \
+	std::function<void(void*, void*, void*)> deserializeCallback = [baseClass = this]                                  \
 		{                                                                                                              \
 			auto classByType =                                                                                         \
 				Pengine::ReflectionSystem::GetInstance().m_ClassesByType.find(GetTypeHash<decltype(*baseClass)>());    \
 			if (classByType != Pengine::ReflectionSystem::GetInstance().m_ClassesByType.end())                         \
 			{                                                                                                          \
-				if (classByType->second.m_DeserializeCallback)                                                         \
-					return;                                                                                            \
-				classByType->second.m_DeserializeCallback = &_callback;                                                  \
+				classByType->second.m_DeserializeCallback = &_callback;                                                \
 			}                                                                                                          \
-		});
+			return &_callback;                                                                                         \
+		}();
 
 #define PROPERTY(_type, _name, _value)                                                                                 \
-	_type _name = _value;                                                                                              \
-																													   \
-private:                                                                                                               \
-	Pengine::ReflectionSystem::ReflectionWrapper ___ReflectionWrapper_##_name = Pengine::ReflectionSystem::ReflectionWrapper(\
-		[baseClass = this]                                                                                             \
+	_type _name = [baseClass = this]() -> _type                                                                        \
 		{                                                                                                              \
+			using ___OwnerType = std::remove_pointer_t<decltype(baseClass)>;                                           \
 			auto classByType =                                                                                         \
-				Pengine::ReflectionSystem::GetInstance().m_ClassesByType.find(GetTypeHash<decltype(*baseClass)>());    \
+				Pengine::ReflectionSystem::GetInstance().m_ClassesByType.find(GetTypeHash<___OwnerType>());            \
 			if (classByType != Pengine::ReflectionSystem::GetInstance().m_ClassesByType.end())                         \
 			{                                                                                                          \
 				if (classByType->second.m_PropertiesByName.count(#_name) > 0)                                          \
-					return;                                                                                            \
+					return _value;                                                                                     \
 				classByType->second.m_PropertiesByName.emplace(                                                        \
 					std::string(#_name),                                                                               \
 					Pengine::ReflectionSystem::Property{                                                               \
-						GetTypeName<_type>(),                                                                          \
-						((::size_t) & reinterpret_cast<char const volatile&>((((decltype(baseClass))0)->_name)))});    \
+						std::string(GetTypeName<_type>()),                                                             \
+						GetTypeHash<_type>(),                                                                          \
+						Pengine::IsVectorType<_type>,                                                                  \
+						offsetof(___OwnerType, _name)});                                                               \
 				classByType->second.m_CopyPropertyCallBacks.push_back(                                                 \
 					[=](void* a, void* b)                                                                              \
 					{ static_cast<decltype(baseClass)>(a)->_name = static_cast<decltype(baseClass)>(b)->_name; });     \
 			}                                                                                                          \
-		});
+			return _value;                                                                                             \
+		}();
 
 #define COPY_PROPERTIES(_component)                                                                                    \
 	std::function<void(const entt::id_type&, size_t)> copyProperties =                                                 \

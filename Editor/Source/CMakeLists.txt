@@ -17,7 +17,8 @@ set(CORE_SOURCES
 )
 source_group("Core" FILES ${CORE_SOURCES})
 
-file(GLOB COMPONENT_HEADER_FILES "../../SandBox/Source/Components/*.h")
+file(GLOB_RECURSE COMPONENT_HEADER_FILES "../../SandBox/Source/**/*.h")
+list(FILTER COMPONENT_HEADER_FILES INCLUDE REGEX "[Cc]omponent")
 
 set(MASTER_HEADER_CONTENT "// Auto-generated master include file\n// Do not edit manually!\n\n")
 set(MASTER_HEADER_CONTENT "${MASTER_HEADER_CONTENT}#pragma once\n\n")
@@ -31,7 +32,27 @@ endforeach ()
 
 file(WRITE "${CMAKE_CURRENT_SOURCE_DIR}/Include/Components.h" "${MASTER_HEADER_CONTENT}")
 
-add_executable(${PROJECT_NAME} ${CORE_SOURCES})
+file(GLOB_RECURSE ALL_SANDBOX_CPP "../../SandBox/Source/**/*.cpp")
+set(COMPONENT_REGISTRATION_FILES "")
+foreach(cpp_file ${ALL_SANDBOX_CPP})
+    file(STRINGS ${cpp_file} _matched REGEX "// Component Registration\\.")
+    if(_matched)
+        list(APPEND COMPONENT_REGISTRATION_FILES ${cpp_file})
+    endif()
+endforeach()
+
+list(LENGTH COMPONENT_REGISTRATION_FILES _reg_count)
+if(_reg_count GREATER 1)
+    message(FATAL_ERROR "Only one component registration file per project is allowed. "
+        "Found ${_reg_count} files: ${COMPONENT_REGISTRATION_FILES}")
+endif()
+
+if(_reg_count EQUAL 1)
+    list(GET COMPONENT_REGISTRATION_FILES 0 COMPONENT_REGISTRATION_FILE)
+    message("Component registration file: ${COMPONENT_REGISTRATION_FILE}")
+endif()
+
+add_executable(${PROJECT_NAME} ${CORE_SOURCES} ${COMPONENT_REGISTRATION_FILE})
 
 target_compile_definitions(${PROJECT_NAME} PUBLIC PENGINE_ENGINE=0)
 
