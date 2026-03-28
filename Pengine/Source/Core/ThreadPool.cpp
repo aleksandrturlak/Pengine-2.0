@@ -10,13 +10,6 @@ void ThreadPool::Initialize(size_t threadCount)
 		{
 			while (true)
 			{
-				if (m_MainId == std::this_thread::get_id())
-				{
-					return;
-				}
-
-				const auto isThreadBusy = m_IsThreadBusy.find(std::this_thread::get_id());
-
 				Task task;
 				{
 					std::unique_lock<std::mutex> lock(m_Mutex);
@@ -32,25 +25,19 @@ void ThreadPool::Initialize(size_t threadCount)
 
 					task = std::move(m_Tasks.front());
 					m_Tasks.pop();
-
-					if (isThreadBusy != m_IsThreadBusy.end())
-					{
-						isThreadBusy->second = true;
-					}
+					m_BusyCount++;
 				}
 
 				task();
 
-				if (isThreadBusy != m_IsThreadBusy.end())
 				{
-					isThreadBusy->second = false;
-
-					m_WaitCondVar.notify_all();
+					std::unique_lock<std::mutex> lock(m_Mutex);
+					m_BusyCount--;
 				}
+
+				m_WaitCondVar.notify_all();
 			}
 		});
-
-		m_IsThreadBusy.insert(std::make_pair(m_Threads.back().get_id(), false));
 	}
 }
 
@@ -73,7 +60,7 @@ void ThreadPool::Shutdown()
 
 	for (std::thread& thread : m_Threads)
 	{
-		thread.detach();
+		thread.join();
 	}
 }
 
@@ -82,12 +69,6 @@ void ThreadPool::WaitIdle()
 	std::unique_lock<std::mutex> lock(m_Mutex);
 	m_WaitCondVar.wait(lock, [this]
 	{
-		bool b = false;
-		for (const auto& [id, busy] : m_IsThreadBusy)
-		{
-			b += busy;
-		}
-
-		return !b;
+		return m_Tasks.empty() && m_BusyCount == 0;
 	});
 }

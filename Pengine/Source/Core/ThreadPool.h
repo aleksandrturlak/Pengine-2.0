@@ -7,7 +7,6 @@
 #include <future>
 #include <queue>
 #include <mutex>
-#include <map>
 #include <vector>
 #include <thread>
 
@@ -88,12 +87,12 @@ namespace Pengine
 
 	private:
 		std::vector<std::thread> m_Threads;
-		std::map<std::thread::id, bool> m_IsThreadBusy;
 		std::mutex m_Mutex;
 		std::thread::id m_MainId = std::this_thread::get_id();
 		std::condition_variable m_RunCondVar;
 		std::condition_variable m_WaitCondVar;
 		std::queue<Task> m_Tasks;
+		int m_BusyCount = 0;
 		bool m_IsStoped = false;
 	};
 
