@@ -5303,28 +5303,75 @@ void Serializer::SerializeUserComponents(YAML::Emitter& out, const std::shared_p
 	{
 		for (auto& [name, prop] : registeredClass.m_PropertiesByName)
 		{
-#define SERIALIZE_PROPERTY(_type) \
-if (prop.IsValue<_type>()) \
-{ \
-	const _type& value = prop.GetValue<_type>(instance, offset); \
-	out << YAML::Key << "Type" << prop.m_Type; \
-	out << YAML::Key << "Value" << value; \
-}
-
 			out << YAML::Key << name;
 			out << YAML::BeginMap;
 
-			SERIALIZE_PROPERTY(bool)
-			else SERIALIZE_PROPERTY(float)
-			else SERIALIZE_PROPERTY(int)
-			else SERIALIZE_PROPERTY(double)
-			else SERIALIZE_PROPERTY(std::string)
-			else SERIALIZE_PROPERTY(glm::vec2)
-			else SERIALIZE_PROPERTY(glm::vec3)
-			else SERIALIZE_PROPERTY(glm::vec4)
-			else SERIALIZE_PROPERTY(glm::ivec2)
-			else SERIALIZE_PROPERTY(glm::ivec3)
-			else SERIALIZE_PROPERTY(glm::ivec4)
+			if (prop.IsValue<bool>())
+			{
+				const bool& value = prop.GetValue<bool>(instance, offset);
+				out << YAML::Key << "Type" << std::string(StripTypePrefix(prop.m_Type));
+				out << YAML::Key << "Value" << value;
+			}
+			else if (prop.IsValue<float>())
+			{
+				const float& value = prop.GetValue<float>(instance, offset);
+				out << YAML::Key << "Type" << std::string(StripTypePrefix(prop.m_Type));
+				out << YAML::Key << "Value" << value;
+			}
+			else if (prop.IsValue<int>())
+			{
+				const int& value = prop.GetValue<int>(instance, offset);
+				out << YAML::Key << "Type" << std::string(StripTypePrefix(prop.m_Type));
+				out << YAML::Key << "Value" << value;
+			}
+			else if (prop.IsValue<double>())
+			{
+				const double& value = prop.GetValue<double>(instance, offset);
+				out << YAML::Key << "Type" << std::string(StripTypePrefix(prop.m_Type));
+				out << YAML::Key << "Value" << value;
+			}
+			else if (prop.IsValue<std::string>())
+			{
+				const std::string& value = prop.GetValue<std::string>(instance, offset);
+				out << YAML::Key << "Type" << std::string(StripTypePrefix(prop.m_Type));
+				out << YAML::Key << "Value" << value;
+			}
+			else if (prop.IsValue<glm::vec2>())
+			{
+				const glm::vec2& value = prop.GetValue<glm::vec2>(instance, offset);
+				out << YAML::Key << "Type" << std::string(StripTypePrefix(prop.m_Type));
+				out << YAML::Key << "Value" << value;
+			}
+			else if (prop.IsValue<glm::vec3>())
+			{
+				const glm::vec3& value = prop.GetValue<glm::vec3>(instance, offset);
+				out << YAML::Key << "Type" << std::string(StripTypePrefix(prop.m_Type));
+				out << YAML::Key << "Value" << value;
+			}
+			else if (prop.IsValue<glm::vec4>())
+			{
+				const glm::vec4& value = prop.GetValue<glm::vec4>(instance, offset);
+				out << YAML::Key << "Type" << std::string(StripTypePrefix(prop.m_Type));
+				out << YAML::Key << "Value" << value;
+			}
+			else if (prop.IsValue<glm::ivec2>())
+			{
+				const glm::ivec2& value = prop.GetValue<glm::ivec2>(instance, offset);
+				out << YAML::Key << "Type" << std::string(StripTypePrefix(prop.m_Type));
+				out << YAML::Key << "Value" << value;
+			}
+			else if (prop.IsValue<glm::ivec3>())
+			{
+				const glm::ivec3& value = prop.GetValue<glm::ivec3>(instance, offset);
+				out << YAML::Key << "Type" << std::string(StripTypePrefix(prop.m_Type));
+				out << YAML::Key << "Value" << value;
+			}
+			else if (prop.IsValue<glm::ivec4>())
+			{
+				const glm::ivec4& value = prop.GetValue<glm::ivec4>(instance, offset);
+				out << YAML::Key << "Type" << std::string(StripTypePrefix(prop.m_Type));
+				out << YAML::Key << "Value" << value;
+			}
 
 			out << YAML::EndMap;
 		}
@@ -5355,7 +5402,7 @@ if (prop.IsValue<_type>()) \
 			const auto& registeredClass = classByType->second;
 			void* component = storage.value(entity->GetHandle());
 
-			const auto typeName = registeredClass.m_TypeInfo.name();
+			const auto typeName = StripTypePrefix(registeredClass.m_TypeInfo.name());
 			out << YAML::Key << std::string(typeName.data(), typeName.size());
 
 			out << YAML::BeginMap;
@@ -5383,26 +5430,61 @@ void Serializer::DeserializeUserComponents(const YAML::Node& in, const std::shar
 		{
 			if (auto& propData = in[name])
 			{
-				const std::string type = propData["Type"].as<std::string>();
-
-#define DESERIALIZE_PROPERTY(_type)             \
-if (GetTypeName<_type>() == type)               \
-{                                               \
-	_type value = propData["Value"].as<_type>();\
-	prop.SetValue(instance, value, offset);     \
-}                                               \
-
-				DESERIALIZE_PROPERTY(bool)
-				else DESERIALIZE_PROPERTY(float)
-				else DESERIALIZE_PROPERTY(int)
-				else DESERIALIZE_PROPERTY(double)
-				else DESERIALIZE_PROPERTY(std::string)
-				else DESERIALIZE_PROPERTY(glm::vec2)
-				else DESERIALIZE_PROPERTY(glm::vec3)
-				else DESERIALIZE_PROPERTY(glm::vec4)
-				else DESERIALIZE_PROPERTY(glm::ivec2)
-				else DESERIALIZE_PROPERTY(glm::ivec3)
-				else DESERIALIZE_PROPERTY(glm::ivec4)
+				if (prop.IsValue<bool>())
+				{
+					bool value = propData["Value"].as<bool>();
+					prop.SetValue(instance, value, offset);
+				}
+				else if (prop.IsValue<float>())
+				{
+					float value = propData["Value"].as<float>();
+					prop.SetValue(instance, value, offset);
+				}
+				else if (prop.IsValue<int>())
+				{
+					int value = propData["Value"].as<int>();
+					prop.SetValue(instance, value, offset);
+				}
+				else if (prop.IsValue<double>())
+				{
+					double value = propData["Value"].as<double>();
+					prop.SetValue(instance, value, offset);
+				}
+				else if (prop.IsValue<std::string>())
+				{
+					std::string value = propData["Value"].as<std::string>();
+					prop.SetValue(instance, value, offset);
+				}
+				else if (prop.IsValue<glm::vec2>())
+				{
+					glm::vec2 value = propData["Value"].as<glm::vec2>();
+					prop.SetValue(instance, value, offset);
+				}
+				else if (prop.IsValue<glm::vec3>())
+				{
+					glm::vec3 value = propData["Value"].as<glm::vec3>();
+					prop.SetValue(instance, value, offset);
+				}
+				else if (prop.IsValue<glm::vec4>())
+				{
+					glm::vec4 value = propData["Value"].as<glm::vec4>();
+					prop.SetValue(instance, value, offset);
+				}
+				else if (prop.IsValue<glm::ivec2>())
+				{
+					glm::ivec2 value = propData["Value"].as<glm::ivec2>();
+					prop.SetValue(instance, value, offset);
+				}
+				else if (prop.IsValue<glm::ivec3>())
+				{
+					glm::ivec3 value = propData["Value"].as<glm::ivec3>();
+					prop.SetValue(instance, value, offset);
+				}
+				else if (prop.IsValue<glm::ivec4>())
+				{
+					glm::ivec4 value = propData["Value"].as<glm::ivec4>();
+					prop.SetValue(instance, value, offset);
+				}
 			}
 		}
 
@@ -5420,7 +5502,7 @@ if (GetTypeName<_type>() == type)               \
 	ReflectionSystem& reflectionSystem = ReflectionSystem::GetInstance();
 	for (auto& [id, registeredClass] : reflectionSystem.m_ClassesByType)
 	{
-		const auto typeName = registeredClass.m_TypeInfo.name();
+		const auto typeName = StripTypePrefix(registeredClass.m_TypeInfo.name());
 		if (const auto& userComponentData = in[std::string(typeName.data(), typeName.size())])
 		{
 			void* component = registeredClass.m_CreateCallback(entity->GetRegistry(), entity->GetHandle());

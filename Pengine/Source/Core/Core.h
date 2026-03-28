@@ -88,6 +88,16 @@ struct path_hash
 	}
 };
 
+inline std::string_view StripTypePrefix(std::string_view name)
+{
+	for (std::string_view prefix : { "struct ", "class ", "enum " })
+	{
+		if (name.substr(0, prefix.size()) == prefix)
+			return name.substr(prefix.size());
+	}
+	return name;
+}
+
 template<typename T>
 inline constexpr std::string_view GetTypeName()
 {
