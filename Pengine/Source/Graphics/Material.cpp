@@ -165,7 +165,7 @@ std::shared_ptr<Material> Material::Clone(
 						else if (value.type == ShaderReflection::ReflectVariable::Type::TEXTURE)
 						{
 							const int index = Utils::GetValue<int>(data, value.offset);
-							uniformBufferInfo.texturesByName.emplace(parentName, material->GetBindlessTexture(index)->GetFilepath());
+							uniformBufferInfo.texturesByName.emplace(parentName, material->GetBindlessTexture(index)->GetFilepath().string());
 						}
 					};
 
