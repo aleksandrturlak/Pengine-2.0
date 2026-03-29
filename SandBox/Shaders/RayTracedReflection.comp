@@ -121,7 +121,10 @@ vec4 TraceRay(vec3 origin, vec3 direction, vec4 shading, out vec3 emissive)
             camera.zFar);
         
         float roughnessVisibility = (1.0f - currentRoughness) * (1.0f - currentRoughness);
-        color = vec3(mix(vec3(0.0f, 0.0f, 0.0f), texture(skyboxTexture, currentDirection).rgb, roughnessVisibility));
+        if (bool(hasDirectionalLight))
+        {
+            color = vec3(mix(vec3(0.0f, 0.0f, 0.0f), texture(skyboxTexture, currentDirection).rgb, roughnessVisibility));
+        }
         emissive = vec3(0.0f);
 
         bool isReflective = false;

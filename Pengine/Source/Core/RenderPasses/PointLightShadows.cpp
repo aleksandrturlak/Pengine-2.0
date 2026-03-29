@@ -306,6 +306,11 @@ void RenderPassManager::CreatePointLightShadows()
 						continue;
 					}
 
+					if (!r3d->isEnabled || !registry.get<Transform>(entity).GetEntity()->IsEnabled())
+					{
+						continue;
+					}
+
 					if (!r3d->material || !r3d->material->IsPipelineEnabled(renderPassName))
 					{
 						continue;
@@ -457,7 +462,8 @@ void RenderPassManager::CreatePointLightShadows()
 
 						for (const auto& entity : entities)
 						{
-							assert(entity.entityIndex != -1);
+							if (entity.entityIndex == -1)
+								continue;
 
 							const size_t instanceDataOffset = instanceDatas.size();
 						

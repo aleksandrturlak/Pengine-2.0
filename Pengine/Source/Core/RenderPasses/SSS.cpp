@@ -70,7 +70,9 @@ void RenderPassManager::CreateSSS()
 
 		std::shared_ptr<Texture> sssTexture = renderInfo.renderView->GetStorageImage(passName);
 
-		if (!sssSettings.isEnabled || !csmSettings.isEnabled || rayTracingSettings.shadows.directionalLight)
+		auto directionalLightView = renderInfo.scene->GetRegistry().view<DirectionalLight>();
+
+		if (directionalLightView.empty() || !sssSettings.isEnabled || !csmSettings.isEnabled || rayTracingSettings.shadows.directionalLight)
 		{
 			renderInfo.renderView->DeleteUniformWriter(passName);
 			renderInfo.renderView->DeleteStorageImage(passName);
@@ -160,7 +162,10 @@ void RenderPassManager::CreateSSSBlur()
 		createInfo.isMultiBuffered = true;
 
 		std::shared_ptr<Texture> sssBlurTexture = renderInfo.renderView->GetStorageImage(passName);
-		if (!sssSettings.isEnabled || !csmSettings.isEnabled || rayTracingSettings.shadows.directionalLight)
+
+		auto directionalLightView = renderInfo.scene->GetRegistry().view<DirectionalLight>();
+
+		if (directionalLightView.empty() || !sssSettings.isEnabled || !csmSettings.isEnabled || rayTracingSettings.shadows.directionalLight)
 		{
 			renderInfo.renderView->DeleteUniformWriter(passName);
 			renderInfo.renderView->DeleteStorageImage(passName);

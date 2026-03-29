@@ -252,6 +252,7 @@ void VulkanDevice::CreateLogicalDevice()
 	deviceFeatures.independentBlend = VK_TRUE;
 	deviceFeatures.fragmentStoresAndAtomics = VK_TRUE;
 	deviceFeatures.shaderInt64 = VK_TRUE;
+	deviceFeatures.drawIndirectFirstInstance = VK_TRUE;
 
 	VkPhysicalDeviceMaintenance6Features vulkanMaintenance6Features{};
 	vulkanMaintenance6Features.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_MAINTENANCE_6_FEATURES;
@@ -692,9 +693,9 @@ VulkanDevice::VulkanDevice(const std::string& applicationName)
 	{
 		m_DescriptorPool = VulkanDescriptorPool::Builder()
 			.SetPoolFlags(VK_DESCRIPTOR_POOL_CREATE_FREE_DESCRIPTOR_SET_BIT | VK_DESCRIPTOR_POOL_CREATE_UPDATE_AFTER_BIND_BIT)
-			.SetMaxSets(1000 * 10)
+			.SetMaxSets(1000)
 			.AddPoolSize(VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 10000)
-			.AddPoolSize(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 10000)
+			.AddPoolSize(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 30000)
 			.AddPoolSize(VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 10000)
 			.AddPoolSize(VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, 10000)
 			.AddPoolSize(VK_DESCRIPTOR_TYPE_ACCELERATION_STRUCTURE_KHR, 10000)

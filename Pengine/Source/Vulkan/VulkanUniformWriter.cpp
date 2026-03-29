@@ -8,6 +8,7 @@
 #include "VulkanUniformLayout.h"
 
 #include "../Core/Logger.h"
+#include "../Core/ThreadPool.h"
 
 using namespace Pengine;
 using namespace Vk;
@@ -40,6 +41,8 @@ void VulkanUniformWriter::Flush()
 {
 	const uint32_t index = IsMultiBuffered() * frameInFlightIndex;
 	const VkDescriptorSet set = m_DescriptorSets[index];
+
+	std::lock_guard<std::mutex> lock(mutex);
 
 	std::vector<VkWriteDescriptorSet> writes;
 

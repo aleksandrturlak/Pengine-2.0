@@ -28,8 +28,6 @@
 #include "../Graphics/Vertex.h"
 #include "../Graphics/RenderView.h"
 #include "../Graphics/GraphicsPipeline.h"
-#include "../EventSystem/EventSystem.h"
-#include "../EventSystem/NextFrameEvent.h"
 
 #include "../Core/ViewportManager.h"
 #include "../Core/Viewport.h"

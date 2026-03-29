@@ -282,9 +282,23 @@ void* VulkanWindow::BeginFrame()
 {
 	PROFILER_SCOPE(__FUNCTION__);
 
-	const VkSemaphore imageAcquiredSemaphore = m_VulkanWindow.FrameSemaphores[m_VulkanWindow.SemaphoreIndex].ImageAcquiredSemaphore;
+	VulkanFrameInfo* vkFrame = &(m_Frames[frameInFlightIndex]);
 
-	VkResult result = vkAcquireNextImageKHR(
+	VkResult result = vkWaitForFences(GetVkDevice()->GetDevice(), 1, &vkFrame->Fence, VK_TRUE, UINT64_MAX);
+	if (result != VK_SUCCESS)
+	{
+		FATAL_ERROR("Failed to wait for fences!");
+		return nullptr;
+	}
+
+	if (vkResetFences(GetVkDevice()->GetDevice(), 1, &vkFrame->Fence) != VK_SUCCESS)
+	{
+		FATAL_ERROR("Failed to reset fences!");
+		return nullptr;
+	}
+
+	const VkSemaphore imageAcquiredSemaphore = m_VulkanWindow.FrameSemaphores[m_VulkanWindow.SemaphoreIndex].ImageAcquiredSemaphore;
+	result = vkAcquireNextImageKHR(
 		GetVkDevice()->GetDevice(),
 		m_VulkanWindow.Swapchain,
 		(std::numeric_limits<uint64_t>::max)(),
@@ -292,7 +306,6 @@ void* VulkanWindow::BeginFrame()
 		VK_NULL_HANDLE,
 		&m_VulkanWindow.ImageIndex);
 
-	frameInFlightIndex = m_VulkanWindow.FrameIndex;
 	swapChainImageIndex = m_VulkanWindow.ImageIndex;
 
 	if (result == VK_ERROR_OUT_OF_DATE_KHR)
@@ -304,21 +317,6 @@ void* VulkanWindow::BeginFrame()
 	if (result != VK_SUCCESS && result != VK_SUBOPTIMAL_KHR)
 	{
 		FATAL_ERROR("Failed to acquire swap chain image!");
-		return nullptr;
-	}
-
-	VulkanFrameInfo* vkFrame = &(m_Frames[frameInFlightIndex]);
-
-	result = vkWaitForFences(GetVkDevice()->GetDevice(), 1, &vkFrame->Fence, VK_TRUE, UINT64_MAX);
-	if (result != VK_SUCCESS)
-	{
-		FATAL_ERROR("Failed to wait for fences!");
-		return nullptr;
-	}
-
-	if (vkResetFences(GetVkDevice()->GetDevice(), 1, &vkFrame->Fence) != VK_SUCCESS)
-	{
-		FATAL_ERROR("Failed to reset fences!");
 		return nullptr;
 	}
 
@@ -355,7 +353,7 @@ void VulkanWindow::EndFrame(void* frame)
 	VkSubmitInfo submitInfo{};
 	submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
 
-	constexpr VkPipelineStageFlags waitStages[] = { VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT };
+	constexpr VkPipelineStageFlags waitStages[] = { VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT };
 	submitInfo.waitSemaphoreCount = 1;
 	submitInfo.pWaitSemaphores = &m_VulkanWindow.FrameSemaphores[m_VulkanWindow.SemaphoreIndex].ImageAcquiredSemaphore;
 	submitInfo.pWaitDstStageMask = waitStages;
@@ -391,7 +389,7 @@ void VulkanWindow::EndFrame(void* frame)
 	}
 
 	m_VulkanWindow.SemaphoreIndex = (m_VulkanWindow.SemaphoreIndex + 1) % m_VulkanWindow.SemaphoreCount;
-	m_VulkanWindow.FrameIndex = (m_VulkanWindow.FrameIndex + 1) % m_VulkanWindow.FrameInFlightCount;
+	frameInFlightIndex = m_VulkanWindow.FrameIndex = (m_VulkanWindow.FrameIndex + 1) % m_VulkanWindow.FrameInFlightCount;
 }
 
 void VulkanWindow::ImGuiRenderPass()

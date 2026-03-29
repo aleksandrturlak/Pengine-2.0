@@ -115,8 +115,10 @@ bool InventorySystem::GiveItem(InventoryComponent& inv, const InventorySlot& ite
 						auto weaponEnt = Pengine::Serializer::DeserializePrefab(item.weaponPrefabName, scene);
 						if (weaponEnt)
 						{
-							weaponEnt->GetComponent<WeaponComponent>().slot = s;
+							auto& wc = weaponEnt->GetComponent<WeaponComponent>();
+							wc.slot = s;
 							camera->AddChild(weaponEnt, false);
+							weaponEnt->GetComponent<Pengine::Transform>().Translate(wc.restPosition);
 						}
 					}
 				}
@@ -176,8 +178,10 @@ bool InventorySystem::EquipWeapon(InventoryComponent& inv, int gridRow, int grid
 		auto weaponEnt = Pengine::Serializer::DeserializePrefab(inv.weaponSlots[weaponSlot], scene);
 		if (weaponEnt)
 		{
-			weaponEnt->GetComponent<WeaponComponent>().slot = weaponSlot;
+			auto& wc = weaponEnt->GetComponent<WeaponComponent>();
+			wc.slot = weaponSlot;
 			camera->AddChild(weaponEnt, false);
+			weaponEnt->GetComponent<Pengine::Transform>().Translate(wc.restPosition);
 		}
 	}
 
