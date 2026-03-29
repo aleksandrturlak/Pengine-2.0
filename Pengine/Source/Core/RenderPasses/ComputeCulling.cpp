@@ -133,14 +133,20 @@ void RenderPassManager::CreateComputeIndirectDrawGBuffer()
 				0,
 				renderInfo.frame);
 
+			renderInfo.renderer->PipelineBarrier(
+				BarrierBatch{}
+				.Stages(PipelineStage::Transfer, PipelineStage::ComputeShader)
+				.Buffer(indirectDrawCommandCountBuffer->GetNativeHandle(), Access::TransferWrite, Access::ShaderRead),
+				renderInfo.frame);
+
 			uint32_t groupCount = (multiPassData->totalEntityCount + 15) / 16;
 			renderInfo.renderer->Compute(pipeline, { groupCount, 1, 1 }, uniformWriterNativeHandles, renderInfo.frame);
 			
 			renderInfo.renderer->PipelineBarrier(
 				BarrierBatch{}
-					.Stages(PipelineStage::ComputeShader, PipelineStage::DrawIndirect)
-					.Buffer(indirectDrawCommandsBuffer->GetNativeHandle(), Access::ShaderWrite, Access::IndirectCommandRead)
-					.Buffer(indirectDrawCommandCountBuffer->GetNativeHandle(), Access::ShaderWrite, Access::IndirectCommandRead),
+					.Stages(PipelineStage::ComputeShader, PipelineStage::DrawIndirect | PipelineStage::VertexShader | PipelineStage::FragmentShader)
+					.Buffer(indirectDrawCommandsBuffer->GetNativeHandle(), Access::ShaderWrite, Access::IndirectCommandRead | Access::ShaderRead)
+					.Buffer(indirectDrawCommandCountBuffer->GetNativeHandle(), Access::ShaderWrite, Access::IndirectCommandRead | Access::ShaderRead),
 				renderInfo.frame);
 
 			renderInfo.renderer->EndCommandLabel(renderInfo.frame);
@@ -360,14 +366,20 @@ void RenderPassManager::CreateComputeIndirectDrawCSM()
 				0,
 				renderInfo.frame);
 
+			renderInfo.renderer->PipelineBarrier(
+				BarrierBatch{}
+				.Stages(PipelineStage::Transfer, PipelineStage::ComputeShader)
+				.Buffer(indirectDrawCommandCountBuffer->GetNativeHandle(), Access::TransferWrite, Access::ShaderRead),
+				renderInfo.frame);
+
 			uint32_t groupCount = (multiPassData->totalEntityCount + 15) / 16;
 			renderInfo.renderer->Compute(pipeline, { groupCount, 1, 1 }, uniformWriterNativeHandles, renderInfo.frame);
 
 			renderInfo.renderer->PipelineBarrier(
 				BarrierBatch{}
-					.Stages(PipelineStage::ComputeShader, PipelineStage::DrawIndirect)
-					.Buffer(indirectDrawCommandsBuffer->GetNativeHandle(), Access::ShaderWrite, Access::IndirectCommandRead)
-					.Buffer(indirectDrawCommandCountBuffer->GetNativeHandle(), Access::ShaderWrite, Access::IndirectCommandRead),
+					.Stages(PipelineStage::ComputeShader, PipelineStage::DrawIndirect | PipelineStage::VertexShader | PipelineStage::FragmentShader)
+					.Buffer(indirectDrawCommandsBuffer->GetNativeHandle(), Access::ShaderWrite, Access::IndirectCommandRead | Access::ShaderRead)
+					.Buffer(indirectDrawCommandCountBuffer->GetNativeHandle(), Access::ShaderWrite, Access::IndirectCommandRead | Access::ShaderRead),
 				renderInfo.frame);
 
 			renderInfo.renderer->EndCommandLabel(renderInfo.frame);

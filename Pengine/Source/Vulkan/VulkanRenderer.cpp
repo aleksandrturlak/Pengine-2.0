@@ -396,7 +396,27 @@ void VulkanRenderer::ClearDepthStencilImage(
 	range.baseArrayLayer = 0;
 	range.layerCount = vkTexture->GetLayerCount();
 
+	VkMemoryBarrier preBarrier{};
+	preBarrier.sType = VK_STRUCTURE_TYPE_MEMORY_BARRIER;
+	preBarrier.srcAccessMask = VK_ACCESS_MEMORY_WRITE_BIT;
+	preBarrier.dstAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
+	vkCmdPipelineBarrier(
+		vkFrame->CommandBuffer,
+		VK_PIPELINE_STAGE_ALL_COMMANDS_BIT,
+		VK_PIPELINE_STAGE_TRANSFER_BIT,
+		0, 1, &preBarrier, 0, nullptr, 0, nullptr);
+
 	GetVkDevice()->ClearDepthStencilImage(vkTexture->GetImage(), vkTexture->GetLayout(), &clearValue, 1, &range, vkFrame->CommandBuffer);
+
+	VkMemoryBarrier postBarrier{};
+	postBarrier.sType = VK_STRUCTURE_TYPE_MEMORY_BARRIER;
+	postBarrier.srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
+	postBarrier.dstAccessMask = VK_ACCESS_SHADER_READ_BIT | VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT | VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_READ_BIT;
+	vkCmdPipelineBarrier(
+		vkFrame->CommandBuffer,
+		VK_PIPELINE_STAGE_TRANSFER_BIT,
+		VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT | VK_PIPELINE_STAGE_ALL_GRAPHICS_BIT,
+		0, 1, &postBarrier, 0, nullptr, 0, nullptr);
 }
 
 void VulkanRenderer::ClearColorImage(
@@ -420,7 +440,27 @@ void VulkanRenderer::ClearColorImage(
 	range.baseArrayLayer = 0;
 	range.layerCount = vkTexture->GetLayerCount();
 
+	VkMemoryBarrier preBarrier{};
+	preBarrier.sType = VK_STRUCTURE_TYPE_MEMORY_BARRIER;
+	preBarrier.srcAccessMask = VK_ACCESS_MEMORY_WRITE_BIT;
+	preBarrier.dstAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
+	vkCmdPipelineBarrier(
+		vkFrame->CommandBuffer,
+		VK_PIPELINE_STAGE_ALL_COMMANDS_BIT,
+		VK_PIPELINE_STAGE_TRANSFER_BIT,
+		0, 1, &preBarrier, 0, nullptr, 0, nullptr);
+
 	GetVkDevice()->ClearColorImage(vkTexture->GetImage(), vkTexture->GetLayout(), &clearValue, 1, &range, vkFrame->CommandBuffer);
+
+	VkMemoryBarrier postBarrier{};
+	postBarrier.sType = VK_STRUCTURE_TYPE_MEMORY_BARRIER;
+	postBarrier.srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
+	postBarrier.dstAccessMask = VK_ACCESS_SHADER_WRITE_BIT | VK_ACCESS_SHADER_READ_BIT | VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT | VK_ACCESS_COLOR_ATTACHMENT_READ_BIT;
+	vkCmdPipelineBarrier(
+		vkFrame->CommandBuffer,
+		VK_PIPELINE_STAGE_TRANSFER_BIT,
+		VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT | VK_PIPELINE_STAGE_ALL_GRAPHICS_BIT,
+		0, 1, &postBarrier, 0, nullptr, 0, nullptr);
 }
 
 void VulkanRenderer::FillBuffer(

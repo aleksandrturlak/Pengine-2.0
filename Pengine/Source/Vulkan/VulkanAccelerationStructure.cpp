@@ -216,7 +216,7 @@ void VulkanAccelerationStructure::Rebuild(
 	VkMemoryBarrier memBarrier{};
 	memBarrier.sType = VK_STRUCTURE_TYPE_MEMORY_BARRIER;
 	memBarrier.srcAccessMask = VK_ACCESS_ACCELERATION_STRUCTURE_WRITE_BIT_KHR;
-	memBarrier.dstAccessMask = VK_ACCESS_ACCELERATION_STRUCTURE_READ_BIT_KHR;
+	memBarrier.dstAccessMask = VK_ACCESS_ACCELERATION_STRUCTURE_READ_BIT_KHR | VK_ACCESS_ACCELERATION_STRUCTURE_WRITE_BIT_KHR;
 	vkCmdPipelineBarrier(
 		commandBuffer,
 		VK_PIPELINE_STAGE_ACCELERATION_STRUCTURE_BUILD_BIT_KHR,
@@ -287,7 +287,7 @@ std::shared_ptr<VulkanAccelerationStructure> VulkanAccelerationStructure::Create
 	VkMemoryBarrier barrier{};
 	barrier.sType         = VK_STRUCTURE_TYPE_MEMORY_BARRIER;
 	barrier.srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
-	barrier.dstAccessMask = VK_ACCESS_ACCELERATION_STRUCTURE_READ_BIT_KHR;
+	barrier.dstAccessMask = VK_ACCESS_ACCELERATION_STRUCTURE_READ_BIT_KHR | VK_ACCESS_SHADER_READ_BIT;
 	vkCmdPipelineBarrier(
 		commandBuffer,
 		VK_PIPELINE_STAGE_TRANSFER_BIT,

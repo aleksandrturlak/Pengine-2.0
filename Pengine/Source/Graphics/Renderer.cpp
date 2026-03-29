@@ -72,10 +72,17 @@ void Renderer::Update(
 				}
 			}
 
+			renderInfo.renderPass = nullptr;
 			if (pass->GetType() == Pass::Type::GRAPHICS)
 			{
 				renderInfo.renderPass = std::dynamic_pointer_cast<RenderPass>(pass);
 			}
+
+			renderer->PipelineBarrier(
+				BarrierBatch{}
+					.Stages(PipelineStage::AllCommands, PipelineStage::AllCommands)
+					.Memory(Access::MemoryWrite, Access::MemoryRead | Access::MemoryWrite),
+				frame);
 
 			pass->Execute(renderInfo);
 		}
@@ -120,10 +127,17 @@ void Renderer::Update(
 					}
 				}
 
+				renderInfo.renderPass = nullptr;
 				if (pass->GetType() == Pass::Type::GRAPHICS)
 				{
 					renderInfo.renderPass = std::dynamic_pointer_cast<RenderPass>(pass);
 				}
+
+				renderer->PipelineBarrier(
+					BarrierBatch{}
+						.Stages(PipelineStage::AllCommands, PipelineStage::AllCommands)
+						.Memory(Access::MemoryWrite, Access::MemoryRead | Access::MemoryWrite),
+					frame);
 
 				pass->Execute(renderInfo);
 			}
@@ -133,4 +147,12 @@ void Renderer::Update(
 
 		renderer->EndCommandLabel(frame);
 	}
+
+	renderer->PipelineBarrier(
+		BarrierBatch{}
+		.Stages(PipelineStage::AllCommands, PipelineStage::AllCommands)
+		.Memory(Access::MemoryWrite, Access::MemoryRead | Access::MemoryWrite),
+		frame);
+
+	window->ImGuiRenderPass();
 }

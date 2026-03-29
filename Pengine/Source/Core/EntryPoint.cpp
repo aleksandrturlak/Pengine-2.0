@@ -279,7 +279,6 @@ void EntryPoint::Run() const
 						renderer,
 						viewportsByScene);
 
-					window->ImGuiRenderPass();
 					window->EndFrame(frame);
 				}
 			}
