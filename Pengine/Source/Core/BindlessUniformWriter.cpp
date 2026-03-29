@@ -2,6 +2,7 @@
 
 #include "MaterialManager.h"
 #include "MeshManager.h"
+#include "TextureManager.h"
 
 #include "../Graphics/Device.h"
 #include "../Graphics/Texture.h"
@@ -32,7 +33,7 @@ void BindlessUniformWriter::Initialize()
 	}
 	
 	const auto bindlessUniformLayout = UniformLayout::Create(bindings);
-	m_BindlessUniformWriter = UniformWriter::Create(bindlessUniformLayout, true);
+	m_BindlessUniformWriter = UniformWriter::Create(bindlessUniformLayout, false);
 }
 
 void BindlessUniformWriter::ShutDown()
@@ -69,6 +70,12 @@ void BindlessUniformWriter::UnBindTexture(const std::shared_ptr<Texture>& textur
 	if (index == 0)
 	{
 		return;
+	}
+
+	const std::shared_ptr<Texture> pink = TextureManager::GetInstance().GetPink();
+	if (pink)
+	{
+		m_BindlessUniformWriter->WriteTextureToAllFrames(0, { pink, 0 }, index);
 	}
 
 	m_TextureSlotManager.FreeSlot(index);
