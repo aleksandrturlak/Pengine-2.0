@@ -203,7 +203,7 @@ void RenderPassManager::CreatePointLightShadows()
 		int shadowMapIndex = 0;
 		for (const auto& light : lights)
 		{
-			LightInfo& lightInfo = lightInfos.emplace_back();
+			LightInfo lightInfo{};
 			lightInfo.lightIndex = multiPassData->pointLights[light.indexToLights].index;
 
 			PointLight& pl = registry.get<PointLight>(light.entity);
@@ -257,10 +257,19 @@ void RenderPassManager::CreatePointLightShadows()
 				}
 			}
 
+			int localShadowMapIndex = -1;
 			if (shadowMapIndex < maxShadowMapCount)
 			{
-				lightInfo.shadowMapIndex = shadowMapIndex++;
-				pointLightShadowMapIndicesData[multiPassData->pointLights[light.indexToLights].index] = lightInfo.shadowMapIndex;
+				localShadowMapIndex = shadowMapIndex;
+				shadowMapIndex++;
+			}
+			
+			lightInfo.shadowMapIndex = localShadowMapIndex;
+			pointLightShadowMapIndicesData[multiPassData->pointLights[light.indexToLights].index] = lightInfo.shadowMapIndex;
+
+			if (lightInfo.shadowMapIndex > -1)
+			{
+				lightInfos.emplace_back(lightInfo);
 			}
 		}
 

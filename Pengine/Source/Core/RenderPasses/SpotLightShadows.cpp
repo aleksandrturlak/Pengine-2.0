@@ -198,7 +198,7 @@ void RenderPassManager::CreateSpotLightShadows()
 		int shadowMapIndex = 0;
 		for (const auto& light : lights)
 		{
-			LightInfo& lightInfo = lightInfos.emplace_back();
+			LightInfo lightInfo{};
 			lightInfo.lightIndex = multiPassData->spotLights[light.indexToLights].index;
 
 			SpotLight& sl = registry.get<SpotLight>(light.entity);
@@ -237,10 +237,19 @@ void RenderPassManager::CreateSpotLightShadows()
 				}
 			}
 
+			int localShadowMapIndex = -1;
 			if (shadowMapIndex < maxShadowMapCount)
-			{				
-				lightInfo.shadowMapIndex = shadowMapIndex++;
-				spotLightShadowMapIndicesData[multiPassData->spotLights[light.indexToLights].index] = lightInfo.shadowMapIndex;
+			{
+				localShadowMapIndex = shadowMapIndex;
+				shadowMapIndex++;
+			}
+
+			lightInfo.shadowMapIndex = localShadowMapIndex;
+			spotLightShadowMapIndicesData[multiPassData->spotLights[light.indexToLights].index] = lightInfo.shadowMapIndex;
+
+			if (lightInfo.shadowMapIndex > -1)
+			{
+				lightInfos.emplace_back(lightInfo);
 			}
 		}
 
