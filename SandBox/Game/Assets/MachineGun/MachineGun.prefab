@@ -35,6 +35,9 @@ WeaponComponent:
   name:
     Type: std::__cxx11::basic_string<char>
     Value: Machine Gun
+  shotSound:
+    Type: std::__cxx11::basic_string<char>
+    Value: Game/Assets/Sounds/FireGunShot.mp3
   fireRate:
     Type: float
     Value: 0.0899999961
@@ -52,7 +55,7 @@ WeaponComponent:
     Value: 0.0350000001
   cameraRecoilUp:
     Type: float
-    Value: 0.0549999997
+    Value: 0.0749999997
   cameraRecoilSide:
     Type: float
     Value: 0.0249999985

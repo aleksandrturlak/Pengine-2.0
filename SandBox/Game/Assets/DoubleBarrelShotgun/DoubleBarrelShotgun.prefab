@@ -35,6 +35,9 @@ WeaponComponent:
   name:
     Type: std::__cxx11::basic_string<char>
     Value: Blaster L
+  shotSound:
+    Type: std::__cxx11::basic_string<char>
+    Value: Game/Assets/Sounds/ShotGunShot.mp3
   fireRate:
     Type: float
     Value: 0.899999976

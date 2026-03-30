@@ -20,6 +20,8 @@
 #include "Core/MaterialManager.h"
 
 #include "ComponentSystems/PhysicsSystem.h"
+#include "ComponentSystems/AudioSystem.h"
+#include "Components/AudioSource.h"
 
 #include <Jolt/Jolt.h>
 #include <Jolt/Physics/Body/BodyInterface.h>
@@ -154,6 +156,20 @@ void EnemySystem::OnUpdate(float dt, std::shared_ptr<Pengine::Scene> scene)
 		if (enemy.shootCooldown > 0.0f) continue;
 
 		enemy.shootCooldown = enemy.shootRate;
+
+		if (auto audioSys = std::dynamic_pointer_cast<Pengine::AudioSystem>(scene->GetComponentSystem("AudioSystem")))
+		{
+			if (!enemyEntity->HasComponent<Pengine::AudioSource>())
+			{
+				auto& src        = enemyEntity->AddComponent<Pengine::AudioSource>();
+				src.filePath     = "Game/Assets/Sounds/LaserGunShot.mp3";
+				src.loop         = false;
+				src.spatialBlend = true;
+				src.minDistance  = 2.0f;
+				src.maxDistance  = 60.0f;
+			}
+			audioSys->Play(enemyEntity->GetComponent<Pengine::AudioSource>());
+		}
 
 		glm::vec3 enemyPos = enemyEntity->GetComponent<Pengine::Transform>().GetPosition();
 		glm::vec3 eyePos   = enemyPos + glm::vec3(0.0f, 0.5f, 0.0f);

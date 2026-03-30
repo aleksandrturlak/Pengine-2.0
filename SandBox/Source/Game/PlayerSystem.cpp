@@ -27,6 +27,8 @@
 #include "Core/MaterialManager.h"
 
 #include "ComponentSystems/PhysicsSystem.h"
+#include "ComponentSystems/AudioSystem.h"
+#include "Components/AudioSource.h"
 
 #include <Jolt/Jolt.h>
 #include <Jolt/Physics/Body/BodyInterface.h>
@@ -137,6 +139,11 @@ void PlayerSystem::OnUpdate(float dt, std::shared_ptr<Pengine::Scene> scene)
 					physSys->SetLinearVelocity(rb, glm::vec3(0.0f, vel.GetY(), 0.0f));
 				}
 			}
+
+			if (entity->HasComponent<Pengine::AudioSource>())
+				if (auto audioSys = std::dynamic_pointer_cast<Pengine::AudioSystem>(scene->GetComponentSystem("AudioSystem")))
+					audioSys->Stop(entity->GetComponent<Pengine::AudioSource>());
+
 			continue;
 		}
 
@@ -212,6 +219,26 @@ void PlayerSystem::OnUpdate(float dt, std::shared_ptr<Pengine::Scene> scene)
 			glm::vec3 jumpVel = targetVel;
 			jumpVel.y = player.jumpSpeed;
 			physSys->SetLinearVelocity(rb, jumpVel);
+		}
+
+		// --- Footsteps ---
+		if (auto audioSys = std::dynamic_pointer_cast<Pengine::AudioSystem>(scene->GetComponentSystem("AudioSystem")))
+		{
+			if (!entity->HasComponent<Pengine::AudioSource>())
+			{
+				auto& src        = entity->AddComponent<Pengine::AudioSource>();
+				src.filePath     = "Game/Assets/Sounds/FootSteps.mp3";
+				src.loop         = true;
+				src.spatialBlend = false;
+				src.volume       = 0.01f;
+			}
+
+			auto& src = entity->GetComponent<Pengine::AudioSource>();
+			const bool shouldWalk = isGrounded && glm::length(glm::vec2(targetVel.x, targetVel.z)) > 0.1f;
+			if (shouldWalk && !audioSys->IsPlaying(src))
+				audioSys->Play(src);
+			else if (!shouldWalk && audioSys->IsPlaying(src))
+				audioSys->Stop(src);
 		}
 
 		// --- Hit flash ---
@@ -349,6 +376,19 @@ void PlayerSystem::OnUpdate(float dt, std::shared_ptr<Pengine::Scene> scene)
 						player.shootCooldown  = wc->fireRate;
 						player.recoilTimer    = player.recoilDuration;
 						player.recoilPitch   += wc->cameraRecoilUp;
+
+						if (!wc->shotSound.empty())
+						{
+							auto shotEntity = scene->CreateEntity("ShotSound");
+							shotEntity->AddComponent<Pengine::Transform>(shotEntity);
+							auto& src        = shotEntity->AddComponent<Pengine::AudioSource>();
+							src.filePath     = wc->shotSound;
+							src.loop         = false;
+							src.spatialBlend = false;
+							src.playOnAwake  = true;
+							src.oneShot      = true;
+							src.volume       = 0.05f;
+						}
 						float side = ((float)(std::rand() % 201) / 100.0f - 1.0f) * wc->cameraRecoilSide;
 						player.recoilYaw     += side;
 						player.recoilRecovery = wc->recoilRecovery;
