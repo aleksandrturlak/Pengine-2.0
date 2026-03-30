@@ -1,6 +1,6 @@
 Settings:
   DrawBoundingBoxes: false
-  DrawPhysicsShapes: true
+  DrawPhysicsShapes: false
   Wind:
     Direction: [1, 1, 1]
     Frequency: 5
@@ -177,7 +177,7 @@ Scene:
         - Animation: 0x7fa18741958f9dcb44a4e5b9e1d09587
           Weight: 1
           Speed: 1
-          CurrentTime: 0.326894999
+          CurrentTime: 1.72981954
           BlendMode: 0
           PlayInPlace: false
           BoneMask:

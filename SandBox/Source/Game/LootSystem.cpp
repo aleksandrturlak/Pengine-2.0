@@ -140,14 +140,21 @@ InventorySlot LootSystem::GenerateRandomItem(int raidDepth)
 	{
 		// Pick a random weapon prefab
 		static const char* weaponPrefabs[] = {
-			"Game/Assets/blaster-a/blaster-a.prefab",
-			"Game/Assets/blaster-d/blaster-d.prefab",
-			"Game/Assets/blaster-l/blaster-l.prefab",
+			"Game/Assets/PistolHeavy/PistolHeavy.prefab",
+			"Game/Assets/AutoRifle/AutoRifle.prefab",
+			"Game/Assets/DoubleBarrelShotgun/DoubleBarrelShotgun.prefab",
+			"Game/Assets/MachineGun/MachineGun.prefab",
 		};
-		int idx = std::rand() % 3;
+		static const char* weaponNames[] = {
+			"Pistol Heavy",
+			"Auto Rifle",
+			"Double Barrel Shotgun",
+			"Machine Gun",
+		};
+		int idx = std::rand() % 4;
 		slot.itemTypeInt      = static_cast<int>(ItemComponent::Type::Weapon);
 		slot.weaponPrefabName = weaponPrefabs[idx];
-		slot.itemName         = (idx == 0) ? "Blaster A" : (idx == 1) ? "Blaster D" : "Blaster L";
+		slot.itemName         = weaponNames[idx];
 		slot.creditValue      = 150 + raidDepth * 20;
 		setRarity(slot);
 	}

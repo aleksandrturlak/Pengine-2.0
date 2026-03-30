@@ -1,12 +1,12 @@
-Name: blaster-d
+Name: Double Barrel Shotgun
 IsEnabled: true
 Transform:
-  Position: [-0.566310406, 1.33361673, -2.51911426]
-  Rotation: [0, -1.38213158, 0]
-  Scale: [0.499999702, 0.500001013, 0.50000006]
+  Position: [-0.683551788, 1.17616212, -3.78679299]
+  Rotation: [0, -1.17586029, 0]
+  Scale: [0.499999344, 0.500000238, 0.499999553]
   FollowOwner: true
 Renderer3D:
-  Mesh: 0x74b9f82909fcbb2bdb39961bcb533315
+  Mesh: 0xf0201e7e97cf689f5502c2f9ad32a8df
   Material: 0xa17e62c41bed43d0897f32d93954112f
   RenderingOrder: 5
   IsEnabled: true
@@ -16,16 +16,16 @@ Renderer3D:
 WeaponComponent:
   physicalRecoilForce:
     Type: float
-    Value: 1.5
+    Value: 12
   pelletCount:
     Type: int
-    Value: 1
+    Value: 8
   swayTime:
     Type: float
     Value: 0
   spreadAngle:
     Type: float
-    Value: 0.00999999978
+    Value: 0.100000001
   isReloading:
     Type: bool
     Value: false
@@ -34,68 +34,51 @@ WeaponComponent:
     Value: 0
   name:
     Type: std::__cxx11::basic_string<char>
-    Value: Blaster D
+    Value: Blaster L
   fireRate:
     Type: float
-    Value: 0.100000001
+    Value: 0.899999976
   slot:
     Type: int
-    Value: 1
+    Value: 2
   restPosition:
     Type: glm::vec<3, float, glm::packed_highp>
-    Value: [0.170000002, -0.129999995, -0.370000005]
+    Value: [0.189999998, -0.140000001, -0.30]
   reloadTime:
     Type: float
-    Value: 2
+    Value: 1.5
   kickBack:
     Type: float
-    Value: 0.0299999993
+    Value: 0.0700000003
   cameraRecoilUp:
     Type: float
-    Value: 0.0500000007
+    Value: 0.219999999
   cameraRecoilSide:
     Type: float
-    Value: 0.0199999996
+    Value: 0.0599999987
   kickUp:
     Type: float
-    Value: 0.0199999996
+    Value: 0.0599999987
   recoilRecovery:
     Type: float
-    Value: 8
+    Value: 4
   magazineSize:
     Type: int
-    Value: 30
+    Value: 2
   damage:
     Type: float
-    Value: 15
+    Value: 18
   currentAmmo:
     Type: int
-    Value: 30
+    Value: 2
   ammoTypeInt:
     Type: int
-    Value: 1
+    Value: 2
 Childs:
-  - Name: magazine
-    IsEnabled: true
-    Transform:
-      Position: [0, -0.0359500013, -0.0710574985]
-      Rotation: [0, -0, 0]
-      Scale: [1, 1, 1]
-      FollowOwner: true
-    Renderer3D:
-      Mesh: 0x77e2d24506d9f70ee9f88ff8b464077c
-      Material: 0xa17e62c41bed43d0897f32d93954112f
-      RenderingOrder: 5
-      IsEnabled: true
-      CastShadows: true
-      ObjectVisibilityMask: 255
-      ShadowVisibilityMask: 255
-    Childs:
-      []
   - Name: MuzzleFlash
     IsEnabled: false
     Transform:
-      Position: [0.000120693061, 0.0573817119, -0.524602413]
+      Position: [0, 0.0412537381, -0.33624804]
       Rotation: [0, -0, 0]
       Scale: [2, 2, 2]
       FollowOwner: true
@@ -112,9 +95,9 @@ Childs:
   - Name: FlashLight
     IsEnabled: false
     Transform:
-      Position: [0.000866413116, 0, -0.730187714]
-      Rotation: [0, -5.53460154e-07, 0]
-      Scale: [1.99999905, 2, 1.99999988]
+      Position: [0.255074024, -2.38418579e-07, -0.337617636]
+      Rotation: [0, -5.72310599e-09, 0]
+      Scale: [2.00000238, 1.9999994, 2.00000286]
       FollowOwner: true
     SpotLight:
       Color: [1, 1, 1]

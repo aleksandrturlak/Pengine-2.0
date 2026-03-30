@@ -1,0 +1,130 @@
+Name: Machine Gun
+IsEnabled: true
+Transform:
+  Position: [-2.83169055, 0.741824925, 0.684842944]
+  Rotation: [0, -0, 0]
+  Scale: [0.499999702, 0.5, 0.499999702]
+  FollowOwner: true
+Renderer3D:
+  Mesh: 0xce5f464d42daf4db3ad9f8bbff0bd4ba
+  Material: 0xa17e62c41bed43d0897f32d93954112f
+  RenderingOrder: 5
+  IsEnabled: true
+  CastShadows: true
+  ObjectVisibilityMask: 255
+  ShadowVisibilityMask: 255
+WeaponComponent:
+  physicalRecoilForce:
+    Type: float
+    Value: 2
+  pelletCount:
+    Type: int
+    Value: 1
+  swayTime:
+    Type: float
+    Value: 0
+  spreadAngle:
+    Type: float
+    Value: 0.0199999996
+  isReloading:
+    Type: bool
+    Value: false
+  reloadTimer:
+    Type: float
+    Value: 0
+  name:
+    Type: std::__cxx11::basic_string<char>
+    Value: Machine Gun
+  fireRate:
+    Type: float
+    Value: 0.0899999961
+  slot:
+    Type: int
+    Value: 0
+  restPosition:
+    Type: glm::vec<3, float, glm::packed_highp>
+    Value: [0.164999992, -0.129999995, -0.3]
+  reloadTime:
+    Type: float
+    Value: 3
+  kickBack:
+    Type: float
+    Value: 0.0350000001
+  cameraRecoilUp:
+    Type: float
+    Value: 0.0549999997
+  cameraRecoilSide:
+    Type: float
+    Value: 0.0249999985
+  kickUp:
+    Type: float
+    Value: 0.0249999985
+  recoilRecovery:
+    Type: float
+    Value: 7
+  magazineSize:
+    Type: int
+    Value: 60
+  damage:
+    Type: float
+    Value: 15
+  currentAmmo:
+    Type: int
+    Value: 60
+  ammoTypeInt:
+    Type: int
+    Value: 1
+Childs:
+  - Name: Magazine
+    IsEnabled: true
+    Transform:
+      Position: [0, -0.0354508497, -0.0339599997]
+      Rotation: [0, -0, 0]
+      Scale: [1, 1, 1]
+      FollowOwner: true
+    Renderer3D:
+      Mesh: 0x6ad5f1dbd5842fa0b46749654dbda2da
+      Material: 0xa17e62c41bed43d0897f32d93954112f
+      RenderingOrder: 5
+      IsEnabled: true
+      CastShadows: true
+      ObjectVisibilityMask: 255
+      ShadowVisibilityMask: 255
+    Childs:
+      []
+  - Name: MuzzleFlash
+    IsEnabled: false
+    Transform:
+      Position: [-1.43051147e-06, 0.0456471443, -0.437807322]
+      Rotation: [0, -0, 0]
+      Scale: [2, 2, 2]
+      FollowOwner: true
+    PointLight:
+      Color: [1, 0.921568632, 0.156862751]
+      Intensity: 3
+      Radius: 6
+      Bias: 0.00999999978
+      DrawBoundingSphere: false
+      CastShadows: true
+      CastSSS: false
+    Childs:
+      []
+  - Name: FlashLight
+    IsEnabled: false
+    Transform:
+      Position: [-0.000205039978, -0.0709385872, -0.430986226]
+      Rotation: [0, -2.6822039e-07, 0]
+      Scale: [1.00000191, 1, 1.00000191]
+      FollowOwner: true
+    SpotLight:
+      Color: [1, 1, 1]
+      Intensity: 30
+      Radius: 30
+      Bias: 0.100000001
+      InnerCutOff: 0.994837701
+      OuterCutOff: 0.785398185
+      DrawBoundingSphere: false
+      CastShadows: true
+      CastSSS: false
+    Childs:
+      []

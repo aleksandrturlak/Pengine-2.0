@@ -93,26 +93,34 @@ void ShopSystem::PopulateShop(ShopComponent& shop)
 	// Weapons
 	{
 		InventorySlot s; s.occupied = true;
-		s.itemName = "Blaster A";
+		s.itemName = "Pistol Heavy";
 		s.itemTypeInt = static_cast<int>(ItemComponent::Type::Weapon);
-		s.weaponPrefabName = "Game/Assets/blaster-a/blaster-a.prefab";
+		s.weaponPrefabName = "Game/Assets/PistolHeavy/PistolHeavy.prefab";
 		s.creditValue = 200;
 		add(s);
 	}
 	{
 		InventorySlot s; s.occupied = true;
-		s.itemName = "Blaster D";
+		s.itemName = "Auto Rifle";
 		s.itemTypeInt = static_cast<int>(ItemComponent::Type::Weapon);
-		s.weaponPrefabName = "Game/Assets/blaster-d/blaster-d.prefab";
+		s.weaponPrefabName = "Game/Assets/AutoRifle/AutoRifle.prefab";
 		s.creditValue = 120;
 		add(s);
 	}
 	{
 		InventorySlot s; s.occupied = true;
-		s.itemName = "Blaster L";
+		s.itemName = "Double Barrel Shotgun";
 		s.itemTypeInt = static_cast<int>(ItemComponent::Type::Weapon);
-		s.weaponPrefabName = "Game/Assets/blaster-l/blaster-l.prefab";
+		s.weaponPrefabName = "Game/Assets/DoubleBarrelShotgun/DoubleBarrelShotgun.prefab";
 		s.creditValue = 180;
+		add(s);
+	}
+	{
+		InventorySlot s; s.occupied = true;
+		s.itemName = "Machine Gun";
+		s.itemTypeInt = static_cast<int>(ItemComponent::Type::Weapon);
+		s.weaponPrefabName = "Game/Assets/MachineGun/MachineGun.prefab";
+		s.creditValue = 250;
 		add(s);
 	}
 }

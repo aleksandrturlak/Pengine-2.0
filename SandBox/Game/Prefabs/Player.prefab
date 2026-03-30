@@ -98,13 +98,21 @@ Childs:
       ObjectVisibilityMask: 255
       ShadowVisibilityMask: 255
       Viewport: Main
-    PointLight:
-      Color: [1, 1, 1]
-      Intensity: 1
-      Radius: 3
-      Bias: 0.00999999978
-      DrawBoundingSphere: false
-      CastShadows: false
-      CastSSS: false
     Childs:
-      []
+      - Name: AmbientLight
+        IsEnabled: true
+        Transform:
+          Position: [0, 1, 0]
+          Rotation: [0, -0, 0]
+          Scale: [1, 1, 1]
+          FollowOwner: true
+        PointLight:
+          Color: [1, 1, 1]
+          Intensity: 5
+          Radius: 5
+          Bias: 0.0450000018
+          DrawBoundingSphere: false
+          CastShadows: true
+          CastSSS: false
+        Childs:
+          []
