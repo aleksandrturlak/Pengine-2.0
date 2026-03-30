@@ -133,7 +133,7 @@ void VulkanHeadlessWindow::EndFrame(void* frame)
 
 void VulkanHeadlessWindow::ImGuiRenderPass()
 {
-	Logger::Error("Headless window can't call ImGuiRenderPass!");
+	//Logger::Error("Headless window can't call ImGuiRenderPass!");
 }
 
 void VulkanHeadlessWindow::DisableCursor()

@@ -42,19 +42,8 @@ public:
 private:
 	RoguelikeState()
 	{
-		// Start player with a default backpack
-		InventorySlot bp;
-		bp.occupied    = true;
-		bp.itemName    = "Basic Backpack";
-		bp.itemTypeInt = 3; // Backpack — matches ItemComponent::Type enum order
-		// ItemComponent::Type: Weapon=0,Armor=1,Backpack=2,Ammo=3,Heal=4,Credits=5
-		bp.itemTypeInt = 2;
-		bp.backpackRows = 3;
-		bp.backpackCols = 3;
-		bp.creditValue  = 50;
-		inventory.backpackSlot = bp;
-		inventory.currentRows  = 3;
-		inventory.currentCols  = 3;
+		inventory.currentRows  = 2;
+		inventory.currentCols  = 2;
 		inventory.credits      = 500;
 	}
 };

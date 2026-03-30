@@ -335,8 +335,13 @@ void RenderPassManager::CreateRayTracedReflections()
 		const std::shared_ptr<UniformWriter> renderUniformWriter = GetOrCreateUniformWriter(
 			renderInfo.renderView, pipeline, Pipeline::DescriptorSetIndexType::RENDERER, passName);
 		
-		renderUniformWriter->WriteAccelerationStructureToFrame("topLevelAS", renderInfo.scene->GetTLAS());
+		if (renderInfo.scene->GetTLAS())
+		{
+			renderUniformWriter->WriteAccelerationStructureToFrame("topLevelAS", renderInfo.scene->GetTLAS());
+		}
+
 		WriteRenderViews(renderInfo.renderView, renderInfo.scene->GetRenderView(), pipeline, renderUniformWriter);
+		
 		if (const auto frameBuffer = renderInfo.scene->GetRenderView()->GetFrameBuffer(Atmosphere))
 		{
 			renderUniformWriter->WriteTextureToFrame("skyboxTexture", frameBuffer->GetAttachment(0));
