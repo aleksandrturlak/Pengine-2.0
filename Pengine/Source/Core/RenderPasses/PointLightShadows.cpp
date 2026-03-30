@@ -257,15 +257,11 @@ void RenderPassManager::CreatePointLightShadows()
 				}
 			}
 
-			int localShadowMapIndex = -1;
 			if (shadowMapIndex < maxShadowMapCount)
 			{
-				localShadowMapIndex = shadowMapIndex;
-				shadowMapIndex++;
+				lightInfo.shadowMapIndex = shadowMapIndex++;
+				pointLightShadowMapIndicesData[multiPassData->pointLights[light.indexToLights].index] = lightInfo.shadowMapIndex;
 			}
-			
-			lightInfo.shadowMapIndex = localShadowMapIndex;
-			pointLightShadowMapIndicesData[multiPassData->pointLights[light.indexToLights].index] = lightInfo.shadowMapIndex;
 		}
 
 		pointLightShadowMapIndicesBuffer->WriteToBuffer(pointLightShadowMapIndicesData.data(), pointLightShadowMapIndicesData.size() * sizeof(int));
