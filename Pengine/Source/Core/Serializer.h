@@ -214,6 +214,14 @@ namespace Pengine
 
 		static void DeserializeRigidBody(const YAML::Node& in, const std::shared_ptr<Entity>& entity);
 
+		static void SerializeAudioSource(YAML::Emitter& out, const std::shared_ptr<Entity>& entity);
+
+		static void DeserializeAudioSource(const YAML::Node& in, const std::shared_ptr<Entity>& entity);
+
+		static void SerializeAudioListener(YAML::Emitter& out, const std::shared_ptr<Entity>& entity);
+
+		static void DeserializeAudioListener(const YAML::Node& in, const std::shared_ptr<Entity>& entity);
+
 		static void SerializeDecal(YAML::Emitter& out, const std::shared_ptr<Entity>& entity);
 
 		static void DeserializeDecal(const YAML::Node& in, const std::shared_ptr<Entity>& entity);

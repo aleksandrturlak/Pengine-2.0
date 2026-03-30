@@ -102,8 +102,12 @@ private:
 	void CanvasComponent(const std::shared_ptr<Pengine::Entity>& entity);
 
 	void PhysicsBoxComponent(const std::shared_ptr<Pengine::Entity>& entity);
-	
+
 	void DecalComponent(const std::shared_ptr<Pengine::Entity>& entity);
+
+	void AudioSourceComponent(const std::shared_ptr<Pengine::Entity>& entity);
+
+	void AudioListenerComponent(const std::shared_ptr<Pengine::Entity>& entity);
 
 	void UserComponents(const std::shared_ptr<Pengine::Entity>& entity);
 

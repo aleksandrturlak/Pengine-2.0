@@ -13,6 +13,8 @@ if(MSVC)
 endif()
 
 set(COMPONENTS_SOURCES
+	Components/AudioListener.h
+	Components/AudioSource.h
 	Components/Camera.cpp Components/Camera.h
 	Components/Decal.cpp Components/Decal.h
 	Components/DirectionalLight.h
@@ -28,6 +30,7 @@ set(COMPONENTS_SOURCES
 source_group("Components" FILES ${COMPONENTS_SOURCES})
 
 set(SYSTEMS_SOURCES
+	ComponentSystems/AudioSystem.cpp ComponentSystems/AudioSystem.h
 	ComponentSystems/ComponentSystem.h
 	ComponentSystems/EntityAnimatorSystem.cpp ComponentSystems/EntityAnimatorSystem.h
 	ComponentSystems/PhysicsSystem.cpp ComponentSystems/PhysicsSystem.h
@@ -266,6 +269,7 @@ elseif (UNIX)
 endif ()
 
 target_include_directories(${PROJECT_NAME} PRIVATE ../../Vendor)
+target_include_directories(${PROJECT_NAME} PRIVATE ../../Vendor/miniaudio)
 target_include_directories(${PROJECT_NAME} PRIVATE ../../Vendor/yaml-cpp)
 target_include_directories(${PROJECT_NAME} PRIVATE ../../Vendor/imgui)
 target_include_directories(${PROJECT_NAME} PRIVATE ../../Vendor/fastgltf/include)

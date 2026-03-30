@@ -29,6 +29,8 @@
 #include "../Components/Transform.h"
 #include "../Components/Canvas.h"
 #include "../Components/RigidBody.h"
+#include "../Components/AudioSource.h"
+#include "../Components/AudioListener.h"
 
 #include "../ComponentSystems/PhysicsSystem.h"
 
@@ -4120,6 +4122,8 @@ void Serializer::SerializeEntity(YAML::Emitter& out, const std::shared_ptr<Entit
 	SerializeEntityAnimator(out, entity);
 	SerializeCanvas(out, entity);
 	SerializeRigidBody(out, entity);
+	SerializeAudioSource(out, entity);
+	SerializeAudioListener(out, entity);
 	SerializeUserComponents(out, entity);
 
 	// Childs.
@@ -4195,6 +4199,8 @@ std::shared_ptr<Entity> Serializer::DeserializeEntity(
 	DeserializeEntityAnimator(in, entity);
 	DeserializeCanvas(in, entity);
 	DeserializeRigidBody(in, entity);
+	DeserializeAudioSource(in, entity);
+	DeserializeAudioListener(in, entity);
 	DeserializeUserComponents(in, entity);
 
 	for (const auto& childData : in["Childs"])
@@ -5215,6 +5221,105 @@ void Serializer::DeserializeRigidBody(const YAML::Node& in, const std::shared_pt
 		}
 
 		entity->GetScene()->GetPhysicsSystem()->UpdateBodies(entity->GetScene());
+	}
+}
+
+void Serializer::SerializeAudioSource(YAML::Emitter& out, const std::shared_ptr<Entity>& entity)
+{
+	if (!entity->HasComponent<AudioSource>())
+	{
+		return;
+	}
+
+	const AudioSource& audioSource = entity->GetComponent<AudioSource>();
+
+	out << YAML::Key << "AudioSource";
+
+	out << YAML::BeginMap;
+
+	out << YAML::Key << "FilePath" << YAML::Value << audioSource.filePath;
+	out << YAML::Key << "Volume" << YAML::Value << audioSource.volume;
+	out << YAML::Key << "Pitch" << YAML::Value << audioSource.pitch;
+	out << YAML::Key << "Loop" << YAML::Value << audioSource.loop;
+	out << YAML::Key << "PlayOnAwake" << YAML::Value << audioSource.playOnAwake;
+	out << YAML::Key << "SpatialBlend" << YAML::Value << audioSource.spatialBlend;
+	out << YAML::Key << "MinDistance" << YAML::Value << audioSource.minDistance;
+	out << YAML::Key << "MaxDistance" << YAML::Value << audioSource.maxDistance;
+
+	out << YAML::EndMap;
+}
+
+void Serializer::DeserializeAudioSource(const YAML::Node& in, const std::shared_ptr<Entity>& entity)
+{
+	if (const auto& audioSourceData = in["AudioSource"])
+	{
+		if (!entity->HasComponent<AudioSource>())
+		{
+			entity->AddComponent<AudioSource>();
+		}
+
+		AudioSource& audioSource = entity->GetComponent<AudioSource>();
+
+		if (const auto& filePathData = audioSourceData["FilePath"])
+		{
+			audioSource.filePath = filePathData.as<std::string>();
+		}
+
+		if (const auto& volumeData = audioSourceData["Volume"])
+		{
+			audioSource.volume = volumeData.as<float>();
+		}
+
+		if (const auto& pitchData = audioSourceData["Pitch"])
+		{
+			audioSource.pitch = pitchData.as<float>();
+		}
+
+		if (const auto& loopData = audioSourceData["Loop"])
+		{
+			audioSource.loop = loopData.as<bool>();
+		}
+
+		if (const auto& playOnAwakeData = audioSourceData["PlayOnAwake"])
+		{
+			audioSource.playOnAwake = playOnAwakeData.as<bool>();
+		}
+
+		if (const auto& spatialBlendData = audioSourceData["SpatialBlend"])
+		{
+			audioSource.spatialBlend = spatialBlendData.as<bool>();
+		}
+
+		if (const auto& minDistanceData = audioSourceData["MinDistance"])
+		{
+			audioSource.minDistance = minDistanceData.as<float>();
+		}
+
+		if (const auto& maxDistanceData = audioSourceData["MaxDistance"])
+		{
+			audioSource.maxDistance = maxDistanceData.as<float>();
+		}
+	}
+}
+
+void Serializer::SerializeAudioListener(YAML::Emitter& out, const std::shared_ptr<Entity>& entity)
+{
+	if (!entity->HasComponent<AudioListener>())
+	{
+		return;
+	}
+
+	out << YAML::Key << "AudioListener" << YAML::Value << true;
+}
+
+void Serializer::DeserializeAudioListener(const YAML::Node& in, const std::shared_ptr<Entity>& entity)
+{
+	if (const auto& audioListenerData = in["AudioListener"])
+	{
+		if (!entity->HasComponent<AudioListener>())
+		{
+			entity->AddComponent<AudioListener>();
+		}
 	}
 }
 

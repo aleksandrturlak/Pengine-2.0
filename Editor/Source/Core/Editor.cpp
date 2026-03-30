@@ -41,6 +41,8 @@
 #include "Components/Transform.h"
 #include "Components/Canvas.h"
 #include "Components/RigidBody.h"
+#include "Components/AudioSource.h"
+#include "Components/AudioListener.h"
 
 #include "ComponentSystems/PhysicsSystem.h"
 
@@ -1128,6 +1130,8 @@ void Editor::Properties(const std::shared_ptr<Scene>& scene, Window& window)
 			EntityAnimatorComponent(entity);
 			CanvasComponent(entity);
 			PhysicsBoxComponent(entity);
+			AudioSourceComponent(entity);
+			AudioListenerComponent(entity);
 			UserComponents(entity);
 
 			ImGui::NewLine();
@@ -2585,6 +2589,14 @@ void Editor::ComponentsPopUpMenu(const std::shared_ptr<Entity>& entity)
 		{
 			entity->AddComponent<RigidBody>();
 		}
+		else if (ImGui::MenuItem("AudioSource"))
+		{
+			entity->AddComponent<AudioSource>();
+		}
+		else if (ImGui::MenuItem("AudioListener"))
+		{
+			entity->AddComponent<AudioListener>();
+		}
 
 		ReflectionSystem& reflectionSystem = ReflectionSystem::GetInstance();
 		for (auto& [id, registeredClass] : reflectionSystem.m_ClassesByType)
@@ -3397,6 +3409,92 @@ void Editor::PhysicsBoxComponent(const std::shared_ptr<Entity>& entity)
 			rigidBody.isValid = false;
 		}
 	}
+}
+
+void Editor::AudioSourceComponent(const std::shared_ptr<Pengine::Entity>& entity)
+{
+	if (!entity->HasComponent<AudioSource>())
+	{
+		return;
+	}
+
+	AudioSource& audioSource = entity->GetComponent<AudioSource>();
+
+	ImGui::PushID("AudioSource X");
+	if (ImGui::Button("X"))
+	{
+		std::shared_ptr<NextFrameEvent> event = std::make_shared<NextFrameEvent>([entity]()
+		{
+			entity->RemoveComponent<AudioSource>();
+		}, Event::Type::OnNextFrame, this);
+		EventSystem::GetInstance().SendEvent(event);
+	}
+	ImGui::PopID();
+
+	ImGui::SameLine();
+
+	if (ImGui::CollapsingHeader("AudioSource"))
+	{
+		Indent indent;
+
+		ImGui::Text("Clip:");
+		ImGui::SameLine();
+		const std::string clipLabel = audioSource.filePath.empty()
+			? "[none]"
+			: std::filesystem::path(audioSource.filePath).filename().string();
+		ImGui::Button(clipLabel.c_str());
+
+		if (ImGui::BeginDragDropTarget())
+		{
+			if (const ImGuiPayload* payload = ImGui::AcceptDragDropPayload("ASSETS_BROWSER_ITEM"))
+			{
+				std::wstring wpath((const wchar_t*)payload->Data);
+				wpath.resize(payload->DataSize / sizeof(wchar_t));
+
+				if (FileFormats::IsAudio(Utils::GetFileFormat(wpath)))
+				{
+					audioSource.filePath = Utils::GetShortFilepath(wpath).string();
+					audioSource.m_Dirty  = true;
+				}
+			}
+			ImGui::EndDragDropTarget();
+		}
+
+		ImGui::SliderFloat("Volume", &audioSource.volume, 0.0f, 1.0f);
+		ImGui::SliderFloat("Pitch", &audioSource.pitch, 0.1f, 4.0f);
+		ImGui::Checkbox("Loop", &audioSource.loop);
+		ImGui::Checkbox("Play On Awake", &audioSource.playOnAwake);
+		ImGui::Checkbox("Spatial Blend (3D)", &audioSource.spatialBlend);
+
+		if (audioSource.spatialBlend)
+		{
+			ImGui::SliderFloat("Min Distance", &audioSource.minDistance, 0.1f, 100.0f);
+			ImGui::SliderFloat("Max Distance", &audioSource.maxDistance, 1.0f, 1000.0f);
+		}
+	}
+}
+
+void Editor::AudioListenerComponent(const std::shared_ptr<Pengine::Entity>& entity)
+{
+	if (!entity->HasComponent<AudioListener>())
+	{
+		return;
+	}
+
+	ImGui::PushID("AudioListener X");
+	if (ImGui::Button("X"))
+	{
+		std::shared_ptr<NextFrameEvent> event = std::make_shared<NextFrameEvent>([entity]()
+		{
+			entity->RemoveComponent<AudioListener>();
+		}, Event::Type::OnNextFrame, this);
+		EventSystem::GetInstance().SendEvent(event);
+	}
+	ImGui::PopID();
+
+	ImGui::SameLine();
+
+	ImGui::CollapsingHeader("AudioListener");
 }
 
 void Editor::DecalComponent(const std::shared_ptr<Pengine::Entity>& entity)

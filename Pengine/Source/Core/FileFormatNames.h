@@ -127,6 +127,34 @@ namespace Pengine::FileFormats
 		return ".track";
 	}
 
+	inline const char* Wav()
+	{
+		return ".wav";
+	}
+
+	inline const char* Mp3()
+	{
+		return ".mp3";
+	}
+
+	inline const char* Flac()
+	{
+		return ".flac";
+	}
+
+	inline const char* Ogg()
+	{
+		return ".ogg";
+	}
+
+	inline bool IsAudio(const std::string& fileFormat)
+	{
+		return fileFormat == Wav()
+			|| fileFormat == Mp3()
+			|| fileFormat == Flac()
+			|| fileFormat == Ogg();
+	}
+
 	inline bool IsTexture(const std::string& fileFormat)
 	{
 		return fileFormat == Png()
@@ -156,6 +184,7 @@ namespace Pengine::FileFormats
 	{
 		if (IsTexture(fileFormat)
 			|| IsShader(fileFormat)
+			|| IsAudio(fileFormat)
 			|| fileFormat == BaseMat()
 			|| fileFormat == Mat()
 			|| fileFormat == Mesh()
