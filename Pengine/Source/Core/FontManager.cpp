@@ -64,20 +64,21 @@ std::shared_ptr<FontManager::Font> FontManager::LoadFont(const std::filesystem::
 		FATAL_ERROR("Failed to set pixel sizes!");
 	}
 
-	// Support only english!
-	const size_t glyphCount = 128;
+	// Full 256-entry table so unsigned char indexing in MeasureText is always in bounds
+	const int glyphCount = 256;
 
 	std::shared_ptr<Font> font = std::make_shared<Font>();
 	font->glyphs.resize(glyphCount);
 
-	const int atlasSize = sqrt(glyphCount * fontSize * fontSize);
+	// Round up so we never lose a pixel to truncation
+	const int atlasSize = static_cast<int>(std::ceil(std::sqrt(static_cast<double>(glyphCount) * fontSize * fontSize)));
 	uint8_t* buffer = new uint8_t[atlasSize * atlasSize];
 
 	std::memset(buffer, 0, atlasSize * atlasSize);
 
-	int padding = 2;
+	const int padding = 2;
 	int x = padding, y = padding;
-	int maxGlyphHeight = 0;
+	int rowMaxHeight = 0; // track per-row max, not global max
 
 	for (int i = 0; i < glyphCount; ++i)
 	{
@@ -89,7 +90,7 @@ std::shared_ptr<FontManager::Font> FontManager::LoadFont(const std::filesystem::
 
 		if (face->glyph->format != FT_GLYPH_FORMAT_BITMAP)
 		{
-			error = FT_Render_Glyph( face->glyph, FT_RENDER_MODE_NORMAL );
+			error = FT_Render_Glyph(face->glyph, FT_RENDER_MODE_NORMAL);
 			if (error)
 			{
 				FATAL_ERROR("Failed to render glyph!");
@@ -97,34 +98,35 @@ std::shared_ptr<FontManager::Font> FontManager::LoadFont(const std::filesystem::
 		}
 
 		Font::Glyph glyph{};
-		glyph.size = { face->glyph->bitmap.width, face->glyph->bitmap.rows };
+		glyph.size    = { face->glyph->bitmap.width, face->glyph->bitmap.rows };
 		glyph.bearing = { face->glyph->bitmap_left, face->glyph->bitmap_top };
 		glyph.advance = face->glyph->advance.x >> 6;
 
-		if (x + glyph.size.x >= atlasSize)
+		if (x + glyph.size.x + padding >= atlasSize)
 		{
 			x = padding;
-			y += maxGlyphHeight + padding;
+			y += rowMaxHeight + padding;
+			rowMaxHeight = 0; // reset for the new row
 		}
 
-		glyph.uvMin = { (float)x / (float)atlasSize, (float)y / (float)atlasSize };
-		glyph.uvMax = { (float)(x + glyph.size.x) / (float)atlasSize, (float)(y + glyph.size.y) / (float)atlasSize };
-
-		for (int j = 0; j < glyph.size.y; ++j)
+		// Skip writing if the glyph would overflow the atlas vertically
+		if (y + glyph.size.y < atlasSize)
 		{
-			for (int k = 0; k < glyph.size.x; ++k)
+			glyph.uvMin = { (float)x / (float)atlasSize, (float)y / (float)atlasSize };
+			glyph.uvMax = { (float)(x + glyph.size.x) / (float)atlasSize, (float)(y + glyph.size.y) / (float)atlasSize };
+
+			for (int j = 0; j < glyph.size.y; ++j)
 			{
-				const int srcIndex = j * glyph.size.x + k;
-				const int dstIndex = (j + y) * atlasSize + (k + x);
-
-				auto& src = face->glyph->bitmap.buffer[srcIndex];
-				auto& dst = buffer[dstIndex];
-
-				dst = src;
+				for (int k = 0; k < glyph.size.x; ++k)
+				{
+					const int srcIndex = j * glyph.size.x + k;
+					const int dstIndex = (j + y) * atlasSize + (k + x);
+					buffer[dstIndex] = face->glyph->bitmap.buffer[srcIndex];
+				}
 			}
 		}
 
-		maxGlyphHeight = glm::max<int>(maxGlyphHeight, glyph.size.y);
+		rowMaxHeight = glm::max(rowMaxHeight, glyph.size.y);
 		x += glyph.size.x + padding;
 
 		font->glyphs[i] = glyph;
@@ -135,7 +137,7 @@ std::shared_ptr<FontManager::Font> FontManager::LoadFont(const std::filesystem::
 	createInfo.instanceSize = sizeof(uint8_t);
 	createInfo.filepath = filepath;
 	createInfo.name = Utils::GetFilename(filepath);
-	createInfo.format = Format::R8_SRGB;
+	createInfo.format = Format::R8_UNORM;
 	createInfo.size = { atlasSize, atlasSize };
 	createInfo.usage = { Texture::Usage::SAMPLED, Texture::Usage::TRANSFER_DST };
 	createInfo.data = buffer;
@@ -176,10 +178,11 @@ glm::ivec2 FontManager::MeasureText(const std::string& fontName, const uint16_t 
 	glm::ivec2 size{};
 	for (const auto& character : text)
 	{
-		const Font::Glyph& glyph = font->glyphs[character];
+		const Font::Glyph& glyph = font->glyphs[static_cast<unsigned char>(character)];
 
 		size.x += glyph.advance;
-		size.y = glm::max<int>(size.y, glyph.size.y);
+		const int descent = glm::max(0, glyph.size.y - glyph.bearing.y);
+		size.y = glm::max<int>(size.y, glyph.bearing.y + descent);
 	}
 
 	return size;
@@ -187,16 +190,23 @@ glm::ivec2 FontManager::MeasureText(const std::string& fontName, const uint16_t 
 
 Clay_Dimensions FontManager::ClayMeasureText(Clay_StringSlice text, Clay_TextElementConfig *config, void* userData)
 {
+	// Clay_StringSlice is not null-terminated — construct string with explicit length
+	const std::string str(text.chars, text.length);
 	const std::string fontName = FontManager::GetInstance().GetFontName(config->fontId);
-	glm::ivec2 size = FontManager::GetInstance().MeasureText(fontName, config->fontSize, text.chars);
+	glm::ivec2 size = FontManager::GetInstance().MeasureText(fontName, config->fontSize, str);
 
-	// TODO: FIX.
-	//size.y += config->lineHeight;
-	//size.x += config->letterSpacing * text.length;
+	if (config->letterSpacing > 0 && text.length > 1)
+		size.x += config->letterSpacing * (text.length - 1);
+
+	// When lineHeight is 0, Clay uses the measured height directly as the line-box height.
+	// Add default leading (~25% of font size) so wrapped lines aren't packed tight.
+	const int lineHeight = config->lineHeight > 0
+		? config->lineHeight
+		: size.y + config->fontSize / 4;
 
 	Clay_Dimensions dimensions{};
-	dimensions.width = size.x;
-	dimensions.height = size.y;
+	dimensions.width  = static_cast<float>(size.x);
+	dimensions.height = static_cast<float>(lineHeight);
 
 	return dimensions;
 }
