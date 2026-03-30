@@ -105,6 +105,7 @@ bool InventorySystem::GiveItem(InventoryComponent& inv, const InventorySlot& ite
 			if (!inv.weaponSlotOccupied[s])
 			{
 				inv.weaponSlots[s]        = item.weaponPrefabName;
+				inv.weaponSlotNames[s]    = item.itemName;
 				inv.weaponSlotOccupied[s] = true;
 				// Spawn the weapon entity if we have a scene and player camera
 				if (scene && playerEntity)
@@ -147,7 +148,7 @@ bool InventorySystem::EquipWeapon(InventoryComponent& inv, int gridRow, int grid
 	{
 		InventorySlot old;
 		old.occupied         = true;
-		old.itemName         = "Weapon";
+		old.itemName         = inv.weaponSlotNames[weaponSlot];
 		old.itemTypeInt      = static_cast<int>(ItemComponent::Type::Weapon);
 		old.weaponPrefabName = inv.weaponSlots[weaponSlot];
 		old.creditValue      = 100;
@@ -155,6 +156,7 @@ bool InventorySystem::EquipWeapon(InventoryComponent& inv, int gridRow, int grid
 	}
 
 	inv.weaponSlots[weaponSlot]        = gridSlot.weaponPrefabName;
+	inv.weaponSlotNames[weaponSlot]    = gridSlot.itemName;
 	inv.weaponSlotOccupied[weaponSlot] = true;
 	inv.ClearGridSlot(gridRow, gridCol);
 
@@ -287,7 +289,7 @@ bool InventorySystem::UnequipWeapon(InventoryComponent& inv, int weaponSlot,
 
 	InventorySlot slot;
 	slot.occupied         = true;
-	slot.itemName         = inv.weaponSlots[weaponSlot].substr(inv.weaponSlots[weaponSlot].rfind('/') + 1);
+	slot.itemName         = inv.weaponSlotNames[weaponSlot];
 	slot.itemTypeInt      = static_cast<int>(ItemComponent::Type::Weapon);
 	slot.weaponPrefabName = inv.weaponSlots[weaponSlot];
 	slot.creditValue      = 100;
@@ -295,6 +297,7 @@ bool InventorySystem::UnequipWeapon(InventoryComponent& inv, int weaponSlot,
 	if (!inv.AddToGrid(slot)) return false;
 
 	inv.weaponSlots[weaponSlot]        = {};
+	inv.weaponSlotNames[weaponSlot]    = {};
 	inv.weaponSlotOccupied[weaponSlot] = false;
 
 	// Remove the weapon entity from the camera

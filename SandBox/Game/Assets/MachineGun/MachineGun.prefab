@@ -16,7 +16,7 @@ Renderer3D:
 WeaponComponent:
   physicalRecoilForce:
     Type: float
-    Value: 2
+    Value: 1
   pelletCount:
     Type: int
     Value: 1
@@ -35,6 +35,9 @@ WeaponComponent:
   name:
     Type: std::__cxx11::basic_string<char>
     Value: Machine Gun
+  previewImage:
+    Type: std::__cxx11::basic_string<char>
+    Value: Game/Assets/MachineGun/MachineGun.png
   shotSound:
     Type: std::__cxx11::basic_string<char>
     Value: Game/Assets/Sounds/FireGunShot.mp3

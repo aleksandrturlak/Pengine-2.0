@@ -7,6 +7,7 @@
 struct WeaponComponent
 {
 	PROPERTY(std::string, name, "")
+	PROPERTY(std::string, previewImage, "")
 	PROPERTY(std::string, shotSound, "")
 	PROPERTY(float, damage, 25.0f)
 	PROPERTY(float, fireRate, 0.3f)

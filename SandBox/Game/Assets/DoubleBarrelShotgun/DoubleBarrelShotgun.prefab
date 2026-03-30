@@ -35,6 +35,9 @@ WeaponComponent:
   name:
     Type: std::__cxx11::basic_string<char>
     Value: Blaster L
+  previewImage:
+    Type: std::__cxx11::basic_string<char>
+    Value: Game/Assets/DoubleBarrelShotgun/DoubleBarrelShotgun.png
   shotSound:
     Type: std::__cxx11::basic_string<char>
     Value: Game/Assets/Sounds/ShotGunShot.mp3

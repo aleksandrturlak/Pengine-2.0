@@ -41,8 +41,9 @@ struct InventoryComponent
 
 	static constexpr int kAmmoTypes = 3; // Pistol, Rifle, Shotgun
 
-	// Weapon slots (indices 0–1) — stores weapon prefab names
+	// Weapon slots (indices 0–1) — stores weapon prefab names and display names
 	std::array<std::string, kMaxWeaponSlots> weaponSlots = {};
+	std::array<std::string, kMaxWeaponSlots> weaponSlotNames = {};
 	std::array<bool, kMaxWeaponSlots>        weaponSlotOccupied = {};
 
 	// Reserve ammo per type (drawn on reload)

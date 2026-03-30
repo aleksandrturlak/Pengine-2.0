@@ -55,3 +55,6 @@ cd Build && ctest
 - GLM for all math (vectors, matrices); `Transform` uses dirty flags for local/global matrix separation
 - `Logger::Error()` for errors; prefer assertions and early returns over exceptions in hot paths
 - Shared pointers for assets and entities; RAII for Vulkan resources
+
+## Game Development
+When making a game there is a file in MEMORY how to make a game with this game engine.

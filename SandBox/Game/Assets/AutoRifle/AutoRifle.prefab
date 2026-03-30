@@ -35,6 +35,9 @@ WeaponComponent:
   name:
     Type: std::__cxx11::basic_string<char>
     Value: Blaster D
+  previewImage:
+    Type: std::__cxx11::basic_string<char>
+    Value: Game/Assets/AutoRifle/AutoRifle.png
   shotSound:
     Type: std::__cxx11::basic_string<char>
     Value: Game/Assets/Sounds/FireGunShot.mp3
