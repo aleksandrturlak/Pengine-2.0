@@ -28,8 +28,8 @@
 #include "Core/SceneManager.h"
 #include "Core/Serializer.h"
 #include "Core/FontManager.h"
-#include "Core/ClayManager.h"
 #include "Core/Input.h"
+#include "ComponentSystems/UISystem.h"
 #include "Core/KeyCode.h"
 #include "Core/WindowManager.h"
 #include "Core/Window.h"
@@ -46,19 +46,24 @@
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
+static void OpenText(clay::Context* ctx, std::string_view text, clay::TextElementConfig cfg)
+{
+	ctx->openTextElement(text, ctx->storeTextConfig(cfg));
+}
+
 static uint16_t Font(const char* name, int size)
 {
 	return Pengine::FontManager::GetInstance().GetFont(name, size)->id;
 }
 
-static Clay_String Str(const std::string& s)
+static std::string_view Str(const std::string& s)
 {
-	return { false, (int32_t)s.size(), s.c_str() };
+	return s;
 }
 
-static Clay_String Str(const char* s)
+static std::string_view Str(const char* s)
 {
-	return { true, (int32_t)strlen(s), s };
+	return s;
 }
 
 static const char* RarityName(int r)
@@ -71,7 +76,7 @@ static const char* RarityName(int r)
 	}
 }
 
-static Clay_Color RarityColor(int r)
+static clay::Color RarityColor(int r)
 {
 	switch (r) {
 	case 1: return { 0.4f, 0.9f, 0.4f, 1.0f };
@@ -145,7 +150,7 @@ static Pengine::Texture* GetWeaponPreviewTex(std::shared_ptr<Pengine::Entity> pl
 
 // ─── UI script: Raid HUD ─────────────────────────────────────────────────────
 
-static Clay_RenderCommandArray RaidHUDScript(Pengine::Canvas*, std::shared_ptr<Pengine::Entity>)
+static std::vector<clay::RenderCommand>RaidHUDScript(Pengine::Canvas*, clay::Context* ctx, std::shared_ptr<Pengine::Entity>)
 {
 	auto scene = Pengine::SceneManager::GetInstance().GetSceneByTag("Main");
 
@@ -246,96 +251,96 @@ static Clay_RenderCommandArray RaidHUDScript(Pengine::Canvas*, std::shared_ptr<P
 		flashAlpha = (t > 0.5f ? (1.0f - t) / 0.5f : t / 0.5f) * 0.47f;
 	}
 
-	Pengine::ClayManager::BeginLayout();
+	ctx->beginLayout();
 
 	// Root
-	Pengine::ClayManager::OpenElement();
-	Pengine::ClayManager::ConfigureOpenElement({
+	ctx->openElement();
+	ctx->configureOpenElement({
 		.layout = {
-			.sizing          = { CLAY_SIZING_GROW(0), CLAY_SIZING_GROW(0) },
-			.layoutDirection = CLAY_TOP_TO_BOTTOM,
+			.sizing          = { clay::sizing::grow(0), clay::sizing::grow(0) },
+			.layoutDirection = clay::LayoutDirection::TopToBottom,
 		},
 		.backgroundColor = { 1.0f, 0.0f, 0.0f, flashAlpha },
 	});
 
 	// Top row: depth + enemies + credits
-	Pengine::ClayManager::OpenElement();
-	Pengine::ClayManager::ConfigureOpenElement({
+	ctx->openElement();
+	ctx->configureOpenElement({
 		.layout = {
-			.sizing          = { CLAY_SIZING_GROW(0), CLAY_SIZING_FIT(0) },
+			.sizing          = { clay::sizing::grow(0), clay::sizing::fit(0) },
 			.padding         = { .left = 16, .right = 16, .top = 12 },
 			.childGap        = 20,
-			.childAlignment  = { .x = CLAY_ALIGN_X_RIGHT },
-			.layoutDirection = CLAY_LEFT_TO_RIGHT,
+			.childAlignment  = { .x = clay::AlignX::Right },
+			.layoutDirection = clay::LayoutDirection::LeftToRight,
 		},
 	});
-	Pengine::ClayManager::OpenTextElement(Str(depthText),
-		{ .textColor={0.9f,0.9f,0.9f,1}, .fontId=f24, .fontSize=24, .wrapMode=CLAY_TEXT_WRAP_NONE });
-	Pengine::ClayManager::OpenTextElement(Str(enemyText),
-		{ .textColor={0.9f,0.5f,0.3f,1}, .fontId=f24, .fontSize=24, .wrapMode=CLAY_TEXT_WRAP_NONE });
-	Pengine::ClayManager::OpenTextElement(Str(creditsText),
-		{ .textColor={0.9f,0.85f,0.3f,1}, .fontId=f24, .fontSize=24, .wrapMode=CLAY_TEXT_WRAP_NONE });
-	Pengine::ClayManager::CloseElement(); // top row
+	OpenText(ctx,Str(depthText),
+		{ .textColor={0.9f,0.9f,0.9f,1}, .fontId=f24, .fontSize=24, .wrapMode=clay::TextWrapMode::None });
+	OpenText(ctx,Str(enemyText),
+		{ .textColor={0.9f,0.5f,0.3f,1}, .fontId=f24, .fontSize=24, .wrapMode=clay::TextWrapMode::None });
+	OpenText(ctx,Str(creditsText),
+		{ .textColor={0.9f,0.85f,0.3f,1}, .fontId=f24, .fontSize=24, .wrapMode=clay::TextWrapMode::None });
+	ctx->closeElement(); // top row
 
 	// Middle: crosshair + interact prompt
-	Pengine::ClayManager::OpenElement();
-	Pengine::ClayManager::ConfigureOpenElement({
+	ctx->openElement();
+	ctx->configureOpenElement({
 		.layout = {
-			.sizing         = { CLAY_SIZING_GROW(0), CLAY_SIZING_GROW(0) },
-			.childAlignment = { .x = CLAY_ALIGN_X_CENTER, .y = CLAY_ALIGN_Y_CENTER },
-			.layoutDirection = CLAY_TOP_TO_BOTTOM,
+			.sizing         = { clay::sizing::grow(0), clay::sizing::grow(0) },
+			.childAlignment = { .x = clay::AlignX::Center, .y = clay::AlignY::Center },
+			.layoutDirection = clay::LayoutDirection::TopToBottom,
 		},
 	});
 	if (!interactLabel.empty())
-		Pengine::ClayManager::OpenTextElement(Str(interactLabel),
-			{ .textColor={0.9f,0.9f,0.3f,1}, .fontId=f24, .fontSize=24, .wrapMode=CLAY_TEXT_WRAP_NONE });
-	Pengine::ClayManager::CloseElement(); // middle
+		OpenText(ctx,Str(interactLabel),
+			{ .textColor={0.9f,0.9f,0.3f,1}, .fontId=f24, .fontSize=24, .wrapMode=clay::TextWrapMode::None });
+	ctx->closeElement(); // middle
 
 	// Bottom row: health bar + ammo
-	Pengine::ClayManager::OpenElement();
-	Pengine::ClayManager::ConfigureOpenElement({
+	ctx->openElement();
+	ctx->configureOpenElement({
 		.layout = {
-			.sizing          = { CLAY_SIZING_GROW(0), CLAY_SIZING_FIT(0) },
+			.sizing          = { clay::sizing::grow(0), clay::sizing::fit(0) },
 			.padding         = { .left = 16, .right = 16, .bottom = 16 },
-			.childAlignment  = { .y = CLAY_ALIGN_Y_BOTTOM },
-			.layoutDirection = CLAY_LEFT_TO_RIGHT,
+			.childAlignment  = { .y = clay::AlignY::Bottom },
+			.layoutDirection = clay::LayoutDirection::LeftToRight,
 		},
 	});
 
 	{
 		float fillW = (health / std::max(maxHealth, 1.0f)) * 200.0f;
 		fillW = std::clamp(fillW, 0.0f, 200.0f);
-		Clay_Color barColor = health > maxHealth * 0.6f
-			? Clay_Color{0.31f, 0.78f, 0.31f, 0.86f}
+		clay::Color barColor = health > maxHealth * 0.6f
+			? clay::Color{0.31f, 0.78f, 0.31f, 0.86f}
 			: health > maxHealth * 0.3f
-				? Clay_Color{0.86f, 0.63f, 0.16f, 0.86f}
-				: Clay_Color{0.82f, 0.20f, 0.20f, 0.86f};
+				? clay::Color{0.86f, 0.63f, 0.16f, 0.86f}
+				: clay::Color{0.82f, 0.20f, 0.20f, 0.86f};
 
-		Pengine::ClayManager::OpenElement();
-		Pengine::ClayManager::ConfigureOpenElement({
+		ctx->openElement();
+		ctx->configureOpenElement({
 			.layout = {
-				.sizing          = { CLAY_SIZING_FIXED(200), CLAY_SIZING_FIXED(18) },
-				.layoutDirection = CLAY_LEFT_TO_RIGHT,
+				.sizing          = { clay::sizing::fixed(200), clay::sizing::fixed(18) },
+				.layoutDirection = clay::LayoutDirection::LeftToRight,
 			},
 			.backgroundColor = {0.20f, 0.20f, 0.20f, 0.71f},
 		});
-		Pengine::ClayManager::OpenElement();
-		Pengine::ClayManager::ConfigureOpenElement({
-			.layout          = { .sizing = { CLAY_SIZING_FIXED(fillW), CLAY_SIZING_GROW(0) } },
+		ctx->openElement();
+		ctx->configureOpenElement({
+			.layout          = { .sizing = { clay::sizing::fixed(fillW), clay::sizing::grow(0) } },
 			.backgroundColor = barColor,
 		});
-		Pengine::ClayManager::CloseElement();
-		Pengine::ClayManager::CloseElement();
-		Pengine::ClayManager::OpenTextElement(Str(hpText),
-			{ .textColor={0.86f,0.86f,0.86f,1}, .fontId=f24, .fontSize=24, .wrapMode=CLAY_TEXT_WRAP_NONE });
+		ctx->closeElement();
+		ctx->closeElement();
+		OpenText(ctx,Str(hpText),
+			{ .textColor={0.86f,0.86f,0.86f,1}, .fontId=f24, .fontSize=24, .wrapMode=clay::TextWrapMode::None });
 	}
 
 	// Spacer
-	Pengine::ClayManager::OpenElement();
-	Pengine::ClayManager::ConfigureOpenElement({
-		.layout = { .sizing = { CLAY_SIZING_GROW(0), CLAY_SIZING_FIT(0) } },
+	ctx->openElement();
+	ctx->configureOpenElement({
+		.layout = { .sizing = { clay::sizing::grow(0), clay::sizing::fit(0) } },
 	});
-	Pengine::ClayManager::CloseElement();
+	ctx->closeElement();
 
 	{
 		Pengine::Texture* tex = nullptr;
@@ -343,52 +348,52 @@ static Clay_RenderCommandArray RaidHUDScript(Pengine::Canvas*, std::shared_ptr<P
 			if (auto t = Pengine::TextureManager::GetInstance().Load(activeWeaponPreview))
 				tex = t.get();
 		if (!tex) tex = Pengine::TextureManager::GetInstance().GetPink().get();
-		Pengine::ClayManager::OpenElement();
-		Pengine::ClayManager::ConfigureOpenElement({
-			.layout = { .sizing = { CLAY_SIZING_FIXED(48), CLAY_SIZING_FIXED(48) } },
+		ctx->openElement();
+		ctx->configureOpenElement({
+			.layout = { .sizing = { clay::sizing::fixed(48), clay::sizing::fixed(48) } },
 			.backgroundColor = { 1, 1, 1, 1 },
 			.image = { .imageData = tex },
 		});
-		Pengine::ClayManager::CloseElement();
+		ctx->closeElement();
 	}
 
 	{
-		Clay_Color ammoColor = isReloading
-			? Clay_Color{0.86f,0.63f,0.16f,1}
-			: (ammoMag == 0 ? Clay_Color{0.82f,0.20f,0.20f,1} : Clay_Color{0.86f,0.86f,0.86f,1});
-		Pengine::ClayManager::OpenTextElement(Str(ammoText),
-			{ .textColor=ammoColor, .fontId=f36, .fontSize=36, .wrapMode=CLAY_TEXT_WRAP_NONE });
+		clay::Color ammoColor = isReloading
+			? clay::Color{0.86f,0.63f,0.16f,1}
+			: (ammoMag == 0 ? clay::Color{0.82f,0.20f,0.20f,1} : clay::Color{0.86f,0.86f,0.86f,1});
+		OpenText(ctx,Str(ammoText),
+			{ .textColor=ammoColor, .fontId=f36, .fontSize=36, .wrapMode=clay::TextWrapMode::None });
 	}
 
-	Pengine::ClayManager::CloseElement(); // bottom row
-	Pengine::ClayManager::CloseElement(); // root
+	ctx->closeElement(); // bottom row
+	ctx->closeElement(); // root
 
-	return Pengine::ClayManager::EndLayout();
+	return ctx->endLayout();
 }
 
 // ─── UI script: Crosshair ────────────────────────────────────────────────────
 
-static Clay_RenderCommandArray CrosshairScript(Pengine::Canvas*, std::shared_ptr<Pengine::Entity>)
+static std::vector<clay::RenderCommand>CrosshairScript(Pengine::Canvas*, clay::Context* ctx, std::shared_ptr<Pengine::Entity>)
 {
 	uint16_t f36 = Font("Calibri", 36);
 
-	Pengine::ClayManager::BeginLayout();
-	Pengine::ClayManager::OpenElement();
-	Pengine::ClayManager::ConfigureOpenElement({
+	ctx->beginLayout();
+	ctx->openElement();
+	ctx->configureOpenElement({
 		.layout = {
-			.sizing         = { CLAY_SIZING_GROW(0), CLAY_SIZING_GROW(0) },
-			.childAlignment = { .x = CLAY_ALIGN_X_CENTER, .y = CLAY_ALIGN_Y_CENTER },
+			.sizing         = { clay::sizing::grow(0), clay::sizing::grow(0) },
+			.childAlignment = { .x = clay::AlignX::Center, .y = clay::AlignY::Center },
 		},
 	});
-	Pengine::ClayManager::OpenTextElement(Str("+"),
-		{ .textColor={1,1,1,0.82f}, .fontId=f36, .fontSize=36, .wrapMode=CLAY_TEXT_WRAP_NONE });
-	Pengine::ClayManager::CloseElement();
-	return Pengine::ClayManager::EndLayout();
+	OpenText(ctx,Str("+"),
+		{ .textColor={1,1,1,0.82f}, .fontId=f36, .fontSize=36, .wrapMode=clay::TextWrapMode::None });
+	ctx->closeElement();
+	return ctx->endLayout();
 }
 
 // ─── UI script: HomeBase HUD ──────────────────────────────────────────────────
 
-static Clay_RenderCommandArray HomeBaseHUDScript(Pengine::Canvas*, std::shared_ptr<Pengine::Entity>)
+static std::vector<clay::RenderCommand>HomeBaseHUDScript(Pengine::Canvas*, clay::Context* ctx, std::shared_ptr<Pengine::Entity>)
 {
 	auto scene = Pengine::SceneManager::GetInstance().GetSceneByTag("Main");
 
@@ -409,50 +414,50 @@ static Clay_RenderCommandArray HomeBaseHUDScript(Pengine::Canvas*, std::shared_p
 	uint16_t f28 = Font("Calibri", 28);
 	uint16_t f24 = Font("Calibri", 24);
 
-	Pengine::ClayManager::BeginLayout();
+	ctx->beginLayout();
 
-	Pengine::ClayManager::OpenElement();
-	Pengine::ClayManager::ConfigureOpenElement({
+	ctx->openElement();
+	ctx->configureOpenElement({
 		.layout = {
-			.sizing          = { CLAY_SIZING_GROW(0), CLAY_SIZING_GROW(0) },
-			.layoutDirection = CLAY_TOP_TO_BOTTOM,
+			.sizing          = { clay::sizing::grow(0), clay::sizing::grow(0) },
+			.layoutDirection = clay::LayoutDirection::TopToBottom,
 		},
 	});
 
 	// Top-right: credits
-	Pengine::ClayManager::OpenElement();
-	Pengine::ClayManager::ConfigureOpenElement({
+	ctx->openElement();
+	ctx->configureOpenElement({
 		.layout = {
-			.sizing          = { CLAY_SIZING_GROW(0), CLAY_SIZING_FIT(0) },
+			.sizing          = { clay::sizing::grow(0), clay::sizing::fit(0) },
 			.padding         = { .right = 16, .top = 12 },
-			.childAlignment  = { .x = CLAY_ALIGN_X_RIGHT },
+			.childAlignment  = { .x = clay::AlignX::Right },
 		},
 	});
-	Pengine::ClayManager::OpenTextElement(Str(creditsText),
-		{ .textColor={0.9f,0.85f,0.3f,1}, .fontId=f28, .fontSize=28, .wrapMode=CLAY_TEXT_WRAP_NONE });
-	Pengine::ClayManager::CloseElement();
+	OpenText(ctx,Str(creditsText),
+		{ .textColor={0.9f,0.85f,0.3f,1}, .fontId=f28, .fontSize=28, .wrapMode=clay::TextWrapMode::None });
+	ctx->closeElement();
 
 	// Middle: interact prompt
-	Pengine::ClayManager::OpenElement();
-	Pengine::ClayManager::ConfigureOpenElement({
+	ctx->openElement();
+	ctx->configureOpenElement({
 		.layout = {
-			.sizing         = { CLAY_SIZING_GROW(0), CLAY_SIZING_GROW(0) },
-			.childAlignment = { .x = CLAY_ALIGN_X_CENTER, .y = CLAY_ALIGN_Y_CENTER },
+			.sizing         = { clay::sizing::grow(0), clay::sizing::grow(0) },
+			.childAlignment = { .x = clay::AlignX::Center, .y = clay::AlignY::Center },
 		},
 	});
 	if (nearAnything)
-		Pengine::ClayManager::OpenTextElement(Str(interactText),
-			{ .textColor={0.9f,0.9f,0.3f,1}, .fontId=f24, .fontSize=24, .wrapMode=CLAY_TEXT_WRAP_NONE });
-	Pengine::ClayManager::CloseElement();
+		OpenText(ctx,Str(interactText),
+			{ .textColor={0.9f,0.9f,0.3f,1}, .fontId=f24, .fontSize=24, .wrapMode=clay::TextWrapMode::None });
+	ctx->closeElement();
 
-	Pengine::ClayManager::CloseElement(); // root
+	ctx->closeElement(); // root
 
-	return Pengine::ClayManager::EndLayout();
+	return ctx->endLayout();
 }
 
 // ─── UI script: Inventory ─────────────────────────────────────────────────────
 
-static Clay_RenderCommandArray InventoryScript(Pengine::Canvas*, std::shared_ptr<Pengine::Entity>)
+static std::vector<clay::RenderCommand>InventoryScript(Pengine::Canvas*, clay::Context* ctx, std::shared_ptr<Pengine::Entity>)
 {
 	auto scene = Pengine::SceneManager::GetInstance().GetSceneByTag("Main");
 
@@ -468,13 +473,13 @@ static Clay_RenderCommandArray InventoryScript(Pengine::Canvas*, std::shared_ptr
 
 	if (!invPtr || !invPtr->inventoryOpen)
 	{
-		Pengine::ClayManager::BeginLayout();
-		Pengine::ClayManager::OpenElement();
-		Pengine::ClayManager::ConfigureOpenElement({
-			.layout = { .sizing = { CLAY_SIZING_GROW(0), CLAY_SIZING_GROW(0) } },
+		ctx->beginLayout();
+		ctx->openElement();
+		ctx->configureOpenElement({
+			.layout = { .sizing = { clay::sizing::grow(0), clay::sizing::grow(0) } },
 		});
-		Pengine::ClayManager::CloseElement();
-		return Pengine::ClayManager::EndLayout();
+		ctx->closeElement();
+		return ctx->endLayout();
 	}
 
 	auto& inv = *invPtr;
@@ -492,7 +497,7 @@ static Clay_RenderCommandArray InventoryScript(Pengine::Canvas*, std::shared_ptr
 		{
 			auto& inp = Pengine::Input::GetInstance(win.get());
 			glm::dvec2 mp = inp.GetMousePosition();
-			Pengine::ClayManager::SetPointerState({ (float)mp.x, (float)mp.y },
+			ctx->setPointerState({ (float)mp.x, (float)mp.y },
 				inp.IsMouseDown(Pengine::KeyCode::MOUSE_BUTTON_1));
 			lmbClicked = inp.IsMousePressed(Pengine::KeyCode::MOUSE_BUTTON_1);
 			rmbClicked = inp.IsMousePressed(Pengine::KeyCode::MOUSE_BUTTON_2);
@@ -508,26 +513,26 @@ static Clay_RenderCommandArray InventoryScript(Pengine::Canvas*, std::shared_ptr
 	static std::string cellPrices[InventoryComponent::kMaxGridRows * InventoryComponent::kMaxGridCols];
 	static std::string wName[InventoryComponent::kMaxWeaponSlots];
 
-	Pengine::ClayManager::BeginLayout();
+	ctx->beginLayout();
 
 	// Full-screen overlay
-	Pengine::ClayManager::OpenElement();
-	Pengine::ClayManager::ConfigureOpenElement({
+	ctx->openElement();
+	ctx->configureOpenElement({
 		.layout = {
-			.sizing         = { CLAY_SIZING_GROW(0), CLAY_SIZING_GROW(0) },
-			.childAlignment = { .x = CLAY_ALIGN_X_CENTER, .y = CLAY_ALIGN_Y_CENTER },
+			.sizing         = { clay::sizing::grow(0), clay::sizing::grow(0) },
+			.childAlignment = { .x = clay::AlignX::Center, .y = clay::AlignY::Center },
 		},
 		.backgroundColor = { 0, 0, 0, 0.55f },
 	});
 
 	// Dialog
-	Pengine::ClayManager::OpenElement();
-	Pengine::ClayManager::ConfigureOpenElement({
+	ctx->openElement();
+	ctx->configureOpenElement({
 		.layout = {
-			.sizing          = { CLAY_SIZING_PERCENT(0.66f), CLAY_SIZING_FIT(0) },
+			.sizing          = { clay::sizing::percent(0.66f), clay::sizing::fit(0) },
 			.padding         = { .left=20,.right=20,.top=16,.bottom=16 },
 			.childGap        = 12,
-			.layoutDirection = CLAY_TOP_TO_BOTTOM,
+			.layoutDirection = clay::LayoutDirection::TopToBottom,
 		},
 		.backgroundColor = { 0.08f, 0.08f, 0.10f, 0.97f },
 	});
@@ -536,154 +541,154 @@ static Clay_RenderCommandArray InventoryScript(Pengine::Canvas*, std::shared_ptr
 	{
 		static std::string title;
 		title = "INVENTORY   |   Credits: $" + std::to_string(inv.credits);
-		Pengine::ClayManager::OpenTextElement(Str(title),
-			{ .textColor={0.9f,0.85f,0.3f,1}, .fontId=f24, .fontSize=24, .wrapMode=CLAY_TEXT_WRAP_NONE });
+		OpenText(ctx,Str(title),
+			{ .textColor={0.9f,0.85f,0.3f,1}, .fontId=f24, .fontSize=24, .wrapMode=clay::TextWrapMode::None });
 	}
 
 	// Two-panel row
-	Pengine::ClayManager::OpenElement();
-	Pengine::ClayManager::ConfigureOpenElement({
+	ctx->openElement();
+	ctx->configureOpenElement({
 		.layout = {
-			.sizing          = { CLAY_SIZING_GROW(0), CLAY_SIZING_FIT(0) },
+			.sizing          = { clay::sizing::grow(0), clay::sizing::fit(0) },
 			.childGap        = 16,
-			.childAlignment  = { .y = CLAY_ALIGN_Y_TOP },
-			.layoutDirection = CLAY_LEFT_TO_RIGHT,
+			.childAlignment  = { .y = clay::AlignY::Top },
+			.layoutDirection = clay::LayoutDirection::LeftToRight,
 		},
 	});
 
 	// ── LEFT: Equipment panel ──────────────────────────────────────────────────
-	Pengine::ClayManager::OpenElement();
-	Pengine::ClayManager::ConfigureOpenElement({
+	ctx->openElement();
+	ctx->configureOpenElement({
 		.layout = {
-			.sizing          = { CLAY_SIZING_FIT(0), CLAY_SIZING_FIT(0) },
+			.sizing          = { clay::sizing::fit(0), clay::sizing::fit(0) },
 			.padding         = { .left=10,.right=10,.top=10,.bottom=10 },
 			.childGap        = 8,
-			.layoutDirection = CLAY_TOP_TO_BOTTOM,
+			.layoutDirection = clay::LayoutDirection::TopToBottom,
 		},
 		.backgroundColor = { 0.10f, 0.10f, 0.12f, 1.0f },
 	});
-	Pengine::ClayManager::OpenTextElement(Str("EQUIPPED  (click to unequip)"),
-		{ .textColor={0.85f,0.85f,0.9f,1}, .fontId=f24, .fontSize=24, .wrapMode=CLAY_TEXT_WRAP_NONE });
+	OpenText(ctx,Str("EQUIPPED  (click to unequip)"),
+		{ .textColor={0.85f,0.85f,0.9f,1}, .fontId=f24, .fontSize=24, .wrapMode=clay::TextWrapMode::None });
 
 	// Row: Armor | Backpack
-	Pengine::ClayManager::OpenElement();
-	Pengine::ClayManager::ConfigureOpenElement({
-		.layout = { .sizing = { CLAY_SIZING_GROW(0), CLAY_SIZING_GROW(0) }, .childGap = kCellGap, .layoutDirection = CLAY_LEFT_TO_RIGHT },
+	ctx->openElement();
+	ctx->configureOpenElement({
+		.layout = { .sizing = { clay::sizing::grow(0), clay::sizing::grow(0) }, .childGap = kCellGap, .layoutDirection = clay::LayoutDirection::LeftToRight },
 	});
 	// Armor cell
 	{
 		const auto& slot = inv.armorSlot;
 		static std::string armorName;
 		armorName = slot.occupied ? slot.itemName : "Armor";
-		Clay_Color bg = slot.occupied ? Clay_Color{0.15f,0.35f,0.15f,0.95f} : Clay_Color{0.13f,0.13f,0.14f,0.7f};
-		Pengine::ClayManager::OpenElement();
-		Pengine::ClayManager::ConfigureOpenElement({
-			.id = CLAY_ID("EquipArmor"),
+		clay::Color bg = slot.occupied ? clay::Color{0.15f,0.35f,0.15f,0.95f} : clay::Color{0.13f,0.13f,0.14f,0.7f};
+		ctx->openElement();
+		ctx->configureOpenElement({
+			.id = clay::makeId("EquipArmor"),
 			.layout = {
-				.sizing          = { CLAY_SIZING_GROW(kCellW), CLAY_SIZING_GROW(kCellW) },
+				.sizing          = { clay::sizing::grow(kCellW), clay::sizing::grow(kCellW) },
 				.padding         = { .left=4,.right=4,.top=6,.bottom=6 },
 				.childGap        = 4,
-				.childAlignment  = { .x = CLAY_ALIGN_X_CENTER, .y = CLAY_ALIGN_Y_CENTER },
-				.layoutDirection = CLAY_TOP_TO_BOTTOM,
+				.childAlignment  = { .x = clay::AlignX::Center, .y = clay::AlignY::Center },
+				.layoutDirection = clay::LayoutDirection::TopToBottom,
 			},
 			.backgroundColor = bg,
 		});
 		if (slot.occupied)
 		{
-			Pengine::ClayManager::OpenElement();
-			Pengine::ClayManager::ConfigureOpenElement({
-				.layout = { .sizing = { CLAY_SIZING_FIXED(kImgSize), CLAY_SIZING_FIXED(kImgSize) } },
+			ctx->openElement();
+			ctx->configureOpenElement({
+				.layout = { .sizing = { clay::sizing::fixed(kImgSize), clay::sizing::fixed(kImgSize) } },
 				.backgroundColor = { 1,1,1,1 },
 				.image = { .imageData = GetItemPreviewTex(slot) },
 			});
-			Pengine::ClayManager::CloseElement();
+			ctx->closeElement();
 		}
-		Pengine::ClayManager::OpenTextElement(Str(armorName),
-			{ .textColor={0.9f,0.9f,0.9f,1}, .fontId=f20, .fontSize=20, .wrapMode=CLAY_TEXT_WRAP_WORDS, .textAlignment=CLAY_TEXT_ALIGN_CENTER });
-		Pengine::ClayManager::CloseElement();
+		OpenText(ctx,Str(armorName),
+			{ .textColor={0.9f,0.9f,0.9f,1}, .fontId=f20, .fontSize=20, .wrapMode=clay::TextWrapMode::Words, .textAlignment=clay::TextAlignment::Center });
+		ctx->closeElement();
 	}
 	// Backpack cell
 	{
 		const auto& slot = inv.backpackSlot;
 		static std::string bpName;
 		bpName = slot.occupied ? slot.itemName : "Backpack";
-		Clay_Color bg = slot.occupied ? Clay_Color{0.15f,0.25f,0.40f,0.95f} : Clay_Color{0.13f,0.13f,0.14f,0.7f};
-		Pengine::ClayManager::OpenElement();
-		Pengine::ClayManager::ConfigureOpenElement({
-			.id = CLAY_ID("EquipBackpack"),
+		clay::Color bg = slot.occupied ? clay::Color{0.15f,0.25f,0.40f,0.95f} : clay::Color{0.13f,0.13f,0.14f,0.7f};
+		ctx->openElement();
+		ctx->configureOpenElement({
+			.id = clay::makeId("EquipBackpack"),
 			.layout = {
-				.sizing          = { CLAY_SIZING_GROW(kCellW), CLAY_SIZING_GROW(kCellW) },
+				.sizing          = { clay::sizing::grow(kCellW), clay::sizing::grow(kCellW) },
 				.padding         = { .left=4,.right=4,.top=6,.bottom=6 },
 				.childGap        = 4,
-				.childAlignment  = { .x = CLAY_ALIGN_X_CENTER, .y = CLAY_ALIGN_Y_CENTER },
-				.layoutDirection = CLAY_TOP_TO_BOTTOM,
+				.childAlignment  = { .x = clay::AlignX::Center, .y = clay::AlignY::Center },
+				.layoutDirection = clay::LayoutDirection::TopToBottom,
 			},
 			.backgroundColor = bg,
 		});
 		if (slot.occupied)
 		{
-			Pengine::ClayManager::OpenElement();
-			Pengine::ClayManager::ConfigureOpenElement({
-				.layout = { .sizing = { CLAY_SIZING_FIXED(kImgSize), CLAY_SIZING_FIXED(kImgSize) } },
+			ctx->openElement();
+			ctx->configureOpenElement({
+				.layout = { .sizing = { clay::sizing::fixed(kImgSize), clay::sizing::fixed(kImgSize) } },
 				.backgroundColor = { 1,1,1,1 },
 				.image = { .imageData = GetItemPreviewTex(slot) },
 			});
-			Pengine::ClayManager::CloseElement();
+			ctx->closeElement();
 		}
-		Pengine::ClayManager::OpenTextElement(Str(bpName),
-			{ .textColor={0.9f,0.9f,0.9f,1}, .fontId=f20, .fontSize=20, .wrapMode=CLAY_TEXT_WRAP_WORDS, .textAlignment=CLAY_TEXT_ALIGN_CENTER });
-		Pengine::ClayManager::CloseElement();
+		OpenText(ctx,Str(bpName),
+			{ .textColor={0.9f,0.9f,0.9f,1}, .fontId=f20, .fontSize=20, .wrapMode=clay::TextWrapMode::Words, .textAlignment=clay::TextAlignment::Center });
+		ctx->closeElement();
 	}
-	Pengine::ClayManager::CloseElement(); // armor/backpack row
+	ctx->closeElement(); // armor/backpack row
 
 	// Row: Weapon 0 | Weapon 1
-	Pengine::ClayManager::OpenElement();
-	Pengine::ClayManager::ConfigureOpenElement({
-		.layout = { .sizing = { CLAY_SIZING_GROW(0), CLAY_SIZING_GROW(0) }, .childGap = kCellGap, .layoutDirection = CLAY_LEFT_TO_RIGHT },
+	ctx->openElement();
+	ctx->configureOpenElement({
+		.layout = { .sizing = { clay::sizing::grow(0), clay::sizing::grow(0) }, .childGap = kCellGap, .layoutDirection = clay::LayoutDirection::LeftToRight },
 	});
 	for (int s = 0; s < InventoryComponent::kMaxWeaponSlots; ++s)
 	{
 		bool occupied = inv.weaponSlotOccupied[s];
 		wName[s] = occupied ? inv.weaponSlotNames[s] : ("Weapon " + std::to_string(s + 1));
 		auto* tex = occupied ? GetWeaponPreviewTex(playerEnt, s) : nullptr;
-		Clay_Color bg = occupied ? Clay_Color{0.35f,0.15f,0.15f,0.95f} : Clay_Color{0.13f,0.13f,0.14f,0.7f};
-		Pengine::ClayManager::OpenElement();
-		Pengine::ClayManager::ConfigureOpenElement({
-			.id = CLAY_IDI("EquipWeapon", s),
+		clay::Color bg = occupied ? clay::Color{0.35f,0.15f,0.15f,0.95f} : clay::Color{0.13f,0.13f,0.14f,0.7f};
+		ctx->openElement();
+		ctx->configureOpenElement({
+			.id = clay::makeId("EquipWeapon", s),
 			.layout = {
-				.sizing          = { CLAY_SIZING_GROW(kCellW), CLAY_SIZING_GROW(kCellW) },
+				.sizing          = { clay::sizing::grow(kCellW), clay::sizing::grow(kCellW) },
 				.padding         = { .left=4,.right=4,.top=6,.bottom=6 },
 				.childGap        = 4,
-				.childAlignment  = { .x = CLAY_ALIGN_X_CENTER, .y = CLAY_ALIGN_Y_CENTER },
-				.layoutDirection = CLAY_TOP_TO_BOTTOM,
+				.childAlignment  = { .x = clay::AlignX::Center, .y = clay::AlignY::Center },
+				.layoutDirection = clay::LayoutDirection::TopToBottom,
 			},
 			.backgroundColor = bg,
 		});
 		if (occupied && tex)
 		{
-			Pengine::ClayManager::OpenElement();
-			Pengine::ClayManager::ConfigureOpenElement({
-				.layout = { .sizing = { CLAY_SIZING_FIXED(kImgSize), CLAY_SIZING_FIXED(kImgSize) } },
+			ctx->openElement();
+			ctx->configureOpenElement({
+				.layout = { .sizing = { clay::sizing::fixed(kImgSize), clay::sizing::fixed(kImgSize) } },
 				.backgroundColor = { 1,1,1,1 },
 				.image = { .imageData = tex },
 			});
-			Pengine::ClayManager::CloseElement();
+			ctx->closeElement();
 		}
-		Pengine::ClayManager::OpenTextElement(Str(wName[s]),
-			{ .textColor={0.9f,0.9f,0.9f,1}, .fontId=f20, .fontSize=20, .wrapMode=CLAY_TEXT_WRAP_WORDS, .textAlignment=CLAY_TEXT_ALIGN_CENTER });
-		Pengine::ClayManager::CloseElement();
+		OpenText(ctx,Str(wName[s]),
+			{ .textColor={0.9f,0.9f,0.9f,1}, .fontId=f20, .fontSize=20, .wrapMode=clay::TextWrapMode::Words, .textAlignment=clay::TextAlignment::Center });
+		ctx->closeElement();
 	}
-	Pengine::ClayManager::CloseElement(); // weapon row
-	Pengine::ClayManager::CloseElement(); // left equipment panel
+	ctx->closeElement(); // weapon row
+	ctx->closeElement(); // left equipment panel
 
 	// ── RIGHT: Item grid ───────────────────────────────────────────────────────
-	Pengine::ClayManager::OpenElement();
-	Pengine::ClayManager::ConfigureOpenElement({
+	ctx->openElement();
+	ctx->configureOpenElement({
 		.layout = {
-			.sizing          = { CLAY_SIZING_GROW(0), CLAY_SIZING_FIT(0) },
+			.sizing          = { clay::sizing::grow(0), clay::sizing::fit(0) },
 			.padding         = { .left=10,.right=10,.top=10,.bottom=10 },
 			.childGap        = 8,
-			.layoutDirection = CLAY_TOP_TO_BOTTOM,
+			.layoutDirection = clay::LayoutDirection::TopToBottom,
 		},
 		.backgroundColor = { 0.10f, 0.10f, 0.12f, 1.0f },
 	});
@@ -691,14 +696,14 @@ static Clay_RenderCommandArray InventoryScript(Pengine::Canvas*, std::shared_ptr
 		static std::string gridTitle;
 		gridTitle = "ITEMS  " + std::to_string(inv.currentRows) + "x" + std::to_string(inv.currentCols)
 			+ "   LMB equip slot 1   RMB slot 2   [G] Drop";
-		Pengine::ClayManager::OpenTextElement(Str(gridTitle),
-			{ .textColor={0.7f,0.7f,0.7f,1}, .fontId=f24, .fontSize=24, .wrapMode=CLAY_TEXT_WRAP_NONE });
+		OpenText(ctx,Str(gridTitle),
+			{ .textColor={0.7f,0.7f,0.7f,1}, .fontId=f24, .fontSize=24, .wrapMode=clay::TextWrapMode::None });
 	}
 	for (int r = 0; r < inv.currentRows; ++r)
 	{
-		Pengine::ClayManager::OpenElement();
-		Pengine::ClayManager::ConfigureOpenElement({
-			.layout = { .sizing = { CLAY_SIZING_GROW(0), CLAY_SIZING_FIT(0) }, .childGap = kCellGap, .layoutDirection = CLAY_LEFT_TO_RIGHT },
+		ctx->openElement();
+		ctx->configureOpenElement({
+			.layout = { .sizing = { clay::sizing::grow(0), clay::sizing::fit(0) }, .childGap = kCellGap, .layoutDirection = clay::LayoutDirection::LeftToRight },
 		});
 		for (int c = 0; c < inv.currentCols; ++c)
 		{
@@ -709,70 +714,70 @@ static Clay_RenderCommandArray InventoryScript(Pengine::Canvas*, std::shared_ptr
 				cellNames [flatIdx] = slot.itemName;
 				cellPrices[flatIdx] = std::string(TypeName(slot.itemTypeInt)) + "  $" + std::to_string(slot.creditValue);
 			}
-			Clay_Color bg = slot.occupied
-				? Clay_Color{0.22f,0.22f,0.28f,0.95f}
-				: Clay_Color{0.14f,0.14f,0.16f,0.60f};
-			Pengine::ClayManager::OpenElement();
-			Pengine::ClayManager::ConfigureOpenElement({
-				.id = CLAY_IDI("InvCell", flatIdx),
+			clay::Color bg = slot.occupied
+				? clay::Color{0.22f,0.22f,0.28f,0.95f}
+				: clay::Color{0.14f,0.14f,0.16f,0.60f};
+			ctx->openElement();
+			ctx->configureOpenElement({
+				.id = clay::makeId("InvCell", flatIdx),
 				.layout = {
-					.sizing          = { CLAY_SIZING_GROW(kCellW), CLAY_SIZING_GROW(kCellW) },
+					.sizing          = { clay::sizing::grow(kCellW), clay::sizing::grow(kCellW) },
 					.padding         = { .left=4,.right=4,.top=6,.bottom=6 },
 					.childGap        = 4,
-					.childAlignment  = { .x = CLAY_ALIGN_X_CENTER },
-					.layoutDirection = CLAY_TOP_TO_BOTTOM,
+					.childAlignment  = { .x = clay::AlignX::Center },
+					.layoutDirection = clay::LayoutDirection::TopToBottom,
 				},
 				.backgroundColor = bg,
 			});
 			if (slot.occupied)
 			{
-				Pengine::ClayManager::OpenElement();
-				Pengine::ClayManager::ConfigureOpenElement({
-					.layout = { .sizing = { CLAY_SIZING_FIXED(kImgSize), CLAY_SIZING_FIXED(kImgSize) } },
+				ctx->openElement();
+				ctx->configureOpenElement({
+					.layout = { .sizing = { clay::sizing::fixed(kImgSize), clay::sizing::fixed(kImgSize) } },
 					.backgroundColor = { 1,1,1,1 },
 					.image = { .imageData = GetItemPreviewTex(slot) },
 				});
-				Pengine::ClayManager::CloseElement();
-				Pengine::ClayManager::OpenTextElement(Str(cellNames[flatIdx]),
-					{ .textColor=RarityColor(slot.rarityInt), .fontId=f20, .fontSize=20, .wrapMode=CLAY_TEXT_WRAP_WORDS, .textAlignment=CLAY_TEXT_ALIGN_CENTER });
-				Pengine::ClayManager::OpenTextElement(Str(cellPrices[flatIdx]),
-					{ .textColor={0.6f,0.6f,0.6f,1}, .fontId=f20, .fontSize=20, .wrapMode=CLAY_TEXT_WRAP_NONE, .textAlignment=CLAY_TEXT_ALIGN_CENTER });
+				ctx->closeElement();
+				OpenText(ctx,Str(cellNames[flatIdx]),
+					{ .textColor=RarityColor(slot.rarityInt), .fontId=f20, .fontSize=20, .wrapMode=clay::TextWrapMode::Words, .textAlignment=clay::TextAlignment::Center });
+				OpenText(ctx,Str(cellPrices[flatIdx]),
+					{ .textColor={0.6f,0.6f,0.6f,1}, .fontId=f20, .fontSize=20, .wrapMode=clay::TextWrapMode::None, .textAlignment=clay::TextAlignment::Center });
 			}
-			Pengine::ClayManager::CloseElement(); // cell
+			ctx->closeElement(); // cell
 
-			if (Pengine::ClayManager::IsPointerOver(CLAY_IDI("InvCell", flatIdx)))
+			if (ctx->pointerOver(clay::makeId("InvCell", flatIdx)))
 			{
 				hoveredFlatIdx = flatIdx;
 				if ((lmbClicked || rmbClicked) && clickedFlatIdx < 0)
 					clickedFlatIdx = flatIdx;
 			}
 		}
-		Pengine::ClayManager::CloseElement(); // row
+		ctx->closeElement(); // row
 	}
-	Pengine::ClayManager::CloseElement(); // right item grid
+	ctx->closeElement(); // right item grid
 
-	Pengine::ClayManager::CloseElement(); // two-panel row
+	ctx->closeElement(); // two-panel row
 
-	Pengine::ClayManager::OpenTextElement(Str("[Tab] Close"),
-		{ .textColor={0.5f,0.5f,0.5f,1}, .fontId=f24, .fontSize=24, .wrapMode=CLAY_TEXT_WRAP_NONE });
+	OpenText(ctx,Str("[Tab] Close"),
+		{ .textColor={0.5f,0.5f,0.5f,1}, .fontId=f24, .fontSize=24, .wrapMode=clay::TextWrapMode::None });
 
-	Pengine::ClayManager::CloseElement(); // dialog
-	Pengine::ClayManager::CloseElement(); // overlay
+	ctx->closeElement(); // dialog
+	ctx->closeElement(); // overlay
 
-	auto layout = Pengine::ClayManager::EndLayout();
+	auto layout = ctx->endLayout();
 
 	// ── Handle unequip on click ───────────────────────────────────
 	if (lmbClicked)
 	{
-		if (Pengine::ClayManager::IsPointerOver(CLAY_ID("EquipArmor")) && inv.armorSlot.occupied)
+		if (ctx->pointerOver(clay::makeId("EquipArmor")) && inv.armorSlot.occupied)
 			InventorySystem::UnequipArmor(inv);
-		else if (Pengine::ClayManager::IsPointerOver(CLAY_ID("EquipBackpack")) && inv.backpackSlot.occupied)
+		else if (ctx->pointerOver(clay::makeId("EquipBackpack")) && inv.backpackSlot.occupied)
 			InventorySystem::UnequipBackpack(inv, playerEnt, scene);
 		else
 		{
 			for (int s = 0; s < InventoryComponent::kMaxWeaponSlots; ++s)
 			{
-				if (Pengine::ClayManager::IsPointerOver(CLAY_IDI("EquipWeapon", s)) && inv.weaponSlotOccupied[s])
+				if (ctx->pointerOver(clay::makeId("EquipWeapon", s)) && inv.weaponSlotOccupied[s])
 				{
 					InventorySystem::UnequipWeapon(inv, s, playerEnt, scene);
 					break;
@@ -815,7 +820,7 @@ static Clay_RenderCommandArray InventoryScript(Pengine::Canvas*, std::shared_ptr
 
 // ─── UI script: Shop ─────────────────────────────────────────────────────────
 
-static Clay_RenderCommandArray ShopScript(Pengine::Canvas*, std::shared_ptr<Pengine::Entity>)
+static std::vector<clay::RenderCommand>ShopScript(Pengine::Canvas*, clay::Context* ctx, std::shared_ptr<Pengine::Entity>)
 {
 	auto scene = Pengine::SceneManager::GetInstance().GetSceneByTag("Main");
 
@@ -836,13 +841,13 @@ static Clay_RenderCommandArray ShopScript(Pengine::Canvas*, std::shared_ptr<Peng
 
 	if (!shopPtr || !shopPtr->isOpen)
 	{
-		Pengine::ClayManager::BeginLayout();
-		Pengine::ClayManager::OpenElement();
-		Pengine::ClayManager::ConfigureOpenElement({
-			.layout = { .sizing = { CLAY_SIZING_GROW(0), CLAY_SIZING_GROW(0) } },
+		ctx->beginLayout();
+		ctx->openElement();
+		ctx->configureOpenElement({
+			.layout = { .sizing = { clay::sizing::grow(0), clay::sizing::grow(0) } },
 		});
-		Pengine::ClayManager::CloseElement();
-		return Pengine::ClayManager::EndLayout();
+		ctx->closeElement();
+		return ctx->endLayout();
 	}
 
 	auto& shop = *shopPtr;
@@ -857,7 +862,7 @@ static Clay_RenderCommandArray ShopScript(Pengine::Canvas*, std::shared_ptr<Peng
 		{
 			auto& inp = Pengine::Input::GetInstance(win.get());
 			glm::dvec2 mp = inp.GetMousePosition();
-			Pengine::ClayManager::SetPointerState({ (float)mp.x, (float)mp.y },
+			ctx->setPointerState({ (float)mp.x, (float)mp.y },
 				inp.IsMouseDown(Pengine::KeyCode::MOUSE_BUTTON_1));
 			clicked = inp.IsMousePressed(Pengine::KeyCode::MOUSE_BUTTON_1);
 		}
@@ -876,26 +881,26 @@ static Clay_RenderCommandArray ShopScript(Pengine::Canvas*, std::shared_ptr<Peng
 	int sellClickedIdx  = -1;
 	int buyClickedIndex = -1;
 
-	Pengine::ClayManager::BeginLayout();
+	ctx->beginLayout();
 
 	// Full-screen overlay
-	Pengine::ClayManager::OpenElement();
-	Pengine::ClayManager::ConfigureOpenElement({
+	ctx->openElement();
+	ctx->configureOpenElement({
 		.layout = {
-			.sizing         = { CLAY_SIZING_GROW(0), CLAY_SIZING_GROW(0) },
-			.childAlignment = { .x = CLAY_ALIGN_X_CENTER, .y = CLAY_ALIGN_Y_CENTER },
+			.sizing         = { clay::sizing::grow(0), clay::sizing::grow(0) },
+			.childAlignment = { .x = clay::AlignX::Center, .y = clay::AlignY::Center },
 		},
 		.backgroundColor = { 0, 0, 0, 0.55f },
 	});
 
 	// Dialog — 66% of screen width
-	Pengine::ClayManager::OpenElement();
-	Pengine::ClayManager::ConfigureOpenElement({
+	ctx->openElement();
+	ctx->configureOpenElement({
 		.layout = {
-			.sizing          = { CLAY_SIZING_FIT(0.66f), CLAY_SIZING_FIT(0) },
+			.sizing          = { clay::sizing::fit(0.66f), clay::sizing::fit(0) },
 			.padding         = { .left=20,.right=20,.top=16,.bottom=16 },
 			.childGap        = 12,
-			.layoutDirection = CLAY_TOP_TO_BOTTOM,
+			.layoutDirection = clay::LayoutDirection::TopToBottom,
 		},
 		.backgroundColor = { 0.08f, 0.08f, 0.10f, 0.97f },
 	});
@@ -904,43 +909,43 @@ static Clay_RenderCommandArray ShopScript(Pengine::Canvas*, std::shared_ptr<Peng
 	{
 		static std::string title;
 		title = std::string(shop.shopName) + "   |   Credits: $" + std::to_string(inv.credits);
-		Pengine::ClayManager::OpenTextElement(Str(title),
-			{ .textColor={0.9f,0.85f,0.3f,1}, .fontId=f24, .fontSize=24, .wrapMode=CLAY_TEXT_WRAP_NONE });
+		OpenText(ctx,Str(title),
+			{ .textColor={0.9f,0.85f,0.3f,1}, .fontId=f24, .fontSize=24, .wrapMode=clay::TextWrapMode::None });
 	}
 
 	// ── Two-panel row ─────────────────────────────────────────────────────────
-	Pengine::ClayManager::OpenElement();
-	Pengine::ClayManager::ConfigureOpenElement({
+	ctx->openElement();
+	ctx->configureOpenElement({
 		.layout = {
-			.sizing          = { CLAY_SIZING_GROW(0), CLAY_SIZING_FIT(0) },
+			.sizing          = { clay::sizing::grow(0), clay::sizing::fit(0) },
 			.childGap        = 16,
-			.childAlignment  = { .y = CLAY_ALIGN_Y_TOP },
-			.layoutDirection = CLAY_LEFT_TO_RIGHT,
+			.childAlignment  = { .y = clay::AlignY::Top },
+			.layoutDirection = clay::LayoutDirection::LeftToRight,
 		},
 	});
 
 	// ── LEFT PANEL: player inventory (sell) ───────────────────────────────────
-	Pengine::ClayManager::OpenElement();
-	Pengine::ClayManager::ConfigureOpenElement({
+	ctx->openElement();
+	ctx->configureOpenElement({
 		.layout = {
-			.sizing          = { CLAY_SIZING_GROW(0), CLAY_SIZING_GROW(0) },
+			.sizing          = { clay::sizing::grow(0), clay::sizing::grow(0) },
 			.padding         = { .left=10,.right=10,.top=10,.bottom=10 },
 			.childGap        = 8,
-			.layoutDirection = CLAY_TOP_TO_BOTTOM,
+			.layoutDirection = clay::LayoutDirection::TopToBottom,
 		},
 		.backgroundColor = { 0.11f, 0.10f, 0.09f, 1.0f },
 	});
-	Pengine::ClayManager::OpenTextElement(Str("YOUR ITEMS  (click to sell for 50%)"),
-		{ .textColor={0.8f,0.65f,0.3f,1}, .fontId=f24, .fontSize=24, .wrapMode=CLAY_TEXT_WRAP_NONE });
+	OpenText(ctx,Str("YOUR ITEMS  (click to sell for 50%)"),
+		{ .textColor={0.8f,0.65f,0.3f,1}, .fontId=f24, .fontSize=24, .wrapMode=clay::TextWrapMode::None });
 
 	for (int r = 0; r < inv.currentRows; ++r)
 	{
-		Pengine::ClayManager::OpenElement();
-		Pengine::ClayManager::ConfigureOpenElement({
+		ctx->openElement();
+		ctx->configureOpenElement({
 			.layout = {
-				.sizing          = { CLAY_SIZING_GROW(0), CLAY_SIZING_GROW(0) },
+				.sizing          = { clay::sizing::grow(0), clay::sizing::grow(0) },
 				.childGap        = kCellGap,
-				.layoutDirection = CLAY_LEFT_TO_RIGHT,
+				.layoutDirection = clay::LayoutDirection::LeftToRight,
 			},
 		});
 		for (int c = 0; c < inv.currentCols; ++c)
@@ -953,59 +958,59 @@ static Clay_RenderCommandArray ShopScript(Pengine::Canvas*, std::shared_ptr<Peng
 				sellNameStr [flatIdx] = slot.itemName;
 				sellPriceStr[flatIdx] = "$" + std::to_string(sellPrice);
 			}
-			Clay_Color bg = slot.occupied
-				? Clay_Color{0.22f, 0.17f, 0.10f, 0.95f}
-				: Clay_Color{0.13f, 0.12f, 0.11f, 0.60f};
+			clay::Color bg = slot.occupied
+				? clay::Color{0.22f, 0.17f, 0.10f, 0.95f}
+				: clay::Color{0.13f, 0.12f, 0.11f, 0.60f};
 
-			Pengine::ClayManager::OpenElement();
-			Pengine::ClayManager::ConfigureOpenElement({
-				.id = CLAY_IDI("SellCell", flatIdx),
+			ctx->openElement();
+			ctx->configureOpenElement({
+				.id = clay::makeId("SellCell", flatIdx),
 				.layout = {
-					.sizing          = { CLAY_SIZING_GROW(0), CLAY_SIZING_GROW(0) },
+					.sizing          = { clay::sizing::grow(0), clay::sizing::grow(0) },
 					.padding         = { .left=4,.right=4,.top=6,.bottom=6 },
 					.childGap        = 4,
-					.childAlignment  = { .x = CLAY_ALIGN_X_CENTER, .y = CLAY_ALIGN_Y_CENTER },
-					.layoutDirection = CLAY_TOP_TO_BOTTOM,
+					.childAlignment  = { .x = clay::AlignX::Center, .y = clay::AlignY::Center },
+					.layoutDirection = clay::LayoutDirection::TopToBottom,
 				},
 				.backgroundColor = bg,
 			});
 			if (slot.occupied)
 			{
-				Pengine::ClayManager::OpenElement();
-				Pengine::ClayManager::ConfigureOpenElement({
-					.layout          = { .sizing = { CLAY_SIZING_FIXED(kImgSize), CLAY_SIZING_FIXED(kImgSize) } },
+				ctx->openElement();
+				ctx->configureOpenElement({
+					.layout          = { .sizing = { clay::sizing::fixed(kImgSize), clay::sizing::fixed(kImgSize) } },
 					.backgroundColor = { 1,1,1,1 },
 					.image           = { .imageData = GetItemPreviewTex(slot) },
 				});
-				Pengine::ClayManager::CloseElement();
-				Pengine::ClayManager::OpenTextElement(Str(sellNameStr[flatIdx]),
-					{ .textColor=RarityColor(slot.rarityInt), .fontId=f20, .fontSize=20, .wrapMode=CLAY_TEXT_WRAP_NONE, .textAlignment=CLAY_TEXT_ALIGN_CENTER });
-				Pengine::ClayManager::OpenTextElement(Str(sellPriceStr[flatIdx]),
-					{ .textColor={0.8f,0.65f,0.3f,1}, .fontId=f20, .fontSize=20, .wrapMode=CLAY_TEXT_WRAP_NONE, .textAlignment=CLAY_TEXT_ALIGN_CENTER });
+				ctx->closeElement();
+				OpenText(ctx,Str(sellNameStr[flatIdx]),
+					{ .textColor=RarityColor(slot.rarityInt), .fontId=f20, .fontSize=20, .wrapMode=clay::TextWrapMode::None, .textAlignment=clay::TextAlignment::Center });
+				OpenText(ctx,Str(sellPriceStr[flatIdx]),
+					{ .textColor={0.8f,0.65f,0.3f,1}, .fontId=f20, .fontSize=20, .wrapMode=clay::TextWrapMode::None, .textAlignment=clay::TextAlignment::Center });
 			}
-			Pengine::ClayManager::CloseElement(); // cell
+			ctx->closeElement(); // cell
 
 			if (clicked && sellClickedIdx < 0 && slot.occupied
-				&& Pengine::ClayManager::IsPointerOver(CLAY_IDI("SellCell", flatIdx)))
+				&& ctx->pointerOver(clay::makeId("SellCell", flatIdx)))
 				sellClickedIdx = flatIdx;
 		}
-		Pengine::ClayManager::CloseElement(); // row
+		ctx->closeElement(); // row
 	}
-	Pengine::ClayManager::CloseElement(); // left panel
+	ctx->closeElement(); // left panel
 
 	// ── RIGHT PANEL: trader catalog (buy) ─────────────────────────────────────
-	Pengine::ClayManager::OpenElement();
-	Pengine::ClayManager::ConfigureOpenElement({
+	ctx->openElement();
+	ctx->configureOpenElement({
 		.layout = {
-			.sizing          = { CLAY_SIZING_GROW(0), CLAY_SIZING_GROW(0) },
+			.sizing          = { clay::sizing::grow(0), clay::sizing::grow(0) },
 			.padding         = { .left=10,.right=10,.top=10,.bottom=10 },
 			.childGap        = 8,
-			.layoutDirection = CLAY_TOP_TO_BOTTOM,
+			.layoutDirection = clay::LayoutDirection::TopToBottom,
 		},
 		.backgroundColor = { 0.09f, 0.11f, 0.09f, 1.0f },
 	});
-	Pengine::ClayManager::OpenTextElement(Str("TRADER  (click to buy)"),
-		{ .textColor={0.4f,0.85f,0.4f,1}, .fontId=f24, .fontSize=24, .wrapMode=CLAY_TEXT_WRAP_NONE });
+	OpenText(ctx,Str("TRADER  (click to buy)"),
+		{ .textColor={0.4f,0.85f,0.4f,1}, .fontId=f24, .fontSize=24, .wrapMode=clay::TextWrapMode::None });
 
 	constexpr int kCatalogCols = 4;
 	int catalogCount = (int)shop.catalog.size();
@@ -1013,12 +1018,12 @@ static Clay_RenderCommandArray ShopScript(Pengine::Canvas*, std::shared_ptr<Peng
 
 	for (int r = 0; r < catalogRows; ++r)
 	{
-		Pengine::ClayManager::OpenElement();
-		Pengine::ClayManager::ConfigureOpenElement({
+		ctx->openElement();
+		ctx->configureOpenElement({
 			.layout = {
-				.sizing          = { CLAY_SIZING_GROW(0), CLAY_SIZING_GROW(0) },
+				.sizing          = { clay::sizing::grow(0), clay::sizing::grow(0) },
 				.childGap        = kCellGap,
-				.layoutDirection = CLAY_LEFT_TO_RIGHT,
+				.layoutDirection = clay::LayoutDirection::LeftToRight,
 			},
 		});
 		for (int c = 0; c < kCatalogCols; ++c)
@@ -1033,56 +1038,56 @@ static Clay_RenderCommandArray ShopScript(Pengine::Canvas*, std::shared_ptr<Peng
 			bool canAfford    = inv.credits >= item.creditValue;
 			buyNameStr [i]    = item.itemName;
 			buyPriceStr[i]    = "$" + std::to_string(item.creditValue);
-			Clay_Color bg     = canAfford
-				? Clay_Color{0.16f,0.20f,0.16f,0.95f}
-				: Clay_Color{0.12f,0.13f,0.12f,0.70f};
-			Clay_Color priceCol = canAfford
-				? Clay_Color{0.4f,0.9f,0.4f,1}
-				: Clay_Color{0.75f,0.3f,0.3f,1};
+			clay::Color bg     = canAfford
+				? clay::Color{0.16f,0.20f,0.16f,0.95f}
+				: clay::Color{0.12f,0.13f,0.12f,0.70f};
+			clay::Color priceCol = canAfford
+				? clay::Color{0.4f,0.9f,0.4f,1}
+				: clay::Color{0.75f,0.3f,0.3f,1};
 
-			Pengine::ClayManager::OpenElement();
-			Pengine::ClayManager::ConfigureOpenElement({
-				.id = CLAY_IDI("BuyCell", i),
+			ctx->openElement();
+			ctx->configureOpenElement({
+				.id = clay::makeId("BuyCell", i),
 				.layout = {
-					.sizing          = { CLAY_SIZING_GROW(0), CLAY_SIZING_GROW(0) },
+					.sizing          = { clay::sizing::grow(0), clay::sizing::grow(0) },
 					.padding         = { .left=4,.right=4,.top=6,.bottom=6 },
 					.childGap        = 4,
-					.childAlignment  = { .x = CLAY_ALIGN_X_CENTER },
-					.layoutDirection = CLAY_TOP_TO_BOTTOM,
+					.childAlignment  = { .x = clay::AlignX::Center },
+					.layoutDirection = clay::LayoutDirection::TopToBottom,
 				},
 				.backgroundColor = bg,
 			});
-			Pengine::ClayManager::OpenElement();
-			Pengine::ClayManager::ConfigureOpenElement({
-				.layout          = { .sizing = { CLAY_SIZING_FIXED(kImgSize), CLAY_SIZING_FIXED(kImgSize) } },
+			ctx->openElement();
+			ctx->configureOpenElement({
+				.layout          = { .sizing = { clay::sizing::fixed(kImgSize), clay::sizing::fixed(kImgSize) } },
 				.backgroundColor = { 1,1,1,1 },
 				.image           = { .imageData = GetItemPreviewTex(item) },
 			});
-			Pengine::ClayManager::CloseElement();
-			Pengine::ClayManager::OpenTextElement(Str(buyNameStr[i]),
-				{ .textColor=RarityColor(item.rarityInt), .fontId=f20, .fontSize=20, .wrapMode=CLAY_TEXT_WRAP_NONE, .textAlignment=CLAY_TEXT_ALIGN_CENTER });
-			Pengine::ClayManager::OpenTextElement(Str(buyPriceStr[i]),
-				{ .textColor=priceCol, .fontId=f20, .fontSize=20, .wrapMode=CLAY_TEXT_WRAP_NONE, .textAlignment=CLAY_TEXT_ALIGN_CENTER });
-			Pengine::ClayManager::CloseElement(); // cell
+			ctx->closeElement();
+			OpenText(ctx,Str(buyNameStr[i]),
+				{ .textColor=RarityColor(item.rarityInt), .fontId=f20, .fontSize=20, .wrapMode=clay::TextWrapMode::None, .textAlignment=clay::TextAlignment::Center });
+			OpenText(ctx,Str(buyPriceStr[i]),
+				{ .textColor=priceCol, .fontId=f20, .fontSize=20, .wrapMode=clay::TextWrapMode::None, .textAlignment=clay::TextAlignment::Center });
+			ctx->closeElement(); // cell
 
 			if (clicked && buyClickedIndex < 0 && canAfford
-				&& Pengine::ClayManager::IsPointerOver(CLAY_IDI("BuyCell", i)))
+				&& ctx->pointerOver(clay::makeId("BuyCell", i)))
 				buyClickedIndex = i;
 		}
-		Pengine::ClayManager::CloseElement(); // row
+		ctx->closeElement(); // row
 	}
-	Pengine::ClayManager::CloseElement(); // right panel
+	ctx->closeElement(); // right panel
 
-	Pengine::ClayManager::CloseElement(); // two-panel row
+	ctx->closeElement(); // two-panel row
 
 	// Footer
-	Pengine::ClayManager::OpenTextElement(Str("[E] Close"),
-		{ .textColor={0.5f,0.5f,0.5f,1}, .fontId=f24, .fontSize=24, .wrapMode=CLAY_TEXT_WRAP_NONE });
+	OpenText(ctx,Str("[E] Close"),
+		{ .textColor={0.5f,0.5f,0.5f,1}, .fontId=f24, .fontSize=24, .wrapMode=clay::TextWrapMode::None });
 
-	Pengine::ClayManager::CloseElement(); // dialog
-	Pengine::ClayManager::CloseElement(); // overlay
+	ctx->closeElement(); // dialog
+	ctx->closeElement(); // overlay
 
-	auto layout = Pengine::ClayManager::EndLayout();
+	auto layout = ctx->endLayout();
 
 	if (sellClickedIdx >= 0)
 	{
@@ -1098,7 +1103,7 @@ static Clay_RenderCommandArray ShopScript(Pengine::Canvas*, std::shared_ptr<Peng
 
 // ─── UI script: Loot container ───────────────────────────────────────────────
 
-static Clay_RenderCommandArray LootScript(Pengine::Canvas*, std::shared_ptr<Pengine::Entity>)
+static std::vector<clay::RenderCommand>LootScript(Pengine::Canvas*, clay::Context* ctx, std::shared_ptr<Pengine::Entity>)
 {
 	auto scene = Pengine::SceneManager::GetInstance().GetSceneByTag("Main");
 
@@ -1122,13 +1127,13 @@ static Clay_RenderCommandArray LootScript(Pengine::Canvas*, std::shared_ptr<Peng
 
 	if (!lootPtr || !lootPtr->isOpen || !invPtr)
 	{
-		Pengine::ClayManager::BeginLayout();
-		Pengine::ClayManager::OpenElement();
-		Pengine::ClayManager::ConfigureOpenElement({
-			.layout = { .sizing = { CLAY_SIZING_GROW(0), CLAY_SIZING_GROW(0) } },
+		ctx->beginLayout();
+		ctx->openElement();
+		ctx->configureOpenElement({
+			.layout = { .sizing = { clay::sizing::grow(0), clay::sizing::grow(0) } },
 		});
-		Pengine::ClayManager::CloseElement();
-		return Pengine::ClayManager::EndLayout();
+		ctx->closeElement();
+		return ctx->endLayout();
 	}
 
 	auto& loot = *lootPtr;
@@ -1144,7 +1149,7 @@ static Clay_RenderCommandArray LootScript(Pengine::Canvas*, std::shared_ptr<Peng
 		{
 			auto& inp = Pengine::Input::GetInstance(win.get());
 			glm::dvec2 mp = inp.GetMousePosition();
-			Pengine::ClayManager::SetPointerState({ (float)mp.x, (float)mp.y },
+			ctx->setPointerState({ (float)mp.x, (float)mp.y },
 				inp.IsMouseDown(Pengine::KeyCode::MOUSE_BUTTON_1));
 			clicked = inp.IsMousePressed(Pengine::KeyCode::MOUSE_BUTTON_1);
 		}
@@ -1159,115 +1164,115 @@ static Clay_RenderCommandArray LootScript(Pengine::Canvas*, std::shared_ptr<Peng
 	static std::string lootNames [32];
 	static std::string lootPrices[32];
 
-	Pengine::ClayManager::BeginLayout();
+	ctx->beginLayout();
 
 	// Overlay
-	Pengine::ClayManager::OpenElement();
-	Pengine::ClayManager::ConfigureOpenElement({
+	ctx->openElement();
+	ctx->configureOpenElement({
 		.layout = {
-			.sizing         = { CLAY_SIZING_GROW(0), CLAY_SIZING_GROW(0) },
-			.childAlignment = { .x = CLAY_ALIGN_X_CENTER, .y = CLAY_ALIGN_Y_CENTER },
+			.sizing         = { clay::sizing::grow(0), clay::sizing::grow(0) },
+			.childAlignment = { .x = clay::AlignX::Center, .y = clay::AlignY::Center },
 		},
 		.backgroundColor = { 0, 0, 0, 0.55f },
 	});
 
 	// Dialog
-	Pengine::ClayManager::OpenElement();
-	Pengine::ClayManager::ConfigureOpenElement({
+	ctx->openElement();
+	ctx->configureOpenElement({
 		.layout = {
-			.sizing          = { CLAY_SIZING_PERCENT(0.66f), CLAY_SIZING_FIT(0) },
+			.sizing          = { clay::sizing::percent(0.66f), clay::sizing::fit(0) },
 			.padding         = { .left=20,.right=20,.top=16,.bottom=16 },
 			.childGap        = 12,
-			.layoutDirection = CLAY_TOP_TO_BOTTOM,
+			.layoutDirection = clay::LayoutDirection::TopToBottom,
 		},
 		.backgroundColor = { 0.08f, 0.08f, 0.10f, 0.97f },
 	});
 
-	Pengine::ClayManager::OpenTextElement(Str("LOOT"),
-		{ .textColor={0.9f,0.75f,0.3f,1}, .fontId=f24, .fontSize=24, .wrapMode=CLAY_TEXT_WRAP_NONE });
+	OpenText(ctx,Str("LOOT"),
+		{ .textColor={0.9f,0.75f,0.3f,1}, .fontId=f24, .fontSize=24, .wrapMode=clay::TextWrapMode::None });
 
 	// Two-panel row
-	Pengine::ClayManager::OpenElement();
-	Pengine::ClayManager::ConfigureOpenElement({
+	ctx->openElement();
+	ctx->configureOpenElement({
 		.layout = {
-			.sizing          = { CLAY_SIZING_GROW(0), CLAY_SIZING_FIT(0) },
+			.sizing          = { clay::sizing::grow(0), clay::sizing::fit(0) },
 			.childGap        = 16,
-			.childAlignment  = { .y = CLAY_ALIGN_Y_TOP },
-			.layoutDirection = CLAY_LEFT_TO_RIGHT,
+			.childAlignment  = { .y = clay::AlignY::Top },
+			.layoutDirection = clay::LayoutDirection::LeftToRight,
 		},
 	});
 
 	// ── LEFT: Player inventory (display) ──────────────────────────────────────
-	Pengine::ClayManager::OpenElement();
-	Pengine::ClayManager::ConfigureOpenElement({
+	ctx->openElement();
+	ctx->configureOpenElement({
 		.layout = {
-			.sizing          = { CLAY_SIZING_GROW(0), CLAY_SIZING_FIT(0) },
+			.sizing          = { clay::sizing::grow(0), clay::sizing::fit(0) },
 			.padding         = { .left=10,.right=10,.top=10,.bottom=10 },
 			.childGap        = 8,
-			.layoutDirection = CLAY_TOP_TO_BOTTOM,
+			.layoutDirection = clay::LayoutDirection::TopToBottom,
 		},
 		.backgroundColor = { 0.10f, 0.10f, 0.12f, 1.0f },
 	});
-	Pengine::ClayManager::OpenTextElement(Str("YOUR ITEMS"),
-		{ .textColor={0.7f,0.7f,0.7f,1}, .fontId=f24, .fontSize=24, .wrapMode=CLAY_TEXT_WRAP_NONE });
+	OpenText(ctx,Str("YOUR ITEMS"),
+		{ .textColor={0.7f,0.7f,0.7f,1}, .fontId=f24, .fontSize=24, .wrapMode=clay::TextWrapMode::None });
 	for (int r = 0; r < inv.currentRows; ++r)
 	{
-		Pengine::ClayManager::OpenElement();
-		Pengine::ClayManager::ConfigureOpenElement({
-			.layout = { .sizing = { CLAY_SIZING_GROW(0), CLAY_SIZING_FIT(0) }, .childGap = kCellGap, .layoutDirection = CLAY_LEFT_TO_RIGHT },
+		ctx->openElement();
+		ctx->configureOpenElement({
+			.layout = { .sizing = { clay::sizing::grow(0), clay::sizing::fit(0) }, .childGap = kCellGap, .layoutDirection = clay::LayoutDirection::LeftToRight },
 		});
 		for (int c = 0; c < inv.currentCols; ++c)
 		{
 			int flatIdx      = r * InventoryComponent::kMaxGridCols + c;
 			const auto& slot = inv.grid[flatIdx];
 			if (slot.occupied) invCellNames[flatIdx] = slot.itemName;
-			Clay_Color bg = slot.occupied ? Clay_Color{0.22f,0.22f,0.28f,0.95f} : Clay_Color{0.14f,0.14f,0.16f,0.60f};
-			Pengine::ClayManager::OpenElement();
-			Pengine::ClayManager::ConfigureOpenElement({
+			clay::Color bg = slot.occupied ? clay::Color{0.22f,0.22f,0.28f,0.95f} : clay::Color{0.14f,0.14f,0.16f,0.60f};
+			ctx->openElement();
+			ctx->configureOpenElement({
 				.layout = {
-					.sizing          = { CLAY_SIZING_FIXED(kCellW), CLAY_SIZING_FIT(0) },
+					.sizing          = { clay::sizing::fixed(kCellW), clay::sizing::fit(0) },
 					.padding         = { .left=4,.right=4,.top=6,.bottom=6 },
 					.childGap        = 4,
-					.childAlignment  = { .x = CLAY_ALIGN_X_CENTER },
-					.layoutDirection = CLAY_TOP_TO_BOTTOM,
+					.childAlignment  = { .x = clay::AlignX::Center },
+					.layoutDirection = clay::LayoutDirection::TopToBottom,
 				},
 				.backgroundColor = bg,
 			});
 			if (slot.occupied)
 			{
-				Pengine::ClayManager::OpenElement();
-				Pengine::ClayManager::ConfigureOpenElement({
-					.layout = { .sizing = { CLAY_SIZING_FIXED(kImgSize), CLAY_SIZING_FIXED(kImgSize) } },
+				ctx->openElement();
+				ctx->configureOpenElement({
+					.layout = { .sizing = { clay::sizing::fixed(kImgSize), clay::sizing::fixed(kImgSize) } },
 					.backgroundColor = { 1,1,1,1 },
 					.image = { .imageData = GetItemPreviewTex(slot) },
 				});
-				Pengine::ClayManager::CloseElement();
-				Pengine::ClayManager::OpenTextElement(Str(invCellNames[flatIdx]),
-					{ .textColor=RarityColor(slot.rarityInt), .fontId=f20, .fontSize=20, .wrapMode=CLAY_TEXT_WRAP_WORDS, .textAlignment=CLAY_TEXT_ALIGN_CENTER });
+				ctx->closeElement();
+				OpenText(ctx,Str(invCellNames[flatIdx]),
+					{ .textColor=RarityColor(slot.rarityInt), .fontId=f20, .fontSize=20, .wrapMode=clay::TextWrapMode::Words, .textAlignment=clay::TextAlignment::Center });
 			}
-			Pengine::ClayManager::CloseElement();
+			ctx->closeElement();
 		}
-		Pengine::ClayManager::CloseElement(); // row
+		ctx->closeElement(); // row
 	}
-	Pengine::ClayManager::CloseElement(); // left panel
+	ctx->closeElement(); // left panel
 
 	// ── RIGHT: Loot items (click to take) ─────────────────────────────────────
-	Pengine::ClayManager::OpenElement();
-	Pengine::ClayManager::ConfigureOpenElement({
+	ctx->openElement();
+	ctx->configureOpenElement({
 		.layout = {
-			.sizing          = { CLAY_SIZING_GROW(0), CLAY_SIZING_FIT(0) },
+			.sizing          = { clay::sizing::grow(0), clay::sizing::fit(0) },
 			.padding         = { .left=10,.right=10,.top=10,.bottom=10 },
 			.childGap        = 8,
-			.layoutDirection = CLAY_TOP_TO_BOTTOM,
+			.layoutDirection = clay::LayoutDirection::TopToBottom,
 		},
 		.backgroundColor = { 0.11f, 0.10f, 0.08f, 1.0f },
 	});
-	Pengine::ClayManager::OpenTextElement(Str("CONTAINER  (click to take)"),
-		{ .textColor={0.9f,0.75f,0.3f,1}, .fontId=f24, .fontSize=24, .wrapMode=CLAY_TEXT_WRAP_NONE });
+	OpenText(ctx,Str("CONTAINER  (click to take)"),
+		{ .textColor={0.9f,0.75f,0.3f,1}, .fontId=f24, .fontSize=24, .wrapMode=clay::TextWrapMode::None });
 	if (loot.items.empty())
 	{
-		Pengine::ClayManager::OpenTextElement(Str("Empty"),
-			{ .textColor={0.5f,0.5f,0.5f,1}, .fontId=f24, .fontSize=24, .wrapMode=CLAY_TEXT_WRAP_NONE });
+		OpenText(ctx,Str("Empty"),
+			{ .textColor={0.5f,0.5f,0.5f,1}, .fontId=f24, .fontSize=24, .wrapMode=clay::TextWrapMode::None });
 	}
 	else
 	{
@@ -1275,9 +1280,9 @@ static Clay_RenderCommandArray LootScript(Pengine::Canvas*, std::shared_ptr<Peng
 		int rows  = (count + kLootCols - 1) / kLootCols;
 		for (int r = 0; r < rows; ++r)
 		{
-			Pengine::ClayManager::OpenElement();
-			Pengine::ClayManager::ConfigureOpenElement({
-				.layout = { .sizing = { CLAY_SIZING_GROW(0), CLAY_SIZING_FIT(0) }, .childGap = kCellGap, .layoutDirection = CLAY_LEFT_TO_RIGHT },
+			ctx->openElement();
+			ctx->configureOpenElement({
+				.layout = { .sizing = { clay::sizing::grow(0), clay::sizing::fit(0) }, .childGap = kCellGap, .layoutDirection = clay::LayoutDirection::LeftToRight },
 			});
 			for (int c = 0; c < kLootCols; ++c)
 			{
@@ -1286,49 +1291,49 @@ static Clay_RenderCommandArray LootScript(Pengine::Canvas*, std::shared_ptr<Peng
 				const auto& item = loot.items[i];
 				lootNames [i] = item.itemName;
 				lootPrices[i] = "$" + std::to_string(item.creditValue);
-				Pengine::ClayManager::OpenElement();
-				Pengine::ClayManager::ConfigureOpenElement({
-					.id = CLAY_IDI("LootItem", i),
+				ctx->openElement();
+				ctx->configureOpenElement({
+					.id = clay::makeId("LootItem", i),
 					.layout = {
-						.sizing          = { CLAY_SIZING_FIXED(kCellW), CLAY_SIZING_FIT(0) },
+						.sizing          = { clay::sizing::fixed(kCellW), clay::sizing::fit(0) },
 						.padding         = { .left=4,.right=4,.top=6,.bottom=6 },
 						.childGap        = 4,
-						.childAlignment  = { .x = CLAY_ALIGN_X_CENTER },
-						.layoutDirection = CLAY_TOP_TO_BOTTOM,
+						.childAlignment  = { .x = clay::AlignX::Center },
+						.layoutDirection = clay::LayoutDirection::TopToBottom,
 					},
 					.backgroundColor = { 0.20f, 0.17f, 0.12f, 0.95f },
 				});
-				Pengine::ClayManager::OpenElement();
-				Pengine::ClayManager::ConfigureOpenElement({
-					.layout = { .sizing = { CLAY_SIZING_FIXED(kImgSize), CLAY_SIZING_FIXED(kImgSize) } },
+				ctx->openElement();
+				ctx->configureOpenElement({
+					.layout = { .sizing = { clay::sizing::fixed(kImgSize), clay::sizing::fixed(kImgSize) } },
 					.backgroundColor = { 1,1,1,1 },
 					.image = { .imageData = GetItemPreviewTex(item) },
 				});
-				Pengine::ClayManager::CloseElement();
-				Pengine::ClayManager::OpenTextElement(Str(lootNames[i]),
-					{ .textColor=RarityColor(item.rarityInt), .fontId=f20, .fontSize=20, .wrapMode=CLAY_TEXT_WRAP_WORDS, .textAlignment=CLAY_TEXT_ALIGN_CENTER });
-				Pengine::ClayManager::OpenTextElement(Str(lootPrices[i]),
-					{ .textColor={0.7f,0.65f,0.4f,1}, .fontId=f20, .fontSize=20, .wrapMode=CLAY_TEXT_WRAP_NONE, .textAlignment=CLAY_TEXT_ALIGN_CENTER });
-				Pengine::ClayManager::CloseElement();
+				ctx->closeElement();
+				OpenText(ctx,Str(lootNames[i]),
+					{ .textColor=RarityColor(item.rarityInt), .fontId=f20, .fontSize=20, .wrapMode=clay::TextWrapMode::Words, .textAlignment=clay::TextAlignment::Center });
+				OpenText(ctx,Str(lootPrices[i]),
+					{ .textColor={0.7f,0.65f,0.4f,1}, .fontId=f20, .fontSize=20, .wrapMode=clay::TextWrapMode::None, .textAlignment=clay::TextAlignment::Center });
+				ctx->closeElement();
 
 				if (clicked && lootClickedIndex < 0
-					&& Pengine::ClayManager::IsPointerOver(CLAY_IDI("LootItem", i)))
+					&& ctx->pointerOver(clay::makeId("LootItem", i)))
 					lootClickedIndex = i;
 			}
-			Pengine::ClayManager::CloseElement(); // row
+			ctx->closeElement(); // row
 		}
 	}
-	Pengine::ClayManager::CloseElement(); // right panel
+	ctx->closeElement(); // right panel
 
-	Pengine::ClayManager::CloseElement(); // two-panel row
+	ctx->closeElement(); // two-panel row
 
-	Pengine::ClayManager::OpenTextElement(Str("[E] Close"),
-		{ .textColor={0.5f,0.5f,0.5f,1}, .fontId=f24, .fontSize=24, .wrapMode=CLAY_TEXT_WRAP_NONE });
+	OpenText(ctx,Str("[E] Close"),
+		{ .textColor={0.5f,0.5f,0.5f,1}, .fontId=f24, .fontSize=24, .wrapMode=clay::TextWrapMode::None });
 
-	Pengine::ClayManager::CloseElement(); // dialog
-	Pengine::ClayManager::CloseElement(); // overlay
+	ctx->closeElement(); // dialog
+	ctx->closeElement(); // overlay
 
-	auto layout = Pengine::ClayManager::EndLayout();
+	auto layout = ctx->endLayout();
 
 	if (lootClickedIndex >= 0 && lootClickedIndex < (int)loot.items.size())
 	{
@@ -1353,7 +1358,7 @@ static Clay_RenderCommandArray LootScript(Pengine::Canvas*, std::shared_ptr<Peng
 
 // ─── UI script: Stash ────────────────────────────────────────────────────────
 
-static Clay_RenderCommandArray StashScript(Pengine::Canvas*, std::shared_ptr<Pengine::Entity>)
+static std::vector<clay::RenderCommand>StashScript(Pengine::Canvas*, clay::Context* ctx, std::shared_ptr<Pengine::Entity>)
 {
 	auto scene = Pengine::SceneManager::GetInstance().GetSceneByTag("Main");
 
@@ -1376,13 +1381,13 @@ static Clay_RenderCommandArray StashScript(Pengine::Canvas*, std::shared_ptr<Pen
 
 	if (!show)
 	{
-		Pengine::ClayManager::BeginLayout();
-		Pengine::ClayManager::OpenElement();
-		Pengine::ClayManager::ConfigureOpenElement({
-			.layout = { .sizing = { CLAY_SIZING_GROW(0), CLAY_SIZING_GROW(0) } },
+		ctx->beginLayout();
+		ctx->openElement();
+		ctx->configureOpenElement({
+			.layout = { .sizing = { clay::sizing::grow(0), clay::sizing::grow(0) } },
 		});
-		Pengine::ClayManager::CloseElement();
-		return Pengine::ClayManager::EndLayout();
+		ctx->closeElement();
+		return ctx->endLayout();
 	}
 
 	auto& inv   = *invPtr;
@@ -1399,7 +1404,7 @@ static Clay_RenderCommandArray StashScript(Pengine::Canvas*, std::shared_ptr<Pen
 		{
 			auto& inp = Pengine::Input::GetInstance(win.get());
 			glm::dvec2 mp = inp.GetMousePosition();
-			Pengine::ClayManager::SetPointerState({ (float)mp.x, (float)mp.y },
+			ctx->setPointerState({ (float)mp.x, (float)mp.y },
 				inp.IsMouseDown(Pengine::KeyCode::MOUSE_BUTTON_1));
 			clicked = inp.IsMousePressed(Pengine::KeyCode::MOUSE_BUTTON_1);
 		}
@@ -1414,26 +1419,26 @@ static Clay_RenderCommandArray StashScript(Pengine::Canvas*, std::shared_ptr<Pen
 	static std::string stashNames[128];
 	static std::string stashPrices[128];
 
-	Pengine::ClayManager::BeginLayout();
+	ctx->beginLayout();
 
 	// Overlay
-	Pengine::ClayManager::OpenElement();
-	Pengine::ClayManager::ConfigureOpenElement({
+	ctx->openElement();
+	ctx->configureOpenElement({
 		.layout = {
-			.sizing         = { CLAY_SIZING_GROW(0), CLAY_SIZING_GROW(0) },
-			.childAlignment = { .x = CLAY_ALIGN_X_CENTER, .y = CLAY_ALIGN_Y_CENTER },
+			.sizing         = { clay::sizing::grow(0), clay::sizing::grow(0) },
+			.childAlignment = { .x = clay::AlignX::Center, .y = clay::AlignY::Center },
 		},
 		.backgroundColor = { 0, 0, 0, 0.55f },
 	});
 
 	// Dialog
-	Pengine::ClayManager::OpenElement();
-	Pengine::ClayManager::ConfigureOpenElement({
+	ctx->openElement();
+	ctx->configureOpenElement({
 		.layout = {
-			.sizing          = { CLAY_SIZING_PERCENT(0.66f), CLAY_SIZING_PERCENT(0.66f) },
+			.sizing          = { clay::sizing::percent(0.66f), clay::sizing::percent(0.66f) },
 			.padding         = { .left=20,.right=20,.top=16,.bottom=16 },
 			.childGap        = 12,
-			.layoutDirection = CLAY_TOP_TO_BOTTOM,
+			.layoutDirection = clay::LayoutDirection::TopToBottom,
 		},
 		.backgroundColor = { 0.08f, 0.10f, 0.08f, 0.97f },
 	});
@@ -1441,97 +1446,97 @@ static Clay_RenderCommandArray StashScript(Pengine::Canvas*, std::shared_ptr<Pen
 	{
 		static std::string title;
 		title = "STASH   " + std::to_string((int)stash.size()) + " items";
-		Pengine::ClayManager::OpenTextElement(Str(title),
-			{ .textColor={0.6f,0.9f,0.6f,1}, .fontId=f24, .fontSize=24, .wrapMode=CLAY_TEXT_WRAP_NONE });
+		OpenText(ctx,Str(title),
+			{ .textColor={0.6f,0.9f,0.6f,1}, .fontId=f24, .fontSize=24, .wrapMode=clay::TextWrapMode::None });
 	}
 
 	// Two-panel row
-	Pengine::ClayManager::OpenElement();
-	Pengine::ClayManager::ConfigureOpenElement({
+	ctx->openElement();
+	ctx->configureOpenElement({
 		.layout = {
-			.sizing          = { CLAY_SIZING_GROW(0), CLAY_SIZING_GROW(0) },
+			.sizing          = { clay::sizing::grow(0), clay::sizing::grow(0) },
 			.childGap        = 16,
-			.childAlignment  = { .y = CLAY_ALIGN_Y_TOP },
-			.layoutDirection = CLAY_LEFT_TO_RIGHT,
+			.childAlignment  = { .y = clay::AlignY::Top },
+			.layoutDirection = clay::LayoutDirection::LeftToRight,
 		},
 	});
 
 	// ── LEFT: Player inventory (click to deposit) ─────────────────────────────
-	Pengine::ClayManager::OpenElement();
-	Pengine::ClayManager::ConfigureOpenElement({
+	ctx->openElement();
+	ctx->configureOpenElement({
 		.layout = {
-			.sizing          = { CLAY_SIZING_GROW(0), CLAY_SIZING_GROW(0) },
+			.sizing          = { clay::sizing::grow(0), clay::sizing::grow(0) },
 			.padding         = { .left=10,.right=10,.top=10,.bottom=10 },
 			.childGap        = 8,
-			.layoutDirection = CLAY_TOP_TO_BOTTOM,
+			.layoutDirection = clay::LayoutDirection::TopToBottom,
 		},
 		.backgroundColor = { 0.11f, 0.12f, 0.10f, 1.0f },
 	});
-	Pengine::ClayManager::OpenTextElement(Str("YOUR ITEMS  (click to deposit)"),
-		{ .textColor={0.7f,0.9f,0.7f,1}, .fontId=f24, .fontSize=24, .wrapMode=CLAY_TEXT_WRAP_NONE });
+	OpenText(ctx,Str("YOUR ITEMS  (click to deposit)"),
+		{ .textColor={0.7f,0.9f,0.7f,1}, .fontId=f24, .fontSize=24, .wrapMode=clay::TextWrapMode::None });
 	for (int r = 0; r < inv.currentRows; ++r)
 	{
-		Pengine::ClayManager::OpenElement();
-		Pengine::ClayManager::ConfigureOpenElement({
-			.layout = { .sizing = { CLAY_SIZING_GROW(0), CLAY_SIZING_GROW(0) }, .childGap = kCellGap, .layoutDirection = CLAY_LEFT_TO_RIGHT },
+		ctx->openElement();
+		ctx->configureOpenElement({
+			.layout = { .sizing = { clay::sizing::grow(0), clay::sizing::grow(0) }, .childGap = kCellGap, .layoutDirection = clay::LayoutDirection::LeftToRight },
 		});
 		for (int c = 0; c < inv.currentCols; ++c)
 		{
 			int flatIdx      = r * InventoryComponent::kMaxGridCols + c;
 			const auto& slot = inv.grid[flatIdx];
 			if (slot.occupied) invCellNames[flatIdx] = slot.itemName;
-			Clay_Color bg = slot.occupied ? Clay_Color{0.22f,0.28f,0.22f,0.95f} : Clay_Color{0.14f,0.16f,0.14f,0.60f};
-			Pengine::ClayManager::OpenElement();
-			Pengine::ClayManager::ConfigureOpenElement({
-				.id = CLAY_IDI("StashDeposit", flatIdx),
+			clay::Color bg = slot.occupied ? clay::Color{0.22f,0.28f,0.22f,0.95f} : clay::Color{0.14f,0.16f,0.14f,0.60f};
+			ctx->openElement();
+			ctx->configureOpenElement({
+				.id = clay::makeId("StashDeposit", flatIdx),
 				.layout = {
-					.sizing          = { CLAY_SIZING_GROW(0), CLAY_SIZING_GROW(0) },
+					.sizing          = { clay::sizing::grow(0), clay::sizing::grow(0) },
 					.padding         = { .left=4,.right=4,.top=6,.bottom=6 },
 					.childGap        = 4,
-					.childAlignment  = { .x = CLAY_ALIGN_X_CENTER, .y = CLAY_ALIGN_Y_CENTER },
-					.layoutDirection = CLAY_TOP_TO_BOTTOM,
+					.childAlignment  = { .x = clay::AlignX::Center, .y = clay::AlignY::Center },
+					.layoutDirection = clay::LayoutDirection::TopToBottom,
 				},
 				.backgroundColor = bg,
 			});
 			if (slot.occupied)
 			{
-				Pengine::ClayManager::OpenElement();
-				Pengine::ClayManager::ConfigureOpenElement({
-					.layout = { .sizing = { CLAY_SIZING_FIXED(kImgSize), CLAY_SIZING_FIXED(kImgSize) } },
+				ctx->openElement();
+				ctx->configureOpenElement({
+					.layout = { .sizing = { clay::sizing::fixed(kImgSize), clay::sizing::fixed(kImgSize) } },
 					.backgroundColor = { 1,1,1,1 },
 					.image = { .imageData = GetItemPreviewTex(slot) },
 				});
-				Pengine::ClayManager::CloseElement();
-				Pengine::ClayManager::OpenTextElement(Str(invCellNames[flatIdx]),
-					{ .textColor=RarityColor(slot.rarityInt), .fontId=f20, .fontSize=20, .wrapMode=CLAY_TEXT_WRAP_WORDS, .textAlignment=CLAY_TEXT_ALIGN_CENTER });
+				ctx->closeElement();
+				OpenText(ctx,Str(invCellNames[flatIdx]),
+					{ .textColor=RarityColor(slot.rarityInt), .fontId=f20, .fontSize=20, .wrapMode=clay::TextWrapMode::Words, .textAlignment=clay::TextAlignment::Center });
 			}
-			Pengine::ClayManager::CloseElement();
+			ctx->closeElement();
 
 			if (clicked && depositIdx < 0 && slot.occupied
-				&& Pengine::ClayManager::IsPointerOver(CLAY_IDI("StashDeposit", flatIdx)))
+				&& ctx->pointerOver(clay::makeId("StashDeposit", flatIdx)))
 				depositIdx = flatIdx;
 		}
-		Pengine::ClayManager::CloseElement(); // row
+		ctx->closeElement(); // row
 	}
-	Pengine::ClayManager::CloseElement(); // left panel
+	ctx->closeElement(); // left panel
 
 	// ── RIGHT: Stash items (click to withdraw) ────────────────────────────────
-	Pengine::ClayManager::OpenElement();
-	Pengine::ClayManager::ConfigureOpenElement({
+	ctx->openElement();
+	ctx->configureOpenElement({
 		.layout = {
-			.sizing          = { CLAY_SIZING_GROW(0), CLAY_SIZING_GROW(0) },
+			.sizing          = { clay::sizing::grow(0), clay::sizing::grow(0) },
 			.padding         = { .left=10,.right=10,.top=10,.bottom=10 },
 			.childGap        = 8,
-			.layoutDirection = CLAY_TOP_TO_BOTTOM,
+			.layoutDirection = clay::LayoutDirection::TopToBottom,
 		},
 		.backgroundColor = { 0.10f, 0.12f, 0.10f, 1.0f },
 	});
-	Pengine::ClayManager::OpenTextElement(Str("STASH  (click to withdraw)"),
-		{ .textColor={0.6f,0.9f,0.6f,1}, .fontId=f24, .fontSize=24, .wrapMode=CLAY_TEXT_WRAP_NONE });
+	OpenText(ctx,Str("STASH  (click to withdraw)"),
+		{ .textColor={0.6f,0.9f,0.6f,1}, .fontId=f24, .fontSize=24, .wrapMode=clay::TextWrapMode::None });
 	if (stash.empty())
 	{
-		Pengine::ClayManager::OpenTextElement(Str("Empty"),
-			{ .textColor={0.5f,0.5f,0.5f,1}, .fontId=f24, .fontSize=24, .wrapMode=CLAY_TEXT_WRAP_NONE });
+		OpenText(ctx,Str("Empty"),
+			{ .textColor={0.5f,0.5f,0.5f,1}, .fontId=f24, .fontSize=24, .wrapMode=clay::TextWrapMode::None });
 	}
 	else
 	{
@@ -1539,9 +1544,9 @@ static Clay_RenderCommandArray StashScript(Pengine::Canvas*, std::shared_ptr<Pen
 		int rows  = (count + kStashCols - 1) / kStashCols;
 		for (int r = 0; r < rows; ++r)
 		{
-			Pengine::ClayManager::OpenElement();
-			Pengine::ClayManager::ConfigureOpenElement({
-				.layout = { .sizing = { CLAY_SIZING_GROW(0), CLAY_SIZING_GROW(0) }, .childGap = kCellGap, .layoutDirection = CLAY_LEFT_TO_RIGHT },
+			ctx->openElement();
+			ctx->configureOpenElement({
+				.layout = { .sizing = { clay::sizing::grow(0), clay::sizing::grow(0) }, .childGap = kCellGap, .layoutDirection = clay::LayoutDirection::LeftToRight },
 			});
 			for (int c = 0; c < kStashCols; ++c)
 			{
@@ -1550,49 +1555,49 @@ static Clay_RenderCommandArray StashScript(Pengine::Canvas*, std::shared_ptr<Pen
 				const auto& slot = stash[i];
 				stashNames [i] = slot.itemName;
 				stashPrices[i] = std::to_string(slot.creditValue) + " cr";
-				Pengine::ClayManager::OpenElement();
-				Pengine::ClayManager::ConfigureOpenElement({
-					.id = CLAY_IDI("StashItem", i),
+				ctx->openElement();
+				ctx->configureOpenElement({
+					.id = clay::makeId("StashItem", i),
 					.layout = {
-						.sizing          = { CLAY_SIZING_GROW(0), CLAY_SIZING_GROW(0) },
+						.sizing          = { clay::sizing::grow(0), clay::sizing::grow(0) },
 						.padding         = { .left=4,.right=4,.top=6,.bottom=6 },
 						.childGap        = 4,
-						.childAlignment  = { .x = CLAY_ALIGN_X_CENTER, .y = CLAY_ALIGN_Y_CENTER },
-						.layoutDirection = CLAY_TOP_TO_BOTTOM,
+						.childAlignment  = { .x = clay::AlignX::Center, .y = clay::AlignY::Center },
+						.layoutDirection = clay::LayoutDirection::TopToBottom,
 					},
 					.backgroundColor = { 0.14f, 0.22f, 0.14f, 0.95f },
 				});
-				Pengine::ClayManager::OpenElement();
-				Pengine::ClayManager::ConfigureOpenElement({
-					.layout = { .sizing = { CLAY_SIZING_FIXED(kImgSize), CLAY_SIZING_FIXED(kImgSize) } },
+				ctx->openElement();
+				ctx->configureOpenElement({
+					.layout = { .sizing = { clay::sizing::fixed(kImgSize), clay::sizing::fixed(kImgSize) } },
 					.backgroundColor = { 1,1,1,1 },
 					.image = { .imageData = GetItemPreviewTex(slot) },
 				});
-				Pengine::ClayManager::CloseElement();
-				Pengine::ClayManager::OpenTextElement(Str(stashNames[i]),
-					{ .textColor=RarityColor(slot.rarityInt), .fontId=f20, .fontSize=20, .wrapMode=CLAY_TEXT_WRAP_WORDS, .textAlignment=CLAY_TEXT_ALIGN_CENTER });
-				Pengine::ClayManager::OpenTextElement(Str(stashPrices[i]),
-					{ .textColor={0.6f,0.7f,0.6f,1}, .fontId=f20, .fontSize=20, .wrapMode=CLAY_TEXT_WRAP_NONE, .textAlignment=CLAY_TEXT_ALIGN_CENTER });
-				Pengine::ClayManager::CloseElement();
+				ctx->closeElement();
+				OpenText(ctx,Str(stashNames[i]),
+					{ .textColor=RarityColor(slot.rarityInt), .fontId=f20, .fontSize=20, .wrapMode=clay::TextWrapMode::Words, .textAlignment=clay::TextAlignment::Center });
+				OpenText(ctx,Str(stashPrices[i]),
+					{ .textColor={0.6f,0.7f,0.6f,1}, .fontId=f20, .fontSize=20, .wrapMode=clay::TextWrapMode::None, .textAlignment=clay::TextAlignment::Center });
+				ctx->closeElement();
 
 				if (clicked && withdrawIdx < 0
-					&& Pengine::ClayManager::IsPointerOver(CLAY_IDI("StashItem", i)))
+					&& ctx->pointerOver(clay::makeId("StashItem", i)))
 					withdrawIdx = i;
 			}
-			Pengine::ClayManager::CloseElement(); // row
+			ctx->closeElement(); // row
 		}
 	}
-	Pengine::ClayManager::CloseElement(); // right panel
+	ctx->closeElement(); // right panel
 
-	Pengine::ClayManager::CloseElement(); // two-panel row
+	ctx->closeElement(); // two-panel row
 
-	Pengine::ClayManager::OpenTextElement(Str("[E] Close"),
-		{ .textColor={0.5f,0.5f,0.5f,1}, .fontId=f24, .fontSize=24, .wrapMode=CLAY_TEXT_WRAP_NONE });
+	OpenText(ctx,Str("[E] Close"),
+		{ .textColor={0.5f,0.5f,0.5f,1}, .fontId=f24, .fontSize=24, .wrapMode=clay::TextWrapMode::None });
 
-	Pengine::ClayManager::CloseElement(); // dialog
-	Pengine::ClayManager::CloseElement(); // overlay
+	ctx->closeElement(); // dialog
+	ctx->closeElement(); // overlay
 
-	auto layout = Pengine::ClayManager::EndLayout();
+	auto layout = ctx->endLayout();
 
 	// Handle withdraw: move stash[i] → player grid
 	if (withdrawIdx >= 0 && withdrawIdx < (int)stash.size())
@@ -1622,7 +1627,7 @@ static Clay_RenderCommandArray StashScript(Pengine::Canvas*, std::shared_ptr<Pen
 
 // ─── UI script: Game Over / Death overlay ─────────────────────────────────────
 
-static Clay_RenderCommandArray GameOverScript(Pengine::Canvas*, std::shared_ptr<Pengine::Entity>)
+static std::vector<clay::RenderCommand>GameOverScript(Pengine::Canvas*, clay::Context* ctx, std::shared_ptr<Pengine::Entity>)
 {
 	auto scene = Pengine::SceneManager::GetInstance().GetSceneByTag("Main");
 
@@ -1642,24 +1647,24 @@ static Clay_RenderCommandArray GameOverScript(Pengine::Canvas*, std::shared_ptr<
 	uint16_t f72 = Font("Calibri", 72);
 	uint16_t f28 = Font("Calibri", 28);
 
-	Pengine::ClayManager::BeginLayout();
-	Pengine::ClayManager::OpenElement();
-	Pengine::ClayManager::ConfigureOpenElement({
+	ctx->beginLayout();
+	ctx->openElement();
+	ctx->configureOpenElement({
 		.layout = {
-			.sizing          = { CLAY_SIZING_GROW(0), CLAY_SIZING_GROW(0) },
+			.sizing          = { clay::sizing::grow(0), clay::sizing::grow(0) },
 			.childGap        = 16,
-			.childAlignment  = { .x = CLAY_ALIGN_X_CENTER, .y = CLAY_ALIGN_Y_CENTER },
-			.layoutDirection = CLAY_TOP_TO_BOTTOM,
+			.childAlignment  = { .x = clay::AlignX::Center, .y = clay::AlignY::Center },
+			.layoutDirection = clay::LayoutDirection::TopToBottom,
 		},
 		.backgroundColor = { 0, 0, 0, overlayAlpha },
 	});
-	Pengine::ClayManager::OpenTextElement(Str(msg),
-		{ .textColor={0.86f,0.22f,0.22f,textAlpha}, .fontId=f72, .fontSize=72, .wrapMode=CLAY_TEXT_WRAP_NONE });
+	OpenText(ctx,Str(msg),
+		{ .textColor={0.86f,0.22f,0.22f,textAlpha}, .fontId=f72, .fontSize=72, .wrapMode=clay::TextWrapMode::None });
 	if (died)
-		Pengine::ClayManager::OpenTextElement(Str("Returning to Home Base..."),
-			{ .textColor={0.7f,0.7f,0.7f,textAlpha}, .fontId=f28, .fontSize=28, .wrapMode=CLAY_TEXT_WRAP_NONE });
-	Pengine::ClayManager::CloseElement();
-	return Pengine::ClayManager::EndLayout();
+		OpenText(ctx,Str("Returning to Home Base..."),
+			{ .textColor={0.7f,0.7f,0.7f,textAlpha}, .fontId=f28, .fontSize=28, .wrapMode=clay::TextWrapMode::None });
+	ctx->closeElement();
+	return ctx->endLayout();
 }
 
 // ─── Lifecycle ────────────────────────────────────────────────────────────────
@@ -1681,20 +1686,18 @@ void GameApplication::OnPreStart()
 
 void GameApplication::RegisterUIScripts()
 {
-	using ScriptFn = std::function<Clay_RenderCommandArray(Pengine::Canvas*, std::shared_ptr<Pengine::Entity>)>;
-
-	Pengine::ClayManager::GetInstance().scriptsByName["Crosshair"]   = ScriptFn(CrosshairScript);
-	Pengine::ClayManager::GetInstance().scriptsByName["RaidHUD"]     = ScriptFn(RaidHUDScript);
-	Pengine::ClayManager::GetInstance().scriptsByName["HomeBaseHUD"] = ScriptFn(HomeBaseHUDScript);
-	Pengine::ClayManager::GetInstance().scriptsByName["Inventory"]   = ScriptFn(InventoryScript);
-	Pengine::ClayManager::GetInstance().scriptsByName["Shop"]        = ScriptFn(ShopScript);
-	Pengine::ClayManager::GetInstance().scriptsByName["Loot"]        = ScriptFn(LootScript);
-	Pengine::ClayManager::GetInstance().scriptsByName["Stash"]       = ScriptFn(StashScript);
-	Pengine::ClayManager::GetInstance().scriptsByName["GameOver"]    = ScriptFn(GameOverScript);
+	Pengine::UISystem::Scripts()["Crosshair"]   = CrosshairScript;
+	Pengine::UISystem::Scripts()["RaidHUD"]     = RaidHUDScript;
+	Pengine::UISystem::Scripts()["HomeBaseHUD"] = HomeBaseHUDScript;
+	Pengine::UISystem::Scripts()["Inventory"]   = InventoryScript;
+	Pengine::UISystem::Scripts()["Shop"]        = ShopScript;
+	Pengine::UISystem::Scripts()["Loot"]        = LootScript;
+	Pengine::UISystem::Scripts()["Stash"]       = StashScript;
+	Pengine::UISystem::Scripts()["GameOver"]    = GameOverScript;
 
 	// Legacy names kept for backward compatibility
-	Pengine::ClayManager::GetInstance().scriptsByName["FPS_HUD"]     = ScriptFn(RaidHUDScript);
-	Pengine::ClayManager::GetInstance().scriptsByName["FPS_Overlay"] = ScriptFn(GameOverScript);
+	Pengine::UISystem::Scripts()["FPS_HUD"]     = RaidHUDScript;
+	Pengine::UISystem::Scripts()["FPS_Overlay"] = GameOverScript;
 }
 
 void GameApplication::OnStart()

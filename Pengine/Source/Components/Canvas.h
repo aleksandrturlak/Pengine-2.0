@@ -2,7 +2,7 @@
 
 #include "../Core/Core.h"
 
-#include <clay/clay.h>
+#include <clay/clay.hpp>
 
 namespace Pengine
 {
@@ -15,16 +15,15 @@ namespace Pengine
 		{
 			std::string name;
 
-			Clay_Context* context{};
-		void* arenaMemory{};
+			clay::Context* context{};
 		};
 
 		std::vector<Script> scripts;
 
-		std::vector<Clay_RenderCommandArray> commands{};
+		std::vector<std::vector<clay::RenderCommand>> commands{};
 
-		Clay_Dimensions (*measureText)(Clay_StringSlice text, Clay_TextElementConfig *config, void *userData);
-		Clay_Vector2 (*queryScrollOffset)(uint32_t elementId, void *userData);
+		clay::MeasureTextFn measureText{};
+		clay::QueryScrollFn queryScrollOffset{};
 
 		bool drawInMainViewport = false;
 		glm::ivec2 size{};

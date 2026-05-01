@@ -188,9 +188,9 @@ glm::ivec2 FontManager::MeasureText(const std::string& fontName, const uint16_t 
 	return size;
 }
 
-Clay_Dimensions FontManager::ClayMeasureText(Clay_StringSlice text, Clay_TextElementConfig *config, void* userData)
+clay::Dimensions FontManager::ClayMeasureText(clay::StringSlice text, const clay::TextElementConfig* config, void* userData)
 {
-	// Clay_StringSlice is not null-terminated — construct string with explicit length
+	// StringSlice is not null-terminated — construct string with explicit length
 	const std::string str(text.chars, text.length);
 	const std::string fontName = FontManager::GetInstance().GetFontName(config->fontId);
 	glm::ivec2 size = FontManager::GetInstance().MeasureText(fontName, config->fontSize, str);
@@ -204,7 +204,7 @@ Clay_Dimensions FontManager::ClayMeasureText(Clay_StringSlice text, Clay_TextEle
 		? config->lineHeight
 		: size.y + config->fontSize / 4;
 
-	Clay_Dimensions dimensions{};
+	clay::Dimensions dimensions{};
 	dimensions.width  = static_cast<float>(size.x);
 	dimensions.height = static_cast<float>(lineHeight);
 

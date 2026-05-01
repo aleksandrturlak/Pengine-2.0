@@ -1,3 +1,4 @@
+#define CLAY_IMPLEMENTATION
 #include "UISystem.h"
 
 #include "../Core/Scene.h"
@@ -5,23 +6,18 @@
 #include "../Core/FontManager.h"
 #include "../Core/WindowManager.h"
 #include "../Core/Viewport.h"
-#include "../Core/ClayManager.h"
 
 #include "../Components/Transform.h"
+#include "../Components/Canvas.h"
 
 #include "../Graphics/FrameBuffer.h"
 
-#define CLAY_IMPLEMENTATION
-#include "../Components/Canvas.h"
-
 using namespace Pengine;
 
-namespace
+std::unordered_map<std::string, UISystem::ScriptFn>& UISystem::Scripts()
 {
-	void HandleClayErrors(Clay_ErrorData errorData)
-	{
-		Logger::Error("Clay:" + std::string(errorData.errorText.chars));
-	}
+	static std::unordered_map<std::string, ScriptFn> scripts;
+	return scripts;
 }
 
 UISystem::UISystem()
@@ -36,11 +32,7 @@ UISystem::UISystem()
 		Canvas& canvas = entity->GetComponent<Canvas>();
 		for (auto& script : canvas.scripts)
 		{
-			if (script.arenaMemory)
-			{
-				free(script.arenaMemory);
-				script.arenaMemory = nullptr;
-			}
+			delete script.context;
 			script.context = nullptr;
 		}
 	};
@@ -67,35 +59,29 @@ void UISystem::OnUpdate(const float deltaTime, std::shared_ptr<Scene> scene)
 
 		canvas.commands.clear();
 
-
 		for (auto& script : canvas.scripts)
 		{
-			auto foundCallback = ClayManager::GetInstance().scriptsByName.find(script.name);
-			if (foundCallback == ClayManager::GetInstance().scriptsByName.end())
+			auto& scripts = Scripts();
+			auto foundCallback = scripts.find(script.name);
+			if (foundCallback == scripts.end())
 			{
 				return;
 			}
 
 			if (!script.context)
 			{
-				Clay_SetCurrentContext(nullptr);
-				Clay_SetMaxElementCount(1024);
-
-				const size_t totalMemorySize = Clay_MinMemorySize();
-				void* arenaMemory = malloc(totalMemorySize);
-				Clay_Arena arena = Clay_CreateArenaWithCapacityAndMemory(totalMemorySize, arenaMemory);
-
-				script.context = Clay_Initialize(arena, Clay_Dimensions{ (float)canvas.size.x, (float)canvas.size.y }, Clay_ErrorHandler{ HandleClayErrors });
-				script.arenaMemory = arenaMemory;
+				script.context = new clay::Context({ (float)canvas.size.x, (float)canvas.size.y }, 1024);
 				canvas.measureText = FontManager::GetInstance().ClayMeasureText;
-				canvas.queryScrollOffset = [](uint32_t, void*) -> Clay_Vector2 { return { 0.0f, 0.0f }; };
+				canvas.queryScrollOffset = [](uint32_t, void*) -> clay::Vector2 { return { 0.0f, 0.0f }; };
+				script.context->setMeasureTextFunction(canvas.measureText);
+				script.context->setQueryScrollOffsetFunction(canvas.queryScrollOffset);
 			}
 
-			ClayManager::Init(&canvas, script.context);
-			const Clay_RenderCommandArray commands = foundCallback->second(&canvas, transform.GetEntity());
-			if (commands.length > 0)
+			script.context->setLayoutDimensions({ (float)canvas.size.x, (float)canvas.size.y });
+			std::vector<clay::RenderCommand> commands = foundCallback->second(&canvas, script.context, transform.GetEntity());
+			if (!commands.empty())
 			{
-				canvas.commands.emplace_back(commands);
+				canvas.commands.emplace_back(std::move(commands));
 			}
 		}
 	}

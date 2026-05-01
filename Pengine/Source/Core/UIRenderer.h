@@ -44,7 +44,7 @@ private:
 
 		void ProcessCommand(
 			const RenderPass::RenderCallbackInfo& renderInfo,
-			void* command,
+			const void* command,
 			uint32_t& batchIndex,
 			std::shared_ptr<Pipeline> pipeline,
 			const glm::mat4& projectionMat4);

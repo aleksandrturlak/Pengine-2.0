@@ -2,7 +2,7 @@
 
 #include "Core.h"
 
-#include <clay/clay.h>
+#include <clay/clay.hpp>
 
 namespace Pengine
 {
@@ -41,7 +41,7 @@ namespace Pengine
 
 		glm::ivec2 MeasureText(const std::string& fontName, const uint16_t fontSize, const std::string& text);
 
-		static Clay_Dimensions ClayMeasureText(Clay_StringSlice text, Clay_TextElementConfig *config, void* userData);
+		static clay::Dimensions ClayMeasureText(clay::StringSlice text, const clay::TextElementConfig* config, void* userData);
 
 		std::shared_ptr<Font> GetFont(const std::string& fontName, const uint16_t fontSize) const;
 

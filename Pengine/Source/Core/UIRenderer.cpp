@@ -122,7 +122,7 @@ void UIRenderer::Render(
 	struct CanvasInfo
 	{
 		glm::ivec2 size;
-		std::vector<Clay_RenderCommandArray> commands;
+		std::vector<std::vector<clay::RenderCommand>> commands;
 		std::shared_ptr<FrameBuffer> frameBuffer;
 	};
 
@@ -169,11 +169,11 @@ void UIRenderer::Render(
 			{
 				glm::mat4 projectionMat4 = glm::ortho(0.0f, (float)canvasInfo.size.x, (float)canvasInfo.size.y, 0.0f);
 
-				for (const auto& commands : canvasInfo.commands)
+				for (const auto& cmds : canvasInfo.commands)
 				{
-					for (int i = 0; i < commands.length; i++)
+					for (const auto& cmd : cmds)
 					{
-						ProcessCommand(renderInfo, &commands.internalArray[i], batchIndex, pipeline, projectionMat4);
+						ProcessCommand(renderInfo, &cmd, batchIndex, pipeline, projectionMat4);
 					}
 				}
 
@@ -195,11 +195,11 @@ void UIRenderer::Render(
 
 		renderInfo.renderer->BeginRenderPass(submitInfo);
 
-		for (const auto& commands : canvasInfo.commands)
+		for (const auto& cmds : canvasInfo.commands)
 		{
-			for (int i = 0; i < commands.length; i++)
+			for (const auto& cmd : cmds)
 			{
-				ProcessCommand(renderInfo, &commands.internalArray[i], batchIndex, pipeline, projectionMat4);
+				ProcessCommand(renderInfo, &cmd, batchIndex, pipeline, projectionMat4);
 			}
 		}
 
@@ -312,12 +312,12 @@ void UIRenderer::RenderBatch(
 
 void UIRenderer::ProcessCommand(
 	const RenderPass::RenderCallbackInfo& renderInfo,
-	void* command,
+	const void* command,
 	uint32_t& batchIndex,
 	std::shared_ptr<Pipeline> pipeline,
 	const glm::mat4& projectionMat4)
 {
-	Clay_RenderCommand* renderCommand = static_cast<Clay_RenderCommand*>(command);
+	const clay::RenderCommand* renderCommand = static_cast<const clay::RenderCommand*>(command);
 
 	glm::vec2 position = { renderCommand->boundingBox.x, renderCommand->boundingBox.y };
 	const glm::vec2 size = { renderCommand->boundingBox.width, renderCommand->boundingBox.height };
@@ -330,7 +330,7 @@ void UIRenderer::ProcessCommand(
 
 	switch (renderCommand->commandType)
 	{
-	case CLAY_RENDER_COMMAND_TYPE_RECTANGLE:
+	case clay::RenderCommandType::Rectangle:
 	{
 		color =
 		{
@@ -363,7 +363,7 @@ void UIRenderer::ProcessCommand(
 
 		break;
 	}
-	case CLAY_RENDER_COMMAND_TYPE_IMAGE:
+	case clay::RenderCommandType::Image:
 	{
 		color =
 		{
@@ -396,7 +396,7 @@ void UIRenderer::ProcessCommand(
 
 		break;
 	}
-	case CLAY_RENDER_COMMAND_TYPE_TEXT:
+	case clay::RenderCommandType::Text:
 	{
 		color =
 		{
@@ -438,7 +438,7 @@ void UIRenderer::ProcessCommand(
 
 		break;
 	}
-	case CLAY_RENDER_COMMAND_TYPE_SCISSOR_START:
+	case clay::RenderCommandType::ScissorStart:
 	{
 		RecordPreviousDrawCommand(batchIndex, pipeline);
 
@@ -448,7 +448,7 @@ void UIRenderer::ProcessCommand(
 		m_Scissors.emplace(scissors);
 		break;
 	}
-	case CLAY_RENDER_COMMAND_TYPE_SCISSOR_END:
+	case clay::RenderCommandType::ScissorEnd:
 	{
 		RecordPreviousDrawCommand(batchIndex, pipeline);
 
