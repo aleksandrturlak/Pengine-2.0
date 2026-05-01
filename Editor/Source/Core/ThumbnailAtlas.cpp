@@ -16,7 +16,7 @@ std::shared_ptr<class Texture> ThumbnailAtlas::Push(
 	if (textureSize.x != textureSize.y)
 	{
 		Logger::Error(
-			std::format("Editor: Can't push texture {} to thumbnail atlas, texture width and height have to be the same!", texture->GetFilepath().string()));
+			Utils::Format("Editor: Can't push texture {} to thumbnail atlas, texture width and height have to be the same!", texture->GetFilepath().string()));
 		return {};
 	}
 

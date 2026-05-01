@@ -354,7 +354,7 @@ void Visualizer::DrawFrustum(std::array<glm::vec4, 6> planes, const glm::vec3& c
 
 		if (fabs(det) < 1e-8f)
 		{
-			Logger::Warning(std::format("DrawFrustum::planeIntersection(): Degenerate intersection! Det = {}", det));
+			Logger::Warning(Utils::Format("DrawFrustum::planeIntersection(): Degenerate intersection! Det = {}", det));
 			return glm::vec3(0.0f);
 		}
 

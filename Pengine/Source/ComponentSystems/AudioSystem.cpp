@@ -140,7 +140,7 @@ namespace Pengine
 
 		if (ma_sound_init_from_file(m_Engine, source.filePath.c_str(), flags, nullptr, nullptr, source.m_Sound) != MA_SUCCESS)
 		{
-			Logger::Error(std::format("AudioSystem:Failed to load {}", source.filePath));
+			Logger::Error(Utils::Format("AudioSystem:Failed to load {}", source.filePath));
 			delete source.m_Sound;
 			source.m_Sound = nullptr;
 			return;

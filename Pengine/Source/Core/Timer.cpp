@@ -31,7 +31,7 @@ void Timer::Stop() const
 	{
 		const auto defaultPrecision = std::cout.precision();
 		std::setprecision(6);
-		Logger::Log(std::format("{}: {} us ( {} ms)", m_Name, duration, ms));
+		Logger::Log(Utils::Format("{}: {} us ( {} ms)", m_Name, duration, ms));
 		std::setprecision(defaultPrecision);
 	}
 

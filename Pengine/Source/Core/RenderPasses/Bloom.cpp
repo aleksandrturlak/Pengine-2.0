@@ -144,7 +144,7 @@ void RenderPassManager::CreateBloom()
 				sourceTextureInfos[mipLevel - 1].baseMipLevel = (mipLevel - 1) > 0 ? mipLevel - 1 : 0;
 				sourceTextureInfos[mipLevel - 1].texture = sourceTexture;
 
-				renderInfo.renderer->BeginCommandLabel(std::format("DownSample[{}]", mipLevel), { 1.0f, 1.0f, 0.0f }, renderInfo.frame);
+				renderInfo.renderer->BeginCommandLabel(Utils::Format("DownSample[{}]", mipLevel), { 1.0f, 1.0f, 0.0f }, renderInfo.frame);
 
 				renderInfo.renderer->PipelineBarrier(
 					BarrierBatch{}
@@ -204,7 +204,7 @@ void RenderPassManager::CreateBloom()
 				sourceTextureInfos[mipLevel].baseMipLevel = mipLevel;
 				sourceTextureInfos[mipLevel].texture = bloomTexture;
 
-				renderInfo.renderer->BeginCommandLabel(std::format("UpSample[{}]", mipLevel - 1), { 1.0f, 1.0f, 0.0f }, renderInfo.frame);
+				renderInfo.renderer->BeginCommandLabel(Utils::Format("UpSample[{}]", mipLevel - 1), { 1.0f, 1.0f, 0.0f }, renderInfo.frame);
 
 				renderInfo.renderer->PipelineBarrier(
 					BarrierBatch{}

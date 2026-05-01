@@ -119,7 +119,7 @@ std::optional<ShaderReflection::ReflectShaderModule> VulkanPipelineUtils::Reflec
 	SpvReflectResult result = spvReflectCreateShaderModule(spv.size(), spv.data(), &reflectModule);
 	if (result != SPV_REFLECT_RESULT_SUCCESS)
 	{
-		Logger::Error(std::format("Failed to get spirv reflection of {}!", filepath.string()));
+		Logger::Error(Utils::Format("Failed to get spirv reflection of {}!", filepath.string()));
 		return std::nullopt;
 	}
 

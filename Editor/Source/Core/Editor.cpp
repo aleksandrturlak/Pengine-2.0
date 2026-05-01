@@ -3009,7 +3009,7 @@ void Editor::SkeletalAnimatorComponent(const std::shared_ptr<Entity>& entity)
 
 			ImGui::PushID(static_cast<int>(i));
 
-			ImGui::PushID(std::format("RemoveLayer{}", i).c_str());
+			ImGui::PushID(Utils::Format("RemoveLayer{}", i).c_str());
 			if (ImGui::SmallButton("X"))
 			{
 				layerToRemove = static_cast<int32_t>(i);
@@ -3224,7 +3224,7 @@ void Editor::CanvasComponent(const std::shared_ptr<Entity>& entity)
 
 		for (size_t i = 0; i < canvas.scripts.size(); i++)
 		{
-			std::string pushId = std::format("Remove Script UI {}", i);
+			std::string pushId = Utils::Format("Remove Script UI {}", i);
 			ImGui::PushID(pushId.c_str());
 			if (ImGui::Button("X"))
 			{
@@ -4181,7 +4181,7 @@ void Editor::MeshMenu::Update(const Editor& editor)
 		const auto& lods = mesh->GetCreateInfo().lods;
 		for (size_t i = 0; i < lods.size(); i++)
 		{
-			if (ImGui::CollapsingHeader(std::format("Lod {}", i).c_str()))
+			if (ImGui::CollapsingHeader(Utils::Format("Lod {}", i).c_str()))
 			{
 				Indent indent;
 				ImGui::Text("Index Count %u", lods[i].indexCount);

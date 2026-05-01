@@ -2586,7 +2586,7 @@ Serializer::ImportInfo Serializer::GetImportInfo(const std::filesystem::path& fi
 	auto data = fastgltf::GltfDataBuffer::FromPath(filepath);
 	if (data.error() != fastgltf::Error::None)
 	{
-		Logger::Error(std::format("Failed to load intermediate {}!", filepath.string()));
+		Logger::Error(Utils::Format("Failed to load intermediate {}!", filepath.string()));
 		return {};
 	}
 
@@ -2595,7 +2595,7 @@ Serializer::ImportInfo Serializer::GetImportInfo(const std::filesystem::path& fi
 
 	if (asset.error() != fastgltf::Error::None)
 	{
-		Logger::Error(std::format("Failed to load intermediate {}!", filepath.string()));
+		Logger::Error(Utils::Format("Failed to load intermediate {}!", filepath.string()));
 		return {};
 	}
 
@@ -2610,7 +2610,7 @@ Serializer::ImportInfo Serializer::GetImportInfo(const std::filesystem::path& fi
 	{
 		if (gltfAsset.materials[i].name.empty())
 		{
-			gltfAsset.materials[i].name = std::format("{}Material{}", filename, i);
+			gltfAsset.materials[i].name = Utils::Format("{}Material{}", filename, i);
 		}
 
 		importInfo.materials.emplace_back(gltfAsset.materials[i].name);
@@ -2625,12 +2625,12 @@ Serializer::ImportInfo Serializer::GetImportInfo(const std::filesystem::path& fi
 
 			if (meshName.empty())
 			{
-				meshName = std::format("{}Mesh", filename);
+				meshName = Utils::Format("{}Mesh", filename);
 			}
 
 			if (mesh.primitives.size() > 1)
 			{
-				meshName += std::format("{}", primitiveIndex);
+				meshName += Utils::Format("{}", primitiveIndex);
 			}
 
 			importInfo.meshes.emplace_back(meshName);
@@ -2643,7 +2643,7 @@ Serializer::ImportInfo Serializer::GetImportInfo(const std::filesystem::path& fi
 	{
 		if (gltfAsset.skins[i].name.empty())
 		{
-			gltfAsset.skins[i].name = std::format("{}Skin{}", filename, i);
+			gltfAsset.skins[i].name = Utils::Format("{}Skin{}", filename, i);
 		}
 
 		importInfo.skeletons.emplace_back(gltfAsset.skins[i].name);
@@ -2653,7 +2653,7 @@ Serializer::ImportInfo Serializer::GetImportInfo(const std::filesystem::path& fi
 	{
 		if (gltfAsset.animations[i].name.empty())
 		{
-			gltfAsset.animations[i].name = std::format("{}Animation{}", filename, i);
+			gltfAsset.animations[i].name = Utils::Format("{}Animation{}", filename, i);
 		}
 
 		importInfo.animations.emplace_back(gltfAsset.animations[i].name);
@@ -2663,7 +2663,7 @@ Serializer::ImportInfo Serializer::GetImportInfo(const std::filesystem::path& fi
 	{
 		if (gltfAsset.scenes[i].name.empty())
 		{
-			gltfAsset.scenes[i].name = std::format("{}Scene{}", filename, i);
+			gltfAsset.scenes[i].name = Utils::Format("{}Scene{}", filename, i);
 		}
 
 		importInfo.prefabs.emplace_back(gltfAsset.scenes[i].name);
@@ -2687,7 +2687,7 @@ Serializer::LoadIntermediate(
 	auto data = fastgltf::GltfDataBuffer::FromPath(options.filepath);
 	if (data.error() != fastgltf::Error::None)
 	{
-		Logger::Error(std::format("Failed to load intermediate {}!", options.filepath.string()));
+		Logger::Error(Utils::Format("Failed to load intermediate {}!", options.filepath.string()));
 		return {};
 	}
 
@@ -2697,7 +2697,7 @@ Serializer::LoadIntermediate(
 
 	if (asset.error() != fastgltf::Error::None)
 	{
-		Logger::Error(std::format("Failed to load intermediate {}!", options.filepath.string()));
+		Logger::Error(Utils::Format("Failed to load intermediate {}!", options.filepath.string()));
 		return {};
 	}
 
@@ -2726,7 +2726,7 @@ Serializer::LoadIntermediate(
 		{
 			if (gltfAsset.materials[materialIndex].name.empty())
 			{
-				gltfAsset.materials[materialIndex].name = std::format("{}Material{}", filename, materialIndex);
+				gltfAsset.materials[materialIndex].name = Utils::Format("{}Material{}", filename, materialIndex);
 			}
 
 			futures.emplace_back(ThreadPool::GetInstance().EnqueueAsyncFuture([
@@ -2765,7 +2765,7 @@ Serializer::LoadIntermediate(
 			auto& skin = gltfAsset.skins[i];
 			if (skin.name.empty())
 			{
-				skin.name = std::format("{}Skeleton{}", filename, i);
+				skin.name = Utils::Format("{}Skeleton{}", filename, i);
 			}
 
 			skeletonsByIndex.emplace_back(GenerateSkeleton(gltfAsset, skin, directory));
@@ -2790,7 +2790,7 @@ Serializer::LoadIntermediate(
 				std::string meshName = gltfAsset.meshes[meshIndex].name.c_str();
 				if (meshName.empty())
 				{
-					meshName = std::format("{}Mesh", filename);
+					meshName = Utils::Format("{}Mesh", filename);
 				}
 
 				Mesh::CreateInfo::SourceFileInfo sourceFileInfo{};
@@ -2801,7 +2801,7 @@ Serializer::LoadIntermediate(
 				if (gltfAsset.meshes[meshIndex].primitives.size() > 1)
 				{
 					std::lock_guard<std::mutex> lock(mutex);
-					meshName += std::format("{}", primitiveIndex++);
+					meshName += Utils::Format("{}", primitiveIndex++);
 				}
 
 				futures.emplace_back(ThreadPool::GetInstance().EnqueueAsyncFuture([
@@ -2859,7 +2859,7 @@ Serializer::LoadIntermediate(
 			fastgltf::Animation& animation = gltfAsset.animations[i];
 			if (animation.name.empty())
 			{
-				animation.name = std::format("{}Animation{}", filename, i);
+				animation.name = Utils::Format("{}Animation{}", filename, i);
 			}
 
 			animations.emplace_back(GenerateAnimation(gltfAsset, animation, directory));
@@ -2875,7 +2875,7 @@ Serializer::LoadIntermediate(
 			fastgltf::Scene& scene = gltfAsset.scenes[i];
 			if (scene.name.empty())
 			{
-				scene.name = std::format("{}Scene{}", filename, i);
+				scene.name = Utils::Format("{}Scene{}", filename, i);
 			}
 
 			for (const auto& nodeIndex : scene.nodeIndices)
@@ -3005,7 +3005,7 @@ std::shared_ptr<Texture> Serializer::LoadGltfTexture(
 
 			if (!createInfo.data)
 			{
-				Logger::Error(std::format("{}:Failed to load embedded texture!", createInfo.name));
+				Logger::Error(Utils::Format("{}:Failed to load embedded texture!", createInfo.name));
 				return nullptr;
 			}
 
@@ -3071,7 +3071,7 @@ std::optional<Mesh::CreateInfo> Serializer::GenerateMesh(
 
 	if (primitive.type != fastgltf::PrimitiveType::Triangles)
 	{
-		Logger::Error(std::format("{}: Primitive type is not supported!", meshName));
+		Logger::Error(Utils::Format("{}: Primitive type is not supported!", meshName));
 		return std::nullopt;
 	}
 
@@ -3100,7 +3100,7 @@ std::optional<Mesh::CreateInfo> Serializer::GenerateMesh(
 
 	if (positionAttribute == primitive.attributes.end())
 	{
-		Logger::Error(std::format("{}: Mesh doesn't have POSITION attribute!", name));
+		Logger::Error(Utils::Format("{}: Mesh doesn't have POSITION attribute!", name));
 		return std::nullopt;
 	}
 
@@ -3208,7 +3208,7 @@ std::optional<Mesh::CreateInfo> Serializer::GenerateMesh(
 		}
 		else
 		{
-			Logger::Error(std::format("{}: Index type is not supported!", meshName));
+			Logger::Error(Utils::Format("{}: Index type is not supported!", meshName));
 		}
 	}
 	else
@@ -3447,7 +3447,7 @@ std::optional<Mesh::CreateInfo> Serializer::GenerateMesh(
 	}
 	else
 	{
-		Logger::Error(std::format("Failed to generate mesh {} at {}, unsupported mesh type!",
+		Logger::Error(Utils::Format("Failed to generate mesh {} at {}, unsupported mesh type!",
 			meshName, sourceFileInfo.filepath.string()));
 		return std::nullopt;
 	}
@@ -3462,7 +3462,7 @@ std::optional<Mesh::CreateInfo> Serializer::GenerateMesh(
 //	auto data = fastgltf::GltfDataBuffer::FromPath(filepath);
 //	if (data.error() != fastgltf::Error::None)
 //	{
-//		Logger::Error(std::format("Failed to load intermediate {}!", filepath.string()));
+//		Logger::Error(Utils::Format("Failed to load intermediate {}!", filepath.string()));
 //		return {};
 //	}
 //
@@ -3473,7 +3473,7 @@ std::optional<Mesh::CreateInfo> Serializer::GenerateMesh(
 //
 //	if (asset.error() != fastgltf::Error::None)
 //	{
-//		Logger::Error(std::format("Failed to load intermediate {}!", filepath.string()));
+//		Logger::Error(Utils::Format("Failed to load intermediate {}!", filepath.string()));
 //		return {};
 //	}
 //
@@ -3488,7 +3488,7 @@ std::optional<Mesh::CreateInfo> Serializer::GenerateMesh(
 //
 //			if (gltfAsset.meshes[meshIndex].primitives.size() > 1)
 //			{
-//				meshName += std::format("{}", primitiveIndex++);
+//				meshName += Utils::Format("{}", primitiveIndex++);
 //			}
 //
 //			std::optional<Mesh::CreateInfo> meshCreateInfo;
@@ -3699,7 +3699,7 @@ std::shared_ptr<SkeletalAnimation> Serializer::GenerateAnimation(
 	{
 		if (!channel.nodeIndex)
 		{
-			Logger::Warning(std::format("{}: Animation channel doesn't have node index!", name));
+			Logger::Warning(Utils::Format("{}: Animation channel doesn't have node index!", name));
 			continue;
 		}
 

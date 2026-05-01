@@ -441,7 +441,7 @@ void RenderPassManager::CreatePointLightShadows()
 				submitInfo.frameBuffer = frameBuffer;
 				submitInfo.viewport = getShadowMapFaceViewport(shadowMapViewportInfo, lightInfo.shadowMapIndex, faceInfo.faceIndex);
 				submitInfo.scissors = getShadowMapFaceScissor(*submitInfo.viewport, lightInfo.shadowMapIndex, faceInfo.faceIndex);
-				renderInfo.renderer->BeginRenderPass(submitInfo, std::format("Face {}", faceInfo.faceIndex), { 1.0f, 1.0f, 0.0f });
+				renderInfo.renderer->BeginRenderPass(submitInfo, Utils::Format("Face {}", faceInfo.faceIndex), { 1.0f, 1.0f, 0.0f });
 
 				for (const auto& [baseMaterial, entitiesByMaterial] : faceInfo.renderableEntities)
 				{

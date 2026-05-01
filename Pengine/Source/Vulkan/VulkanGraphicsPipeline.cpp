@@ -27,7 +27,7 @@ VulkanGraphicsPipeline::VulkanGraphicsPipeline(const CreateGraphicsInfo& createG
 		const std::shared_ptr<ShaderModule> shaderModule = ShaderModuleManager::GetInstance().GetOrCreateShaderModule(filepath, type);
 		if (!shaderModule->IsValid())
 		{
-			FATAL_ERROR(std::format("Failed to get shader module {}, it is invalid!", filepath.string()));
+			FATAL_ERROR(Utils::Format("Failed to get shader module {}, it is invalid!", filepath.string()));
 		}
 
 		m_ShaderModulesByType[type] = shaderModule;

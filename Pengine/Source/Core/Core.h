@@ -52,6 +52,7 @@
 
 #include "UUID.h"
 #include "NativeHandle.h"
+#include "../Utils/Format.h"
 
 // Render pass constants
 #define MAX_PIPELINE_COUNT_PER_MATERIAL 8

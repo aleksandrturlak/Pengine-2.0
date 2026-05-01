@@ -47,7 +47,7 @@ std::shared_ptr<RenderPass> RenderPassManager::CreateRenderPass(const RenderPass
 	std::shared_ptr<RenderPass> renderPass = RenderPass::Create(createInfo);
 	m_PassesByName.emplace(createInfo.name, renderPass);
 
-	Logger::Log(std::format("Created Render Pass: {} {}", renderPass->GetName(), renderPass->GetId()), BOLDGREEN);
+	Logger::Log(Utils::Format("Created Render Pass: {} {}", renderPass->GetName(), renderPass->GetId()), BOLDGREEN);
 
 	return renderPass;
 }
@@ -59,7 +59,7 @@ std::shared_ptr<ComputePass> RenderPassManager::CreateComputePass(const ComputeP
 	std::shared_ptr<ComputePass> computePass = std::make_shared<ComputePass>(createInfo);
 	m_PassesByName.emplace(createInfo.name, computePass);
 
-	Logger::Log(std::format("Created Compute Pass: {} {}", computePass->GetName(), computePass->GetId()), BOLDGREEN);
+	Logger::Log(Utils::Format("Created Compute Pass: {} {}", computePass->GetName(), computePass->GetId()), BOLDGREEN);
 
 	return computePass;
 }
@@ -1013,13 +1013,13 @@ void RenderPassManager::ProcessLights(const RenderPass::RenderCallbackInfo& rend
 			const glm::vec3 positionViewSpace = camera.GetViewMat4() * glm::vec4(positionWorldSpace, 1.0f);
 			const int castSSS = pl.castSSS;
 
-			deferredBaseMaterial->WriteToBuffer(lightsBuffer, lightsBufferName, std::format("pointLights[{}].positionWorldSpace", lightIndex), positionWorldSpace);
-			deferredBaseMaterial->WriteToBuffer(lightsBuffer, lightsBufferName, std::format("pointLights[{}].positionViewSpace", lightIndex), positionViewSpace);
-			deferredBaseMaterial->WriteToBuffer(lightsBuffer, lightsBufferName, std::format("pointLights[{}].castSSS", lightIndex), castSSS);
-			deferredBaseMaterial->WriteToBuffer(lightsBuffer, lightsBufferName, std::format("pointLights[{}].color", lightIndex), pl.color);
-			deferredBaseMaterial->WriteToBuffer(lightsBuffer, lightsBufferName, std::format("pointLights[{}].intensity", lightIndex), pl.intensity);
-			deferredBaseMaterial->WriteToBuffer(lightsBuffer, lightsBufferName, std::format("pointLights[{}].radius", lightIndex), pl.radius);
-			deferredBaseMaterial->WriteToBuffer(lightsBuffer, lightsBufferName, std::format("pointLights[{}].bias", lightIndex), pl.bias);
+			deferredBaseMaterial->WriteToBuffer(lightsBuffer, lightsBufferName, Utils::Format("pointLights[{}].positionWorldSpace", lightIndex), positionWorldSpace);
+			deferredBaseMaterial->WriteToBuffer(lightsBuffer, lightsBufferName, Utils::Format("pointLights[{}].positionViewSpace", lightIndex), positionViewSpace);
+			deferredBaseMaterial->WriteToBuffer(lightsBuffer, lightsBufferName, Utils::Format("pointLights[{}].castSSS", lightIndex), castSSS);
+			deferredBaseMaterial->WriteToBuffer(lightsBuffer, lightsBufferName, Utils::Format("pointLights[{}].color", lightIndex), pl.color);
+			deferredBaseMaterial->WriteToBuffer(lightsBuffer, lightsBufferName, Utils::Format("pointLights[{}].intensity", lightIndex), pl.intensity);
+			deferredBaseMaterial->WriteToBuffer(lightsBuffer, lightsBufferName, Utils::Format("pointLights[{}].radius", lightIndex), pl.radius);
+			deferredBaseMaterial->WriteToBuffer(lightsBuffer, lightsBufferName, Utils::Format("pointLights[{}].bias", lightIndex), pl.bias);
 			
 			auto getPointLightViewMatrix = [](const glm::vec3& position, int faceIndex) -> glm::mat4
 			{
@@ -1059,7 +1059,7 @@ void RenderPassManager::ProcessLights(const RenderPass::RenderCallbackInfo& rend
 			for (size_t faceIndex = 0; faceIndex < 6; faceIndex++)
 			{
 				pointLight.viewProjectionMat4[faceIndex] = projectionMat4 * getPointLightViewMatrix(positionWorldSpace, faceIndex);
-				deferredBaseMaterial->WriteToBuffer(lightsBuffer, lightsBufferName, std::format("pointLights[{}].pointLightFaceInfos[{}].viewProjectionMat4", lightIndex, faceIndex), pointLight.viewProjectionMat4[faceIndex]);
+				deferredBaseMaterial->WriteToBuffer(lightsBuffer, lightsBufferName, Utils::Format("pointLights[{}].pointLightFaceInfos[{}].viewProjectionMat4", lightIndex, faceIndex), pointLight.viewProjectionMat4[faceIndex]);
 			}
 
 			pointLights.emplace_back(pointLight);
@@ -1115,23 +1115,23 @@ void RenderPassManager::ProcessLights(const RenderPass::RenderCallbackInfo& rend
 			const glm::vec3 directionViewSpace = glm::mat3(camera.GetViewMat4()) * transform.GetForward();
 			const int castSSS = sl.castSSS;
 
-			deferredBaseMaterial->WriteToBuffer(lightsBuffer, lightsBufferName, std::format("spotLights[{}].positionWorldSpace", lightIndex), positionWorldSpace);
-			deferredBaseMaterial->WriteToBuffer(lightsBuffer, lightsBufferName, std::format("spotLights[{}].positionViewSpace", lightIndex), positionViewSpace);
-			deferredBaseMaterial->WriteToBuffer(lightsBuffer, lightsBufferName, std::format("spotLights[{}].directionViewSpace", lightIndex), directionViewSpace);
-			deferredBaseMaterial->WriteToBuffer(lightsBuffer, lightsBufferName, std::format("spotLights[{}].castSSS", lightIndex), castSSS);
-			deferredBaseMaterial->WriteToBuffer(lightsBuffer, lightsBufferName, std::format("spotLights[{}].color", lightIndex), sl.color);
-			deferredBaseMaterial->WriteToBuffer(lightsBuffer, lightsBufferName, std::format("spotLights[{}].intensity", lightIndex), sl.intensity);
-			deferredBaseMaterial->WriteToBuffer(lightsBuffer, lightsBufferName, std::format("spotLights[{}].radius", lightIndex), sl.radius);
-			deferredBaseMaterial->WriteToBuffer(lightsBuffer, lightsBufferName, std::format("spotLights[{}].bias", lightIndex), sl.bias);
-			deferredBaseMaterial->WriteToBuffer(lightsBuffer, lightsBufferName, std::format("spotLights[{}].innerCutOff", lightIndex), sl.innerCutOff);
-			deferredBaseMaterial->WriteToBuffer(lightsBuffer, lightsBufferName, std::format("spotLights[{}].outerCutOff", lightIndex), sl.outerCutOff);
+			deferredBaseMaterial->WriteToBuffer(lightsBuffer, lightsBufferName, Utils::Format("spotLights[{}].positionWorldSpace", lightIndex), positionWorldSpace);
+			deferredBaseMaterial->WriteToBuffer(lightsBuffer, lightsBufferName, Utils::Format("spotLights[{}].positionViewSpace", lightIndex), positionViewSpace);
+			deferredBaseMaterial->WriteToBuffer(lightsBuffer, lightsBufferName, Utils::Format("spotLights[{}].directionViewSpace", lightIndex), directionViewSpace);
+			deferredBaseMaterial->WriteToBuffer(lightsBuffer, lightsBufferName, Utils::Format("spotLights[{}].castSSS", lightIndex), castSSS);
+			deferredBaseMaterial->WriteToBuffer(lightsBuffer, lightsBufferName, Utils::Format("spotLights[{}].color", lightIndex), sl.color);
+			deferredBaseMaterial->WriteToBuffer(lightsBuffer, lightsBufferName, Utils::Format("spotLights[{}].intensity", lightIndex), sl.intensity);
+			deferredBaseMaterial->WriteToBuffer(lightsBuffer, lightsBufferName, Utils::Format("spotLights[{}].radius", lightIndex), sl.radius);
+			deferredBaseMaterial->WriteToBuffer(lightsBuffer, lightsBufferName, Utils::Format("spotLights[{}].bias", lightIndex), sl.bias);
+			deferredBaseMaterial->WriteToBuffer(lightsBuffer, lightsBufferName, Utils::Format("spotLights[{}].innerCutOff", lightIndex), sl.innerCutOff);
+			deferredBaseMaterial->WriteToBuffer(lightsBuffer, lightsBufferName, Utils::Format("spotLights[{}].outerCutOff", lightIndex), sl.outerCutOff);
 
 			const glm::mat4 viewProjectionMat4 = glm::perspective(
 				sl.outerCutOff * 2.0f,
 				1.0f,
 				camera.GetZNear(),
 				sl.radius) * transform.GetInverseTransformMat4();
-			deferredBaseMaterial->WriteToBuffer(lightsBuffer, lightsBufferName, std::format("spotLights[{}].viewProjectionMat4", lightIndex), viewProjectionMat4);
+			deferredBaseMaterial->WriteToBuffer(lightsBuffer, lightsBufferName, Utils::Format("spotLights[{}].viewProjectionMat4", lightIndex), viewProjectionMat4);
 
 			spotLights.emplace_back(spotLight);
 

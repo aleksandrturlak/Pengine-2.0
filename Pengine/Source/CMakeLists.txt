@@ -172,6 +172,7 @@ source_group("SpirvReflect" FILES ${SPIRV_REFLECT_SOURCES})
 
 set(UTILS_SOURCES
 	Utils/Utils.h
+	Utils/Format.h
 )
 source_group("Utils" FILES ${UTILS_SOURCES})
 

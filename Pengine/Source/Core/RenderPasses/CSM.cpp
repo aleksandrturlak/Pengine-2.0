@@ -198,7 +198,7 @@ void RenderPassManager::CreateCSM()
 
 			for (int cascadeIndex = 0; cascadeIndex < cascadeCount; ++cascadeIndex)
 			{
-				renderInfo.renderer->BeginCommandLabel(std::format("Cascade {}", cascadeIndex), glm::vec3(1.0f, 1.0f, 0.0f), renderInfo.frame);
+				renderInfo.renderer->BeginCommandLabel(Utils::Format("Cascade {}", cascadeIndex), glm::vec3(1.0f, 1.0f, 0.0f), renderInfo.frame);
 				
 				for (const auto& [id, pipeline] : csmData.sortedPipelines)
 				{
